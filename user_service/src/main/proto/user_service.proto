@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package squad.user.v1;
+
+option java_multiple_files = true;
+option java_package = "com.squad.grpc.user";
+
+service UserService {
+  rpc GetUserById (GetUserByIdRequest) returns (GetUserByIdResponse);
+  rpc GetUserBySteamId (GetUserBySteamIdRequest) returns (GetUserBySteamIdResponse);
+  // Эндпоинт для входа через Steam позже
+}
+
+message GetUserByIdRequest {
+  string id = 1;
+}
+
+message GetUserByIdResponse {
+  User user = 1;
+}
+
+message GetUserBySteamIdRequest {
+  string steam_id = 1;
+}
+
+message GetUserBySteamIdResponse {
+  User user = 1;
+}
+
+message User {
+  string id = 1;
+  string steam_id = 2;
+  string nickname = 3;
+  string avatar_url = 4;
+  string registered_at = 5;
+}
