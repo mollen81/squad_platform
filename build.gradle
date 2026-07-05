@@ -10,11 +10,11 @@ subprojects {
     apply plugin: 'org.springframework.boot'
 
     group = 'com.squad'
-    version = '0.0.1-SNAPSHOT'
+    version = '0.0.1-ALPHA'
 
     java {
-        sourceCompatibility = '23'
-        targetCompatibility = '23'
+        sourceCompatibility = '21'
+        targetCompatibility = '21'
     }
 
     repositories {

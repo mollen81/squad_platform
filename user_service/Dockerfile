@@ -1,0 +1,25 @@
+FROM eclipse-temurin:23 AS builder
+WORKDIR /app
+
+COPY gradlew .
+COPY gradle gradle
+COPY build.gradle .
+COPY settings.gradle .
+
+COPY user_service user_service
+
+RUN chmod +x ./gradlew
+RUN ./gradlew :user_service:bootJar --no-daemon
+
+FROM eclipse-temurin:23
+WORKDIR /app
+
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+USER appuser
+
+COPY --from=builder /app/user_service/build/libs/*.jar app.jar
+
+EXPOSE 8081
+EXPOSE 9091
+
+ENTRYPOINT ["java", "-XX:+UseG1GC", "-XX:MaxRAMPercentage=55.0", "-jar", "app.jar"]
