@@ -1,2 +1,3 @@
 rootProject.name = 'squad_platform'
 include 'user_service'
+include 'gateway'
