@@ -39,6 +39,9 @@ sourceSets {
             srcDirs 'build/generated/source/proto/main/grpc'
             srcDirs 'build/generated/source/proto/main/java'
         }
+        proto {
+            srcDir '../user_service/src/main/proto'
+        }
     }
 }
 
