@@ -6,6 +6,7 @@ import com.squad.user.kafka.UserEventProducer;
 import com.squad.user.repository.UserRepository;
 import com.squad.user.service.AuthGrpcService;
 import com.squad.user.service.SteamOpenIdValidator;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -104,4 +105,15 @@ public class AuthGrpcServiceTest {
         assertFalse(response.getIsNewUser());
     }
 
+    @Test
+    public void resolveSteamAuth_InvalidSteamSignature_ReturnsError() {
+        when(steamValidator.validateAndExtractSteamId(anyMap()))
+                .thenThrow(new RuntimeException("Invalid Steam OpenID Signature"));
+
+        authGrpcService.resolveSteamAuth(request, responseObserver);
+
+        verify(responseObserver).onError(any(StatusRuntimeException.class));
+        verify(userRepo, never()).save(any());
+        verify(responseObserver, never()).onNext(any());
+    }
 }
