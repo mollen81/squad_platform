@@ -83,4 +83,25 @@ public class AuthGrpcServiceTest {
         assertNotNull(response.getToken());
     }
 
+    @Test
+    public void resolveSteamAuth_ExistingUser_UpdatesLoginTime() {
+        when(steamValidator.validateAndExtractSteamId(anyMap())).thenReturn(VALID_STEAM_ID);
+        UserEntity existingUser = UserEntity.builder()
+                .id(UUID.randomUUID())
+                .steamId(VALID_STEAM_ID)
+                .build();
+        when(userRepo.findBySteamId(VALID_STEAM_ID)).thenReturn(Optional.of(existingUser));
+
+        when(userRepo.save(any(UserEntity.class))).thenReturn(existingUser);
+
+        authGrpcService.resolveSteamAuth(request, responseObserver);
+
+        verify(userRepo, times(1)).save(existingUser);
+        verify(userEventProducer, never()).sendUserRegisteredEvent(any());
+
+        verify(responseObserver).onNext(responseCaptor.capture());
+        ResolveSteamAuthResponse response = responseCaptor.getValue();
+        assertFalse(response.getIsNewUser());
+    }
+
 }
