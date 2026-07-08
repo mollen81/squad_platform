@@ -35,7 +35,7 @@ public class AuthGrpcService extends AuthServiceGrpc.AuthServiceImplBase {
 
             if (user == null) {
                 user = UserEntity.builder().steamId(steamId).lastLoginAt(OffsetDateTime.now()).build();
-                userRepository.save(user);
+                user = userRepository.save(user);
                 isNewUser = true;
 
                 UserRegisteredEvent event = UserRegisteredEvent.builder()
@@ -43,7 +43,7 @@ public class AuthGrpcService extends AuthServiceGrpc.AuthServiceImplBase {
                 userEventProducer.sendUserRegisteredEvent(event);
             } else {
                 user.setLastLoginAt(OffsetDateTime.now());
-                userRepository.save(user);
+                user = userRepository.save(user);
             }
 
             ResolveSteamAuthResponse response = ResolveSteamAuthResponse.newBuilder()
