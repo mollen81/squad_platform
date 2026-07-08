@@ -1,0 +1,15 @@
+type Mutation {
+    loginWithSteam(openidParamsJson: String!): AuthResponse!
+}
+
+type Query {
+    # ЗАГЛУШКА
+    ping: String!
+}
+
+type AuthResponse {
+    userId: String!
+    steamId: String!
+    isNewUser: Boolean!
+    token: String!
+}
