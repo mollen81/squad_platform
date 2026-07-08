@@ -1,21 +1,21 @@
-import com.squad.GatewayApplication;
+import com.squad.controller.AuthController;
 import com.squad.grpc.user.ResolveSteamAuthResponse;
 import com.squad.service.AuthGrpcClientService;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.graphql.GraphQlTest;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.graphql.test.tester.GraphQlTester;
+import org.springframework.test.context.ContextConfiguration;
 
 import static org.mockito.Mockito.*;
 
 
-@ComponentScan(basePackages = "/gateway")
-@SpringBootTest(classes = GatewayApplication.class)
+@GraphQlTest(AuthController.class)
+@ContextConfiguration(classes = AuthController.class)
 public class AuthControllerTest {
 
+    @Autowired
     private GraphQlTester graphQlTester;
 
     @MockBean
@@ -33,15 +33,17 @@ public class AuthControllerTest {
                 .setIsNewUser(true)
                 .build();
 
-        when(authGrpcClientService.loginWithSteam(VALID_STEAM_ID)).thenReturn(response);
+        when(authGrpcClientService.loginWithSteam(any())).thenReturn(response);
 
+        //language=GraphQl
         String mutation = """
                 mutation {
-                    loginWithSteam(openidParamsJson: "{\\"openid.mode\\":\\id_res\\"})
+                    loginWithSteam(openidParamsJson: "{\\"openid.mode\\":\\"id_res\\"}") {
                         userId
                         steamId
                         token
                         isNewUser
+                    }
                 }
                 """;
 
