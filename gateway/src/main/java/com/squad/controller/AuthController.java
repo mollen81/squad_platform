@@ -18,7 +18,7 @@ public class AuthController {
         return "pong";
     }
 
-    public AuthResponse loginWithSteam(@Argument String openidParamsJson) {
+    public AuthResponse loginWithSteam(@Argument("openidParamsJson") String openidParamsJson) {
         ResolveSteamAuthResponse response = authService.loginWithSteam(openidParamsJson);
 
         return new AuthResponse(

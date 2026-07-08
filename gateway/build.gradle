@@ -15,6 +15,11 @@ dependencies {
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
+
+    // GraphQl tester
+    testImplementation 'org.springframework.graphql:spring-graphql-test'
+
+    implementation('org.springframework.boot:spring-boot-starter-test')
 }
 
 protobuf {
@@ -47,4 +52,6 @@ sourceSets {
 
 test {
     useJUnitPlatform()
+    // динамическая загрузка агентов для тестов
+    jvmArgs '-XX:+EnableDynamicAgentLoading'
 }
