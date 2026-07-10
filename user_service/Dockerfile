@@ -1,4 +1,4 @@
-FROM eclipse-temurin:23 AS builder
+FROM eclipse-temurin:21 AS builder
 WORKDIR /app
 
 COPY gradlew .
@@ -11,7 +11,7 @@ COPY user_service user_service
 RUN chmod +x ./gradlew
 RUN ./gradlew :user_service:bootJar --no-daemon
 
-FROM eclipse-temurin:23
+FROM eclipse-temurin:21
 WORKDIR /app
 
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
