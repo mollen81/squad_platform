@@ -6,10 +6,10 @@ COPY gradle gradle
 COPY build.gradle .
 COPY settings.gradle .
 
-COPY user_service user_service
+COPY user-service user-service
 
 RUN chmod +x ./gradlew
-RUN ./gradlew :user_service:bootJar --no-daemon
+RUN ./gradlew :user-service:bootJar --no-daemon
 
 FROM eclipse-temurin:21
 WORKDIR /app
@@ -17,7 +17,7 @@ WORKDIR /app
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 USER appuser
 
-COPY --from=builder /app/user_service/build/libs/*.jar app.jar
+COPY --from=builder /app/user-service/build/libs/*.jar app.jar
 
 EXPOSE 8081
 EXPOSE 9091

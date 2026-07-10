@@ -6,12 +6,10 @@ spring:
     name: gateway
   graphql:
     graphiql:
-      enabled: true
+      enabled: false
       path: /graphiql
 
 grpc:
   client:
-    user_service:
-      address:
-        'static://${USER_SERVICE_GRPC_HOST:localhost}:${USER_SERVICE_GRPC_PORT:9091}'
-      negotiation-type: plaintext
+    user-service:
+      address: static://user-service:9091

@@ -17,7 +17,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AuthGrpcClientService {
 
-    @GrpcClient("user_service")
+    @GrpcClient("user-service")
     private AuthServiceGrpc.AuthServiceBlockingStub authServiceStub;
 
     private final ObjectMapper mapper;

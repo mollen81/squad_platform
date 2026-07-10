@@ -80,8 +80,8 @@ services:
   user-service:
     build:
       context: .
-      dockerfile: user_service/Dockerfile
-    container_name: squad_user_service
+      dockerfile: user-service/Dockerfile
+    container_name: user-service
     ports:
       - "8081:8081"
     depends_on:
@@ -94,6 +94,18 @@ services:
       - SPRING_DATA_REDIS_HOST=${SPRING_DATA_REDIS_HOST}
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=${SPRING_KAFKA_BOOTSTRAP_SERVERS}
     restart: unless-stopped
+
+  gateway:
+      build:
+        context: .
+        dockerfile: gateway/Dockerfile
+      container_name: gateway
+      ports:
+        - "8080:8080"
+      environment:
+        - USER_SERVICE_HOST=${USER_SERVICE_GRPC_HOST}
+        - USER-SERVICE_PORT=${USER_SERVICE_GRPC_PORT}
+
 
 volumes:
   postgres_data:

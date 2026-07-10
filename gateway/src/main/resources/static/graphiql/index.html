@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <title>Squad Platform - GraphiQL Console</title>
+    <meta charset="utf-8" />
+    <style>
+        body {
+            height: 100%;
+            margin: 0;
+            width: 100%;
+            overflow: hidden;
+            background-color: #1a1e2e;
+        }
+        #graphiql {
+            height: 100vh;
+        }
+    </style>
+    <!-- Подключаем стили GraphiQL 3.x из стабильного CDN jsDelivr -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/graphiql@3.0.6/graphiql.min.css" />
+</head>
+<body>
+<div id="graphiql">Загрузка консоли разработчика...</div>
+
+<!-- Загружаем React 18 и сам GraphiQL 3.x без сторонних несовместимых плагинов -->
+<script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/graphiql@3.0.6/graphiql.min.js"></script>
+
+<script>
+    // Инициализируем стандартный fetcher для отправки GraphQL-запросов к нашему шлюзу
+    const fetcher = GraphiQL.createFetcher({
+        url: window.location.origin + '/graphql'
+    });
+
+    // Рендерим чистый и стабильный интерфейс GraphiQL 3.x со встроенной документацией
+    ReactDOM.createRoot(document.getElementById('graphiql')).render(
+        React.createElement(GraphiQL, {
+            fetcher: fetcher,
+            defaultEditorToolsVisibility: true,
+            theme: 'dark'
+        })
+    );
+</script>
+</body>
+</html>
