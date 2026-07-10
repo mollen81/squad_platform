@@ -28,7 +28,7 @@ public class SteamOpenIdValidator {
     public String validateAndExtractSteamId(Map<String, String> openIdParams) {
         MultiValueMap<String, String> requestBody = new LinkedMultiValueMap<>();
         openIdParams.forEach(requestBody::add);
-        requestBody.set("openIdMode", "check_authentication");
+        requestBody.set("openIid.Mode", "check_authentication");
 
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
