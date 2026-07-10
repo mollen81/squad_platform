@@ -9,8 +9,9 @@
         <option name="modules">
           <set>
             <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/battlemetrics-service" />
             <option value="$PROJECT_DIR$/gateway" />
-            <option value="$PROJECT_DIR$/user_service" />
+            <option value="$PROJECT_DIR$/user-service" />
           </set>
         </option>
       </GradleProjectSettings>
