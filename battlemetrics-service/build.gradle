@@ -10,6 +10,8 @@ repositories {
 }
 
 dependencies {
+    implementation('org.springframework.boot:spring-boot-starter-web')
+
     implementation 'net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE'
     implementation 'javax.annotation:javax.annotation-api:1.3.2'
 
@@ -17,6 +19,11 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
 
     implementation('org.springframework.boot:spring-boot-starter-test')
+
+    // ratelimiter
+    // Source: https://mvnrepository.com/artifact/org.springframework.cloud/spring-cloud-starter-circuitbreaker-resilience4j
+    implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j:5.0.2'
+
 }
 
 protobuf {
