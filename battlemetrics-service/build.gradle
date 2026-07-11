@@ -22,7 +22,10 @@ dependencies {
 
     // ratelimiter
     // Source: https://mvnrepository.com/artifact/org.springframework.cloud/spring-cloud-starter-circuitbreaker-resilience4j
-    implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j:5.0.2'
+    implementation ('io.github.resilience4j:resilience4j-spring-boot3:2.2.0') {
+        exclude group: 'org.springframework.cloud', module: 'spring-cloud-context'
+    }
+    implementation 'org.springframework.boot:spring-boot-starter-aop'
 
     // Kafka
     implementation 'org.springframework.kafka:spring-kafka'
