@@ -10,16 +10,19 @@ repositories {
 }
 
 dependencies {
-    // Kafka for consuming stats
+    // kafka for consuming stats
     implementation 'org.springframework.kafka:spring-kafka'
 
     // gRPC server
     implementation 'net.devh:grpc-server-spring-boot-starter:3.1.0.RELEASE'
     implementation 'javax.annotation:javax.annotation-api:1.3.2'
 
-    // Utils
-    compileOnly 'org.projectlombok:lombok'
-    annotationProcessor 'org.projectlombok:lombok'
+    // web
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    runtimeOnly 'org.postgresql:postgresql'
+    implementation 'org.flywaydb:flyway-core'
 }
 
 test {
