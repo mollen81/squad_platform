@@ -1,18 +1,24 @@
-package com.squad.batllemetrics.service;
+package com.squad.battlemetrics.service;
 
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
-
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class BattleMetricsClient {
-    private final RestClient restClient;
+    @Value("${battlemetrics.api.base-url}")
+    private String baseUrl;
 
-    public BattleMetricsClient(@Value("${battlemetrics.api.base-url}") String baseUrl) {
+    private RestClient restClient;
+
+    @PostConstruct
+    public void init() {
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
                 .build();

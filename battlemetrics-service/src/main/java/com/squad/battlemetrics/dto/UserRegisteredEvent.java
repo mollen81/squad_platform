@@ -1,4 +1,4 @@
-package com.squad.batllemetrics.dto;
+package com.squad.battlemetrics.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,7 +12,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @Builder
 public class UserRegisteredEvent {
-    private UUID id;
+    private UUID userId;
     private String steamId;
     private long timestamp;
 }

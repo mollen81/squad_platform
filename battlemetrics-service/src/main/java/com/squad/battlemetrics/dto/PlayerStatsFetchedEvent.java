@@ -1,4 +1,4 @@
-package com.squad.batllemetrics.dto;
+package com.squad.battlemetrics.dto;
 
 import lombok.*;
 

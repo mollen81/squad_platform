@@ -1,6 +1,6 @@
-package com.squad.batllemetrics.service;
+package com.squad.battlemetrics.service;
 
-import com.squad.batllemetrics.dto.PlayerStatsFetchedEvent;
+import com.squad.battlemetrics.dto.PlayerStatsFetchedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -13,10 +13,10 @@ import java.util.UUID;
 @Slf4j
 @RequiredArgsConstructor
 public class StatsFetchService {
-    private BattleMetricsClient battleMetricsClient;
+    private final BattleMetricsClient battleMetricsClient;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    private static final String TOPIC_STATS_FETCHED = "bm.status.fetched";
+    private static final String TOPIC_STATS_FETCHED = "bm.stats.fetched";
     private final Random random = new Random();
 
 

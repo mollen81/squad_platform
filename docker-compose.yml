@@ -45,8 +45,6 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
 
-      KAFKA_PORT: ${KAFKA_PORT}
-
       KAFKA_LOG_DIRS: /var/lib/kafka/data
     volumes:
       - kafka_data:/var/lib/kafka/data
@@ -56,7 +54,7 @@ services:
     image: provectuslabs/kafka-ui:latest
     container_name: squad_kafka_ui
     ports:
-      - "8090:8090"
+      - "8090:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
