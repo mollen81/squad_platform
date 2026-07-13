@@ -37,6 +37,9 @@ public class UserStats {
     @Column(name = "kills")
     private Integer kills;
 
+    @Column(name = "destroyed_vehicles")
+    private int destroyedVehicles;
+
     @Column(name = "deaths")
     private Integer deaths;
 

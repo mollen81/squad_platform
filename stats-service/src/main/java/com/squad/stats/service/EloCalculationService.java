@@ -36,7 +36,7 @@ public class EloCalculationService {
         }
         else {
             // after match elo update
-            stats = existingStatsOpt.get()
+            stats = existingStatsOpt.get();
         }
 
         // data update

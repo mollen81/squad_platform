@@ -16,6 +16,7 @@ public class PlayerStatsFetchedEvent {
     private String steamId;
     private int totalPlaytimeHours;
     private int kills;
+    private int destroyedVehicles;
     private int deaths;
     private int revives;
     private String favouriteRole;

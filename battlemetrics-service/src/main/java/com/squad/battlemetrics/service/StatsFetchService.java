@@ -30,6 +30,7 @@ public class StatsFetchService {
                     .steamId(steamId)
                     .totalPlaytimeHours(50 + random.nextInt(4000))
                     .kills(100 + random.nextInt(5000))
+                    .destroyedVehicles(10 + random.nextInt(450))
                     .deaths(100 + random.nextInt(4000))
                     .revives(30 + random.nextInt(1500))
                     .favouriteRole(getRandomRole())
