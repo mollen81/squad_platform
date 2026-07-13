@@ -1,5 +1,5 @@
 plugins {
-    id 'java'
+    id 'com.google.protobuf' version '0.9.4'
 }
 
 group = 'org.mollen'
@@ -25,6 +25,33 @@ dependencies {
     implementation 'org.flywaydb:flyway-core'
 }
 
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.25.3"
+    }
+    plugins {
+        grpc {
+            artifact = "io.grpc:protoc-gen-grpc-java:1.62.2"
+        }
+    }
+    generateProtoTasks {
+        all()*.plugins {
+            grpc {}
+        }
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs 'build/generated/source/proto/main/grpc'
+            srcDirs 'build/generated/source/proto/main/java'
+        }
+    }
+}
+
 test {
     useJUnitPlatform()
+    // динамическая загрузка агентов для тестов
+    jvmArgs '-XX:+EnableDynamicAgentLoading'
 }

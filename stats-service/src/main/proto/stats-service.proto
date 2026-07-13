@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package com.squad.stats.grpc;
+
+option java_multiple_files = true;
+option java_package = "com.squad.stats.grpc";
+
+
+service StatsService {
+  rpc GetPlayerStats (GetPlayerStatsByInternalIdRequest) returns (GetPlayerStatsResponse);
+}
+
+message GetPlayerStatsByInternalIdRequest {
+  string user_id = 1;
+}
+
+message GetPlayerStatsResponse {
+  int32 elo_rating = 1;
+  int32 total_playtime_hours = 2;
+  int32 kills = 3;
+  int32 vehicles_destroyed = 4;
+  int32 deaths = 5;
+  int32 revives = 6;
+  string favorite_role = 7;
+}
