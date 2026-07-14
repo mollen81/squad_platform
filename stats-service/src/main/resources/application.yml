@@ -18,6 +18,7 @@ spring:
   flyway:
     enabled: true
     table: flyway_schema_history_stats
+    baseline-on-migrate: true
 
   kafka:
     bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
