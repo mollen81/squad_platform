@@ -1,5 +1,5 @@
-import com.squad.gateway.grpc.user.ResolveSteamAuthRequest;
-import com.squad.gateway.grpc.user.ResolveSteamAuthResponse;
+import com.squad.grpc.user.ResolveSteamAuthRequest;
+import com.squad.grpc.user.ResolveSteamAuthResponse;
 import com.squad.user.domain.UserEntity;
 import com.squad.user.event.UserRegisteredEvent;
 import com.squad.user.kafka.UserEventProducer;
