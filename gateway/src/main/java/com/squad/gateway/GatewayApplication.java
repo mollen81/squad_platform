@@ -1,4 +1,4 @@
-package com.squad;
+package com.squad.gateway;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

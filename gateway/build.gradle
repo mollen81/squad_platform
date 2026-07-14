@@ -1,58 +1,58 @@
-plugins {
-    id 'com.google.protobuf' version '0.9.4'
-}
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-graphql'
-
-    implementation 'net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE'
-    implementation 'javax.annotation:javax.annotation-api:1.3.2'
-
-    compileOnly 'org.projectlombok:lombok'
-    annotationProcessor 'org.projectlombok:lombok'
-
-    // GraphQl tester
-    testImplementation 'org.springframework.graphql:spring-graphql-test'
-
-    implementation('org.springframework.boot:spring-boot-starter-test')
-}
-
-protobuf {
-    protoc {
-        artifact = "com.google.protobuf:protoc:3.25.3"
-    }
     plugins {
-        grpc {
-            artifact = "io.grpc:protoc-gen-grpc-java:1.62.2"
-        }
+        id 'com.google.protobuf' version '0.9.4'
     }
-    generateProtoTasks {
-        all()*.plugins {
-            grpc {}
-        }
-    }
-}
 
-sourceSets {
-    main {
-        java {
-            srcDirs 'build/generated/source/proto/main/grpc'
-            srcDirs 'build/generated/source/proto/main/java'
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        implementation 'org.springframework.boot:spring-boot-starter-web'
+        implementation 'org.springframework.boot:spring-boot-starter-graphql'
+
+        implementation 'net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE'
+        implementation 'javax.annotation:javax.annotation-api:1.3.2'
+
+        compileOnly 'org.projectlombok:lombok'
+        annotationProcessor 'org.projectlombok:lombok'
+
+        // GraphQl tester
+        testImplementation 'org.springframework.graphql:spring-graphql-test'
+
+        implementation('org.springframework.boot:spring-boot-starter-test')
+    }
+
+    protobuf {
+        protoc {
+            artifact = "com.google.protobuf:protoc:3.25.3"
         }
-        proto {
-            srcDir '../user-service/src/main/proto'
-            srcDir '../stats_service/src/main/proto'
+        plugins {
+            grpc {
+                artifact = "io.grpc:protoc-gen-grpc-java:1.62.2"
+            }
+        }
+        generateProtoTasks {
+            all()*.plugins {
+                grpc {}
+            }
         }
     }
-}
 
-test {
-    useJUnitPlatform()
-    // динамическая загрузка агентов для тестов
-    jvmArgs '-XX:+EnableDynamicAgentLoading'
-}
+    sourceSets {
+        main {
+            java {
+                srcDirs 'build/generated/source/proto/main/grpc'
+                srcDirs 'build/generated/source/proto/main/java'
+            }
+            proto {
+                srcDir '../user-service/src/main/proto'
+                srcDir '../stats-service/src/main/proto'
+            }
+        }
+    }
+
+    test {
+        useJUnitPlatform()
+        // динамическая загрузка агентов для тестов
+        jvmArgs '-XX:+EnableDynamicAgentLoading'
+    }
