@@ -5,6 +5,8 @@ type Mutation {
 type Query {
     # ЗАГЛУШКА
     ping: String!
+
+    getPlayerStats(userId: String!): PlayerStats
 }
 
 type AuthResponse {
@@ -12,4 +14,14 @@ type AuthResponse {
     steamId: String!
     isNewUser: Boolean!
     token: String!
+}
+
+type PlayerStats {
+    eloRating: Int!
+    totalPlaytimeHours: Int!
+    kills: Int!
+    vehiclesDestroyed: Int!
+    deaths: Int!
+    revives: Int!
+    favoriteRole: String!
 }
