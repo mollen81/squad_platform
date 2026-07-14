@@ -103,6 +103,8 @@ services:
       environment:
         - USER_SERVICE_HOST=${USER_SERVICE_GRPC_HOST}
         - USER-SERVICE_PORT=${USER_SERVICE_GRPC_PORT}
+        - STATS_SERVICE_GRPC_HOST=${STATS_SERVICE_GRPC_HOST}
+        - STATS_SERVICE_GRPC_PORT=${STATS_SERVICE_GRPC_PORT}
 
   battlemetrics-service:
     build:

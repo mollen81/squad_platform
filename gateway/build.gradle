@@ -46,6 +46,7 @@ sourceSets {
         }
         proto {
             srcDir '../user-service/src/main/proto'
+            srcDir '../stats_service/src/main/proto'
         }
     }
 }
