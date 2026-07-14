@@ -12,6 +12,8 @@ spring:
 grpc:
   client:
     user-service:
-      address: static://${USER_SERVICE_HOST}:${USER_SERVICE_PORT}
+      address: static://${USER_SERVICE_GRPC_HOST}:${USER_SERVICE_GRPC_PORT}
+      negotiationType: PLAINTEXT
     stats-service:
       address: static://${STATS_SERVICE_GRPC_HOST}:${STATS_SERVICE_GRPC_PORT}
+      negotiationType: PLAINTEXT

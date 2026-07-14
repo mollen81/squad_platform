@@ -1,5 +1,5 @@
 import com.squad.gateway.controller.AuthController;
-import com.squad.gateway.grpc.user.ResolveSteamAuthResponse;
+import com.squad.grpc.user.ResolveSteamAuthResponse;
 import com.squad.gateway.service.AuthGrpcClientService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
