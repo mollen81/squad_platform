@@ -33,7 +33,12 @@ public class AuthGrpcService extends AuthServiceGrpc.AuthServiceImplBase {
             boolean isNewUser = false;
 
             if (user == null) {
-                user = UserEntity.builder().steamId(steamId).lastLoginAt(OffsetDateTime.now()).build();
+                final String defaultName = "mollen";
+                user = UserEntity.builder()
+                        .steamId(steamId)
+                        .displayName(defaultName)
+                        .lastLoginAt(OffsetDateTime.now())
+                        .build();
                 user = userRepository.save(user);
                 isNewUser = true;
 
