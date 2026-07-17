@@ -13,7 +13,7 @@ COPY gateway gateway
 RUN chmod +x ./gradlew
 RUN ./gradlew :gateway:bootJar --no-daemon
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21
 WORKDIR /app
 
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
