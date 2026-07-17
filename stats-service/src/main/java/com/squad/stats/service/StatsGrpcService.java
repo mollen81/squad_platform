@@ -1,9 +1,9 @@
 package com.squad.stats.service;
 
 import com.squad.stats.dto.UserStats;
-import com.squad.stats.grpc.GetPlayerStatsByInternalIdRequest;
-import com.squad.stats.grpc.GetPlayerStatsResponse;
-import com.squad.stats.grpc.StatsServiceGrpc;
+import com.squad.grpc.stats.GetPlayerStatsByInternalIdRequest;
+import com.squad.grpc.stats.GetPlayerStatsResponse;
+import com.squad.grpc.stats.StatsServiceGrpc;
 import com.squad.stats.repository.UserStatsRepository;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -41,8 +41,9 @@ public class StatsGrpcService extends StatsServiceGrpc.StatsServiceImplBase {
 
             GetPlayerStatsResponse response = GetPlayerStatsResponse.newBuilder()
                     .setEloRating(userStats.getEloRating())
-                    .setFavoriteRole(userStats.getFavoriteRole())
+                    .setFavouriteRole(userStats.getFavouriteRole())
                     .setKills(userStats.getKills())
+                    .setVehiclesDestroyed(userStats.getVehiclesDestroyed())
                     .setDeaths(userStats.getKills())
                     .setRevives(userStats.getRevives())
                     .build();
