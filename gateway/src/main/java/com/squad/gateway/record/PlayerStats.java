@@ -7,4 +7,4 @@ public record PlayerStats(
         int vehiclesDestroyed,
         int deaths,
         int revives,
-        String favouriteRole) {}
+        String favouriteRole ) {}
