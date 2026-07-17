@@ -19,7 +19,7 @@ USER appuser
 
 COPY --from=builder /app/stats-service/build/libs/*.jar app.jar
 
-EXPOSE 8081
-EXPOSE 9091
+EXPOSE 8083
+EXPOSE 9093
 
 ENTRYPOINT ["java", "-XX:+UseG1GC", "-XX:MaxRAMPercentage=55.0", "-jar", "app.jar"]
