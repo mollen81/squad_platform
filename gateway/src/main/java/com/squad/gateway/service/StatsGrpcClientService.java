@@ -1,8 +1,8 @@
 package com.squad.gateway.service;
 
-import com.squad.stats.grpc.GetPlayerStatsByInternalIdRequest;
-import com.squad.stats.grpc.GetPlayerStatsResponse;
-import com.squad.stats.grpc.StatsServiceGrpc;
+import com.squad.grpc.stats.GetPlayerStatsByInternalIdRequest;
+import com.squad.grpc.stats.GetPlayerStatsResponse;
+import com.squad.grpc.stats.StatsServiceGrpc;
 import lombok.RequiredArgsConstructor;
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Service;

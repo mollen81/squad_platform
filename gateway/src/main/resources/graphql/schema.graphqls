@@ -23,5 +23,5 @@ type PlayerStats {
     vehiclesDestroyed: Int!
     deaths: Int!
     revives: Int!
-    favoriteRole: String!
+    favouriteRole: String!
 }

@@ -3,7 +3,7 @@ syntax = "proto3";
 package com.squad.stats.grpc;
 
 option java_multiple_files = true;
-option java_package = "com.squad.stats.grpc";
+option java_package = "com.squad.grpc.stats";
 
 
 service StatsService {
@@ -21,5 +21,5 @@ message GetPlayerStatsResponse {
   int32 vehicles_destroyed = 4;
   int32 deaths = 5;
   int32 revives = 6;
-  string favorite_role = 7;
+  string favourite_role = 7;
 }

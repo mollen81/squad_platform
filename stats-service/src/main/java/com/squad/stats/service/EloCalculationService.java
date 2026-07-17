@@ -45,7 +45,7 @@ public class EloCalculationService {
         stats.setKills(event.getKills());
         stats.setDeaths(event.getKills());
         stats.setRevives(event.getRevives());
-        stats.setFavoriteRole(event.getFavouriteRole());
+        stats.setFavouriteRole(event.getFavouriteRole());
         stats.setLastUpdatedAt(LocalDateTime.now());
 
         userStatsRepository.save(stats);
@@ -89,16 +89,16 @@ public class EloCalculationService {
                     (int) (baseElo + event.getTotalPlaytimeHours() * 0.075);
 
             case "Light Anti-Tank" ->
-                    (int) (baseElo + kdDiff * 0.1 + event.getDestroyedVehicles() * 0.55);
+                    (int) (baseElo + kdDiff * 0.1 + event.getVehiclesDestroyed() * 0.55);
 
             case "Heavy Anti-Tank" ->
-                    (int) (baseElo + kdDiff * 0.08 + event.getDestroyedVehicles() * 0.9);
+                    (int) (baseElo + kdDiff * 0.08 + event.getVehiclesDestroyed() * 0.9);
 
             case "Combat Engineer", "Sapper", "Saboteur" ->
-                    (int) (baseElo + kdDiff * 0.065 + event.getDestroyedVehicles() * 0.65);
+                    (int) (baseElo + kdDiff * 0.065 + event.getVehiclesDestroyed() * 0.65);
 
             case "Infiltrator" ->
-                    (int) (baseElo + kdDiff * 0.11 + event.getDestroyedVehicles() * 0.25);
+                    (int) (baseElo + kdDiff * 0.11 + event.getVehiclesDestroyed() * 0.25);
 
             default -> (int) (baseElo + kdDiff * 0.1 + 0.1 * event.getRevives());
         };

@@ -37,8 +37,8 @@ public class UserStats {
     @Column(name = "kills")
     private Integer kills;
 
-    @Column(name = "destroyed_vehicles")
-    private int destroyedVehicles;
+    @Column(name = "vehicles_destroyed")
+    private int vehiclesDestroyed;
 
     @Column(name = "deaths")
     private Integer deaths;
@@ -46,8 +46,8 @@ public class UserStats {
     @Column(name = "revives")
     private Integer revives;
 
-    @Column(name = "favorite_role", length = 50)
-    private String favoriteRole;
+    @Column(name = "favourite_role", length = 50)
+    private String favouriteRole;
 
     @UpdateTimestamp
     @Column(name = "last_updated_at")
