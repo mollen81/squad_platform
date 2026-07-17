@@ -7,6 +7,6 @@ CREATE TABLE user_stats (
     kills INT DEFAULT 0,
     deaths INT DEFAULT 0,
     revives INT DEFAULT 0,
-    favorite_role VARCHAR(50),
+    favourite_role VARCHAR(50),
     last_updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 )
