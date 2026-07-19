@@ -20,3 +20,16 @@ spring:
     table: flyway_schema_history_clans
     baseline-on-migrate: true
     baseline-version: '0'
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: clan-workers
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+grpc:
+  server:
+    port: 9094
