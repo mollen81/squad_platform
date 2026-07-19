@@ -7,7 +7,12 @@ option java_package = "com.squad.clan.grpc";
 
 service ClanService {
   rpc GetClanWithMembers (GetClanRequest) returns (GetClanResponse);
+
+  rpc CreateClan (CreateClanRequest) returns (CreateClanResponse);
+
+  rpc ApplyToClan (ApplyToClanRequest) returns (ApplyToClanResponse);
 }
+
 
 message GetClanRequest {
   string clan_id = 1;
@@ -25,4 +30,31 @@ message GetClanResponse {
 message ClanMemberDto {
   string user_id = 1;
   string role = 2; // LEADER, MODERATOR, MEMBER
+}
+
+
+message CreateClanRequest {
+  string leader_id = 1;
+  string name = 2;
+  string tag = 3;
+  string description = 4;
+  string requirements = 5;
+  string avatar_url = 6;
+}
+
+message CreateClanResponse {
+  string clan_id = 1;
+  string message = 2;
+}
+
+message ApplyToClanRequest {
+  string user_id = 1;
+  string clan_id = 2;
+  string social_link = 3;
+  string experience_text = 4;
+}
+
+message ApplyToClanResponse {
+  string application_id = 1;
+  string message = 2;
 }
