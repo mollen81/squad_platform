@@ -44,7 +44,7 @@ public class EloUpdatedListener {
                 int memberCount = clanMemberRepository.countByClanId(clan.getId());
                 if(memberCount >= 7) {
                     clan.setClanStatus(ClanStatus.OFFICIAL);
-                    // Kafka notification to notification-service about new clan status to members
+                    // TODO Kafka notification to notification-service about new clan status to members
                     log.info("Clan [{}] {}: received OFFICIAL status!!!", clan.getClanStatus(), clan.getName());
                 }
             }
