@@ -33,3 +33,7 @@ spring:
 grpc:
   server:
     port: 9094
+  client:
+    stats-service:
+      address: ${STATS_SERVICE_GRPC_HOST}:${STATS_SERVICE_GRPC_PORT}
+      negotiation-type: plaintext
