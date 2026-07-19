@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package com.squad.clan.grpc;
+
+option java_multiple_files = true;
+option java_package = "com.squad.clan.grpc";
+
+service ClanService {
+  rpc GetClanWithMembers (GetClanRequest) returns (GetClanResponse);
+}
+
+message GetClanRequest {
+  string clan_id = 1;
+}
+
+message GetClanResponse {
+  string id = 1;
+  string name = 2;
+  string tag = 3;
+  string status = 4;
+  int32 total_elo = 5;
+  repeated ClanMemberDto members = 6;
+}
+
+message ClanMemberDto {
+  string user_id = 1;
+  string role = 2; // LEADER, MODERATOR, MEMBER
+}
