@@ -3,7 +3,7 @@ syntax = "proto3";
 package com.squad.clan.grpc;
 
 option java_multiple_files = true;
-option java_package = "com.squad.clan.grpc";
+option java_package = "com.squad.grpc.clan";
 
 
 service ClanService {
