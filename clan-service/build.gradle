@@ -55,8 +55,7 @@ sourceSets {
             srcDirs 'build/generated/source/proto/main/java'
         }
         proto {
-            srcDir 'src/main/proto' // Свой контракт
-            srcDir '../stats_service/src/main/proto' // Контракт статистики
+            srcDir '../stats-service/src/main/proto'
         }
     }
 }
