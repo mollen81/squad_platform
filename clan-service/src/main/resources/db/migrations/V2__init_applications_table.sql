@@ -9,3 +9,6 @@ CREATE TABLE clan_applications(
 
     CONSTRAINT uq_clan_user_status UNIQUE (clan_id, user_id, status)
 )
+
+CREATE INDEX idx_clan_applications_clan_id_status ON clan_applications(clan_id, status);
+CREATE INDEX idx_clan_applications_user_id ON clan_applications(user_id);
