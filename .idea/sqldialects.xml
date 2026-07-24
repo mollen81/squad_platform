@@ -2,6 +2,7 @@
 <project version="4">
   <component name="SqlDialectMappings">
     <file url="file://$PROJECT_DIR$/clan-service/src/main/resources/db/migrations/V1__init_clans_table_and_clan_members_table.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/clan-service/src/main/resources/db/migrations/V2__init_applications_table.sql" dialect="GenericSQL" />
     <file url="file://$PROJECT_DIR$/stats-service/src/main/resources/db/migrations/V1__init_user_stats_schema.sql" dialect="GenericSQL" />
     <file url="file://$PROJECT_DIR$/stats-service/src/main/resources/db/migrations/V2__add_vehicles_destroyed_field.sql" dialect="GenericSQL" />
     <file url="file://$PROJECT_DIR$/stats-service/src/main/resources/db/migrations/V3__index_create_for_user_id_and_steam_id.sql" dialect="GenericSQL" />
