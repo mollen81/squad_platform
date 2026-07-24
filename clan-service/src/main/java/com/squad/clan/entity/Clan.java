@@ -35,6 +35,10 @@ public class Clan {
     @Column(columnDefinition = "TEXT")
     private String requirements;
 
+    @Column(name = "min_elo")
+    @Builder.Default
+    private final int minElo = 500;
+
     @Column(name = "avatar_url")
     private String avatar_url;
 
