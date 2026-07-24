@@ -3,6 +3,7 @@ package com.squad.clan.dto;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import lombok.Builder;
 import lombok.Data;
 
 import java.util.UUID;
@@ -10,6 +11,7 @@ import java.util.UUID;
 public class ClanRequests {
 
     @Data
+    @Builder
     public static class CreateClanDto {
         private UUID leaderId; // В реальном проекте берется из JWT токена
         private String name;
@@ -20,6 +22,7 @@ public class ClanRequests {
     }
 
     @Data
+    @Builder
     public static class ApplyToClanDto {
         @Id
         @GeneratedValue(strategy = GenerationType.UUID)
