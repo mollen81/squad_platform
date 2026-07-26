@@ -1,11 +1,13 @@
 package com.squad.clan.dto;
 
+import com.squad.clan.entity.ClanMember;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import lombok.Builder;
 import lombok.Data;
 
+import java.util.List;
 import java.util.UUID;
 
 public class ClanRequests {
@@ -31,5 +33,18 @@ public class ClanRequests {
         private UUID clanId;
         private String socialLink;
         private String experienceText;
+    }
+
+    @Data
+    @Builder
+    public static class GetClanWithAllMembersDto {
+        @Id
+        @GeneratedValue(strategy = GenerationType.UUID)
+        private UUID id;
+        private String name;
+        private String tag;
+        private String status;
+        private int totalElo;
+        private List<ClanMember> members;
     }
 }

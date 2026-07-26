@@ -3,7 +3,7 @@ package com.squad.stats.service;
 import com.squad.stats.dto.UserStats;
 import com.squad.stats.grpc.GetPlayerStatsByInternalIdRequest;
 import com.squad.stats.grpc.GetPlayerStatsResponse;
-import com.squad.grpc.stats.StatsServiceGrpc;
+import com.squad.stats.grpc.StatsServiceGrpc;
 import com.squad.stats.repository.UserStatsRepository;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;

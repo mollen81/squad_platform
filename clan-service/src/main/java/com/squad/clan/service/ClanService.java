@@ -1,6 +1,5 @@
 package com.squad.clan.service;
 
-import com.squad.clan.client.StatsGrpcClient;
 import com.squad.clan.dto.ClanRequests;
 import com.squad.clan.entity.Clan;
 import com.squad.clan.entity.ClanApplication;
@@ -19,14 +18,13 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class ClanManagementService {
+public class ClanService {
     private final ClanRepository clanRepository;
     private final ClanMemberRepository clanMemberRepository;
     private final ClanApplicationRepository clanApplicationRepository;
-    private final StatsGrpcClient statsGrpcClient;
 
     @Transactional
-    public Clan createClan(ClanRequests.CreateClanDto dto) {
+    public Clan createClan(ClanRequests.CreateClanDto dto, int leaderElo) {
         if(clanMemberRepository.findByUserId(dto.getLeaderId()).isPresent()) {
             throw new IllegalStateException("You are already a member of a clan. Leave it first.");
         }
@@ -35,8 +33,6 @@ public class ClanManagementService {
             throw new IllegalArgumentException("A clan with that name already exists.");
         }
 
-        int leaderElo = statsGrpcClient.getPlayerElo(dto.getLeaderId());
-
         Clan clan = Clan.builder()
                 .name(dto.getName())
                 .tag(dto.getTag())
@@ -44,25 +40,27 @@ public class ClanManagementService {
                 .requirements(dto.getRequirements())
                 .avatar_url(dto.getAvatarUrl())
                 .clanStatus(ClanStatus.UNVERIFIED)
-                .totalElo(0)
+                .totalElo(leaderElo)
                 .build();
-
         clan = clanRepository.save(clan);
 
         ClanMember leader = ClanMember.builder()
-                .id(dto.getLeaderId())
+                .userId(dto.getLeaderId())
                 .clan(clan)
                 .role(ClanRole.LEADER)
                 .build();
+        leader = clanMemberRepository.save(leader);
 
-        clanMemberRepository.save(leader);
+        clan.getMembers().add(leader);
+
         log.info("New clan is created: [{}] {}. Basic ELO: {}. Leader: {}",
                 clan.getTag(), clan.getName(), leaderElo, leader.getUserId());
         return clan;
     }
 
 
-    public ClanApplication applyToClan(ClanRequests.ApplyToClanDto dto) {
+    //TODO Facade pattern for userElo fetching from gRPC stats-service
+    public ClanApplication applyToClan(ClanRequests.ApplyToClanDto dto, int userElo) {
         if(!clanRepository.existsById(dto.getClanId())) {
             throw new IllegalArgumentException("Clan isn't exists!");
         }
@@ -73,7 +71,7 @@ public class ClanManagementService {
                     clanName + ".You need to leave current clan.");
         }
 
-        if(clanRepository.findById(dto.getClanId()).get().getMinElo() > statsGrpcClient.getPlayerElo(dto.getUserId())) {
+        if(clanRepository.findById(dto.getClanId()).get().getMinElo() > userElo) {
             throw new IllegalStateException("Your ELO is lower, than minimal required ELO for this clan");
         }
 
@@ -102,5 +100,10 @@ public class ClanManagementService {
         log.info("Player {} is sent application to clan {}",
                 application.getUserId(), application.getClan().getName());
         return clanApplicationRepository.save(application);
+    }
+
+
+    public Clan getClan(ClanRequests.GetClanWithAllMembersDto dto) {
+
     }
 }
