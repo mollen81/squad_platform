@@ -2,11 +2,9 @@ package com.squad.clan.service;
 
 import com.squad.clan.dto.ClanRequests;
 import com.squad.clan.entity.Clan;
+import com.squad.clan.entity.ClanApplication;
+import com.squad.clan.grpc.*;
 import com.squad.clan.repository.ClanRepository;
-import com.squad.grpc.clan.CreateClanRequest;
-import com.squad.grpc.clan.CreateClanResponse;
-import com.squad.grpc.clan.GetClanRequest;
-import com.squad.grpc.clan.GetClanResponse;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +17,7 @@ import java.util.UUID;
 @GrpcService
 @Slf4j
 @RequiredArgsConstructor
-public class ClanGrpcService extends com.squad.grpc.clan.ClanServiceGrpc.ClanServiceImplBase {
+public class ClanGrpcService extends com.squad.clan.grpc.ClanServiceGrpc.ClanServiceImplBase {
 
     private final ClanManagementService clanManagementService;
     private final ClanRepository clanRepository;
@@ -50,4 +48,31 @@ public class ClanGrpcService extends com.squad.grpc.clan.ClanServiceGrpc.ClanSer
                     .asRuntimeException());
         }
     }
+
+
+    @Override
+    public void applyToClan(ApplyToClanRequest request, StreamObserver<ApplyToClanResponse> responseObserver) {
+        try {
+            ClanRequests.ApplyToClanDto applyToClanDto = ClanRequests.ApplyToClanDto.builder()
+                    .clanId(UUID.fromString(request.getClanId()))
+                    .userId(UUID.fromString(request.getUserId()))
+                    .socialLink(request.getSocialLink())
+                    .experienceText(request.getExperienceText())
+                    .build();
+            ClanApplication clanApplication = clanManagementService.applyToClan(applyToClanDto);
+
+            ApplyToClanResponse response = ApplyToClanResponse.newBuilder()
+                    .setMessage("Application to clan successfully sent")
+                    .setApplicationId(clanApplication.getId().toString())
+                    .build();
+
+            responseObserver.onNext(response);
+        }
+        catch (Exception e) {
+            log.error("Internal server error while applying user: {} to clan with clanId: {}",
+                    request.getUserId(), request.getClanId());
+        }
+    }
+
+
 }
