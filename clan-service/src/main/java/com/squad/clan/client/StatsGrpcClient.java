@@ -1,8 +1,8 @@
 package com.squad.clan.client;
 
-import com.squad.grpc.stats.GetPlayerStatsByInternalIdRequest;
-import com.squad.grpc.stats.GetPlayerStatsResponse;
-import com.squad.grpc.stats.StatsServiceGrpc;
+import com.squad.stats.grpc.GetPlayerStatsByInternalIdRequest;
+import com.squad.stats.grpc.GetPlayerStatsResponse;
+import com.squad.stats.grpc.StatsServiceGrpc;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;

@@ -2,7 +2,7 @@ package com.squad.gateway.controller;
 
 import com.squad.gateway.record.PlayerStats;
 import com.squad.gateway.service.StatsGrpcClientService;
-import com.squad.grpc.stats.GetPlayerStatsResponse;
+import com.squad.stats.grpc.GetPlayerStatsResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
