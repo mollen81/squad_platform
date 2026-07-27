@@ -65,8 +65,8 @@ public class ClanGrpcService extends com.squad.clan.grpc.ClanServiceGrpc.ClanSer
                     .experienceText(request.getExperienceText())
                     .build();
 
-            // Facade call, ()
-            ClanApplication clanApplication =
+            // Facade call, (ELO fetching from stats-service + saving in DB)
+            ClanApplication clanApplication = clanFacade.applyClan(applyToClanDto);
 
             ApplyToClanResponse response = ApplyToClanResponse.newBuilder()
                     .setMessage("Application to clan successfully sent")
