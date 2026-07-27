@@ -47,4 +47,9 @@ public class ClanRequests {
         private int totalElo;
         private List<ClanMember> members;
     }
+
+    public record AcceptApplicationDto(
+            UUID applicationId,
+            UUID accepterId // LEADER or MODERATOR
+    ) {}
 }
