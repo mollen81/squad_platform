@@ -13,5 +13,7 @@ public interface ClanApplicationRepository extends JpaRepository<ClanApplication
 
     List<ClanApplication> findAllByClanIdAndStatus(UUID clanId, ApplicationStatus status);
 
-    boolean existsByUserIdAndClanIDAndStatus(UUID userId, UUID clanId, ApplicationStatus status);
+    boolean existsByUserIdAndClanIdAndStatus(UUID userId, UUID clanId, ApplicationStatus status);
+
+
 }

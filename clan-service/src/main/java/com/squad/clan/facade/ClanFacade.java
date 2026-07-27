@@ -28,4 +28,8 @@ public class ClanFacade {
         return clanService.applyToClan(dto, userElo);
     }
 
+    public Clan getClanWithMembers(ClanRequests.GetClanWithAllMembersDto dto) {
+        return clanService.getClanWithMembers(dto);
+    }
+
 }

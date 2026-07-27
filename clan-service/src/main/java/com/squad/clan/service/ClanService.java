@@ -10,10 +10,10 @@ import com.squad.clan.enums.ClanStatus;
 import com.squad.clan.repository.ClanApplicationRepository;
 import com.squad.clan.repository.ClanMemberRepository;
 import com.squad.clan.repository.ClanRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -25,7 +25,7 @@ public class ClanService {
 
     @Transactional
     public Clan createClan(ClanRequests.CreateClanDto dto, int leaderElo) {
-        if(clanMemberRepository.findByUserId(dto.getLeaderId()).isPresent()) {
+        if(clanMemberRepository.existsByUserId(dto.getLeaderId())) {
             throw new IllegalStateException("You are already a member of a clan. Leave it first.");
         }
 
@@ -60,30 +60,25 @@ public class ClanService {
 
 
     //TODO Facade pattern for userElo fetching from gRPC stats-service
+    @Transactional
     public ClanApplication applyToClan(ClanRequests.ApplyToClanDto dto, int userElo) {
-        if(!clanRepository.existsById(dto.getClanId())) {
-            throw new IllegalArgumentException("Clan isn't exists!");
-        }
+        Clan clan = clanRepository.findById(dto.getClanId())
+                .orElseThrow(() -> new IllegalArgumentException("Clan not found"));
 
-        if(clanMemberRepository.existsById(dto.getUserId())) {
+        if(clanMemberRepository.existsByUserId(dto.getUserId())) {
             String clanName = clanRepository.getReferenceById(dto.getClanId()).getName();
             throw new IllegalStateException("You're already participates the clan: " +
                     clanName + ".You need to leave current clan.");
         }
 
-        if(clanRepository.findById(dto.getClanId()).get().getMinElo() > userElo) {
+        if(clan.getMinElo() > userElo) {
             throw new IllegalStateException("Your ELO is lower, than minimal required ELO for this clan");
         }
 
-        if(clanApplicationRepository.existsById(dto.getId()) &&
-                clanApplicationRepository.existsByUserIdAndClanIDAndStatus(
+        if(clanApplicationRepository.existsByUserIdAndClanIdAndStatus(
                         dto.getUserId(), dto.getClanId(), ApplicationStatus.PENDING)) {
             throw new IllegalStateException("Your application is already being reviewed by the clan");
         }
-
-        Clan clan = clanRepository.findById(
-                dto.getClanId()).orElseThrow(
-                        () -> new IllegalStateException("Clan is not found"));
 
         if(!clan.getIsRecruiting()) {
             throw new IllegalArgumentException("Clan isn't recruiting now");
@@ -97,13 +92,20 @@ public class ClanService {
                 .status(ApplicationStatus.PENDING)
                 .build();
 
+        application = clanApplicationRepository.save(application);
+
         log.info("Player {} is sent application to clan {}",
                 application.getUserId(), application.getClan().getName());
-        return clanApplicationRepository.save(application);
+        return application;
     }
 
 
-    public Clan getClan(ClanRequests.GetClanWithAllMembersDto dto) {
+    @Transactional(readOnly = true)
+    public Clan getClanWithMembers(ClanRequests.GetClanWithAllMembersDto dto) {
+        Clan clan = clanRepository.findByIdWithAllMembers(dto.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Clan is not found"));
 
+        log.info("Clan: {} is successfully fetched", clan.getName());
+        return clan;
     }
 }
