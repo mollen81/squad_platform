@@ -123,13 +123,42 @@ public class ClanGrpcService extends com.squad.clan.grpc.ClanServiceGrpc.ClanSer
             log.error("Unexpected error in getClanWithMembers", e);
             responseObserver.onError(
                     Status.INTERNAL
-                            .withDescription("Internal server error")
+                            .withDescription(e.getMessage())
                             .asRuntimeException()
             );
         }
     }
 
 
+    public void processAcceptance(ProcessAcceptanceRequest request, StreamObserver<ProcessAcceptanceResponse> responseObserver) {
+        log.info("Processing the acceptance of application: {}, accepted by user: {}",
+                request.getApplicationId(), request.getAcceptorId());
+        try {
+            ClanRequests.AcceptApplicationDto acceptApplicationDto = ClanRequests.AcceptApplicationDto.builder()
+                    .applicationId(UUID.fromString(request.getApplicationId()))
+                    .accepterId(UUID.fromString(request.getAcceptorId()))
+                    .build();
+            ClanMember newMember = clanFacade.acceptApplication(acceptApplicationDto);
+
+            ProcessAcceptanceResponse response = ProcessAcceptanceResponse.newBuilder()
+                    .setNewMember(mapToMemberGrpcResponse(newMember))
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        }
+        catch (Exception e) {
+            log.error("Unexpected error in processAcceptance", e);
+            responseObserver.onError(
+                    Status.INTERNAL
+                            .withDescription(e.getMessage())
+                            .asRuntimeException()
+            );
+        }
+    }
+
+
+    // MAPPERS
     private GetClanResponse mapToClanWithMembersResponse(Clan clan) {
         List<ClanMemberDto> memberResponses = clan.getMembers().stream()
                 .map(this::mapToMemberGrpcResponse)
