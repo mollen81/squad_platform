@@ -113,7 +113,7 @@ public class ClanService {
 
     @Transactional(readOnly = true)
     public Clan getClanWithMembers(ClanRequests.GetClanDto dto) {
-        Clan clan = clanRepository.findByIdWithAllMembers(dto.getClanId())
+        Clan clan = clanRepository.findWithMembersById(dto.getClanId())
                 .orElseThrow(() -> new IllegalArgumentException("Clan is not found"));
 
         log.info("Clan: {} is successfully fetched", clan.getName());
