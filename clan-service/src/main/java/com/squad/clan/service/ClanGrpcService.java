@@ -3,6 +3,7 @@ package com.squad.clan.service;
 import com.squad.clan.dto.ClanRequests;
 import com.squad.clan.entity.Clan;
 import com.squad.clan.entity.ClanApplication;
+import com.squad.clan.entity.ClanMember;
 import com.squad.clan.facade.ClanFacade;
 import com.squad.clan.grpc.*;
 import io.grpc.Status;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.server.service.GrpcService;
 
+import java.util.List;
 import java.util.UUID;
 
 @GrpcService
@@ -66,7 +68,7 @@ public class ClanGrpcService extends com.squad.clan.grpc.ClanServiceGrpc.ClanSer
                     .build();
 
             // Facade call, (ELO fetching from stats-service + saving in DB)
-            ClanApplication clanApplication = clanFacade.applyClan(applyToClanDto);
+            ClanApplication clanApplication = clanFacade.applyToClan(applyToClanDto);
 
             ApplyToClanResponse response = ApplyToClanResponse.newBuilder()
                     .setMessage("Application to clan successfully sent")
@@ -89,6 +91,72 @@ public class ClanGrpcService extends com.squad.clan.grpc.ClanServiceGrpc.ClanSer
 
     @Override
     public void getClanWithMembers(GetClanRequest request, StreamObserver<GetClanResponse> responseObserver) {
+        log.info("Requesting information about clan with clanId: {}", request.getClanId());
+        try {
+            ClanRequests.GetClanDto dto = ClanRequests.GetClanDto.builder()
+                    .clanId(UUID.fromString(request.getClanId()))
+                    .build();
 
+            Clan clan = clanFacade.getClanWithMembers(dto);
+
+            GetClanResponse response = mapToClanWithMembersResponse(clan);
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        }
+        catch (IllegalArgumentException e) {
+            // Невалидный UUID или клан не найден
+            log.warn("Invalid argument in getClanWithMembers: {}", e.getMessage());
+            responseObserver.onError(
+                    Status.INVALID_ARGUMENT
+                            .withDescription(e.getMessage())
+                            .asRuntimeException()
+            );
+        } catch (IllegalStateException e) {
+            log.warn("Business rule violation in getClanWithMembers: {}", e.getMessage());
+            responseObserver.onError(
+                    Status.FAILED_PRECONDITION
+                            .withDescription(e.getMessage())
+                            .asRuntimeException()
+            );
+        } catch (Exception e) {
+            log.error("Unexpected error in getClanWithMembers", e);
+            responseObserver.onError(
+                    Status.INTERNAL
+                            .withDescription("Internal server error")
+                            .asRuntimeException()
+            );
+        }
+    }
+
+
+    private GetClanResponse mapToClanWithMembersResponse(Clan clan) {
+        List<ClanMemberDto> memberResponses = clan.getMembers().stream()
+                .map(this::mapToMemberGrpcResponse)
+                .toList();
+
+        return GetClanResponse.newBuilder()
+                .setId(clan.getId().toString())
+                .setName(clan.getName())
+                .setTag(clan.getTag())
+                .setDescription(clan.getDescription() != null ? clan.getDescription() : "")
+                .setRequirements(clan.getRequirements() != null ? clan.getRequirements() : "")
+                .setAvatarUrl(clan.getAvatar_url() != null ? clan.getAvatar_url() : "")
+                .setIsRecruiting(clan.getIsRecruiting() != null ? clan.getIsRecruiting() : true)
+                .setStatus(clan.getClanStatus() != null ? clan.getClanStatus().name() : "")
+                .setTotalElo(clan.getTotalElo() != null ? clan.getTotalElo() : 0)
+                .setMinElo(clan.getMinElo())
+                .setCreatedAt(clan.getCreatedAt() != null ? clan.getCreatedAt().toString() : "")
+                .addAllMembers(memberResponses)
+                .build();
+    }
+
+
+    public ClanMemberDto mapToMemberGrpcResponse(ClanMember clanMember) {
+        return ClanMemberDto.newBuilder()
+                .setId(clanMember.getId() != null ? clanMember.getId().toString() : "")
+                .setUserId(clanMember.getUserId() != null ? clanMember.getUserId().toString() : "")
+                .setRole(clanMember.getRole() != null ? clanMember.getRole().toString() : "")
+                .build();
     }
 }

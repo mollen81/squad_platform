@@ -37,15 +37,8 @@ public class ClanRequests {
 
     @Data
     @Builder
-    public static class GetClanWithAllMembersDto {
-        @Id
-        @GeneratedValue(strategy = GenerationType.UUID)
-        private UUID id;
-        private String name;
-        private String tag;
-        private String status;
-        private int totalElo;
-        private List<ClanMember> members;
+    public static class GetClanDto {
+        private UUID clanId;
     }
 
     public record AcceptApplicationDto(
