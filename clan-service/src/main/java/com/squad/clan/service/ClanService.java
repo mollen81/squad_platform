@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @Slf4j
@@ -99,6 +100,14 @@ public class ClanService {
         log.info("User {} is sent application to clan {}",
                 application.getUserId(), application.getClan().getName());
         return application;
+    }
+
+
+    @Transactional(readOnly = true)
+    public UUID getApplicantIdByApplicationId(UUID applicationId) {
+        return clanApplicationRepository.findById(applicationId)
+                .map(ClanApplication::getUserId)
+                .orElseThrow(() -> new IllegalArgumentException("Application not found"));
     }
 
 
