@@ -4,6 +4,8 @@ import com.squad.clan.entity.ClanMember;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
 import lombok.Data;
 
@@ -14,9 +16,12 @@ public class ClanRequests {
 
     @Data
     @Builder
+    @NotBlank
     public static class CreateClanDto {
         private UUID leaderId; // В реальном проекте берется из JWT токена
+        @Size(min = 2, max = 40)
         private String name;
+        @Size(min = 3, max = 4)
         private String tag;
         private String description;
         private String requirements;
