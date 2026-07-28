@@ -23,14 +23,21 @@ message GetClanResponse {
   string id = 1;
   string name = 2;
   string tag = 3;
-  string status = 4;
-  int32 total_elo = 5;
-  repeated ClanMemberDto members = 6;
+  string description = 4;
+  string requirements = 5;
+  string avatar_url = 6;
+  bool is_recruiting = 7;
+  string status = 8;
+  int32 total_elo = 9;
+  int32 min_elo = 10;
+  string created_at = 11;
+  repeated ClanMemberDto members = 12;
 }
 
 message ClanMemberDto {
-  string user_id = 1;
-  string role = 2; // LEADER, MODERATOR, MEMBER
+  string id = 1;
+  string user_id = 2;
+  string role = 3; // LEADER, MODERATOR, MEMBER
 }
 
 

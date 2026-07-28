@@ -25,13 +25,13 @@ public class ClanFacade {
         return clanService.createClan(dto, leaderElo);
     }
 
-    public ClanApplication applyClan(ClanRequests.ApplyToClanDto dto) {
+    public ClanApplication applyToClan(ClanRequests.ApplyToClanDto dto) {
         int userElo = statsGrpcClient.getPlayerElo(dto.getUserId());
 
         return clanService.applyToClan(dto, userElo);
     }
 
-    public Clan getClanWithMembers(ClanRequests.GetClanWithAllMembersDto dto) {
+    public Clan getClanWithMembers(ClanRequests.GetClanDto dto) {
         return clanService.getClanWithMembers(dto);
     }
 
