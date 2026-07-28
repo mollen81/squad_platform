@@ -35,7 +35,7 @@ func (r *postgresRepository) CreateEvent(ctx context.Context, event domain.Event
 	return nil
 }
 
-func (r *postgresRepository) GetEventsByUserID(ctx context.Context, userCreateID int64) ([]*domain.Event, error) {
+func (r *postgresRepository) GetEventsByUserID(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
 	query := `
 		SELECT id, name, user_create_id, time_start, create_time, user_count
 		FROM event
@@ -72,6 +72,33 @@ func (r *postgresRepository) GetEventsByUserID(ctx context.Context, userCreateID
 	return events, rows.Err()
 }
 
+func (r *postgresRepository) GetEventByID(ctx context.Context, eventID string) (domain.Event, error) {
+	query := `
+		SELECT id, name, user_create_id, time_start, create_time, user_count
+		FROM event
+		WHERE id = $1
+	`
+	var event domain.Event
+	err := r.pool.QueryRow(ctx, query, eventID).Scan(
+		&event.ID,
+		&event.Name,
+		&event.UserCreateID,
+		&event.UserCount,
+		&event.TimeStart,
+		&event.CreateTime,
+	)
+
+	if err == pgx.ErrNoRows {
+		return domain.Event{}, nil
+	}
+
+	if err != nil {
+		return domain.Event{}, err
+	}
+
+	return event, nil
+}
+
 func (r *postgresRepository) GetEventByName(ctx context.Context, eventName string) (domain.Event, error) {
 	query := `
 		SELECT id, name, user_create_id, time_start, create_time, user_count
@@ -99,7 +126,7 @@ func (r *postgresRepository) GetEventByName(ctx context.Context, eventName strin
 	return event, nil
 }
 
-func (r *postgresRepository) UpdateTimeEvent(ctx context.Context, eventID int64, newTimeStart time.Time) error {
+func (r *postgresRepository) UpdateTimeEvent(ctx context.Context, eventID string, newTimeStart time.Time) error {
 	query := `
 		UPDATE events
 		SET time_start = $1
@@ -110,7 +137,7 @@ func (r *postgresRepository) UpdateTimeEvent(ctx context.Context, eventID int64,
 	return err
 }
 
-func (r *postgresRepository) RenameEvent(ctx context.Context, eventID int64, oldName, newName string) error {
+func (r *postgresRepository) RenameEvent(ctx context.Context, eventID, oldName, newName string) error {
 	query := `
 		UPDATE events
 		SET name = $1
@@ -121,7 +148,7 @@ func (r *postgresRepository) RenameEvent(ctx context.Context, eventID int64, old
 	return err
 }
 
-func (r *postgresRepository) DeleteEvent(ctx context.Context, eventID int64) error {
+func (r *postgresRepository) DeleteEvent(ctx context.Context, eventID string) error {
 	query := `
 		DELETE FROM events WHERE id = $1
 	`
@@ -130,7 +157,7 @@ func (r *postgresRepository) DeleteEvent(ctx context.Context, eventID int64) err
 	return err
 }
 
-func (r *postgresRepository) JoinToEvent(ctx context.Context, userID, eventID int64, joinTime time.Time) error {
+func (r *postgresRepository) JoinToEvent(ctx context.Context, userID, eventID string, joinTime time.Time) error {
 	query := `
 		INSERT INTO users (id, event_id, join_time)
 		VALUE ($1, $2, $3)
@@ -140,7 +167,7 @@ func (r *postgresRepository) JoinToEvent(ctx context.Context, userID, eventID in
 	return err
 }
 
-func (r *postgresRepository) LeaveEvent(ctx context.Context, userID, eventID int64) error {
+func (r *postgresRepository) LeaveEvent(ctx context.Context, userID, eventID string) error {
 	query := `
 		DELETE FROM users
 		WHERE id = $1 AND event_id = $2

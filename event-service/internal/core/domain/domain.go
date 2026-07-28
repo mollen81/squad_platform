@@ -3,9 +3,9 @@ package domain
 import "time"
 
 type Event struct {
-	ID int64
+	ID string
 	Name string
-	UserCreateID int64
+	UserCreateID string
 	UserCount int64
 	TimeStart time.Time
 	CreateTime time.Time
