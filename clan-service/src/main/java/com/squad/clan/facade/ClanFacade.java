@@ -4,10 +4,13 @@ import com.squad.clan.client.StatsGrpcClient;
 import com.squad.clan.dto.ClanRequests;
 import com.squad.clan.entity.Clan;
 import com.squad.clan.entity.ClanApplication;
+import com.squad.clan.entity.ClanMember;
 import com.squad.clan.service.ClanService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -32,4 +35,11 @@ public class ClanFacade {
         return clanService.getClanWithMembers(dto);
     }
 
+    public ClanMember acceptApplication(ClanRequests.AcceptApplicationDto dto) {
+        UUID applicantId = clanService.getApplicantIdByApplicationId(dto.applicationId());
+
+        int applicantElo = statsGrpcClient.getPlayerElo(applicantId);
+
+        return clanService.processAcceptance(dto, applicantElo);
+    }
 }
