@@ -12,6 +12,8 @@ service ClanService {
   rpc CreateClan (CreateClanRequest) returns (CreateClanResponse);
 
   rpc ApplyToClan (ApplyToClanRequest) returns (ApplyToClanResponse);
+
+  rpc ProcessAcceptance (ProcessAcceptanceRequest) returns (ProcessAcceptanceResponse);
 }
 
 
@@ -55,6 +57,7 @@ message CreateClanResponse {
   string message = 2;
 }
 
+
 message ApplyToClanRequest {
   string user_id = 1;
   string clan_id = 2;
@@ -64,5 +67,16 @@ message ApplyToClanRequest {
 
 message ApplyToClanResponse {
   string application_id = 1;
+  string message = 2;
+}
+
+
+message ProcessAcceptanceRequest {
+  string applicationId = 1;
+  string acceptorId = 2;
+}
+
+message ProcessAcceptanceResponse {
+  ClanMemberDto newMember = 1;
   string message = 2;
 }

@@ -46,6 +46,7 @@ public class ClanRequests {
         private UUID clanId;
     }
 
+    @Builder
     public record AcceptApplicationDto(
             UUID applicationId,
             UUID accepterId // LEADER or MODERATOR
