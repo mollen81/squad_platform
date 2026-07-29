@@ -21,12 +21,12 @@ public class ClanApplication {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "clan_id", nullable = false)
     private Clan clan;
-
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
 
     @Column(name = "social_link", nullable = false)
     private String socialLink;

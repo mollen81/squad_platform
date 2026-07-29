@@ -142,6 +142,20 @@ services:
       - gateway
     restart: unless-stopped
 
+  clan-service:
+    build:
+      context: .
+      dockerfile: clan-service/Dockerfile
+    container_name: clan-service
+    ports:
+      - "8084:8084"
+    environment:
+      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
+      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS_PORT=${SPRING_KAFKA_BOOTSTRAP_SERVERS_PORT}
+
 
 volumes:
   postgres_data:
