@@ -25,3 +25,33 @@ type PlayerStats {
     revives: Int!
     favouriteRole: String!
 }
+
+
+#Clan Service
+type Clan {
+    id: ID!
+    name: String!
+    tag: String!
+    leaderSteamId: String!
+    totalElo: Int!
+    status: String!
+    membersCount: Int!
+}
+
+type ClanApplication {
+    id: ID!
+    clanId: ID!
+    applicantSteamId: String!
+    status: String!
+}
+
+extend type Query {
+    getClan(id: ID!): Clan
+    getClans: [Clan]
+    getClanApplications(clanId: ID!): [ClanApplication]
+}
+
+extend type Mutation {
+    createClan(name: String!, tag: String!, leaderSteamId: String!): Clan
+    applyToClan(clanId: ID!, applicantSteamId: String!): ClanApplication
+}

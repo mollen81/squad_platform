@@ -47,6 +47,7 @@ sourceSets {
         proto {
             srcDir '../user-service/src/main/proto'
             srcDir '../stats-service/src/main/proto'
+            srcDir '../clan-service/src/main/proto'
         }
     }
 }
