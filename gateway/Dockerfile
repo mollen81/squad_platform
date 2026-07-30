@@ -9,6 +9,7 @@ COPY settings.gradle .
 COPY user-service user-service
 COPY stats-service stats-service
 COPY gateway gateway
+COPY clan-service clan-service
 
 RUN chmod +x ./gradlew
 RUN ./gradlew :gateway:bootJar --no-daemon
