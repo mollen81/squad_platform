@@ -7,6 +7,7 @@ COPY build.gradle .
 COPY settings.gradle .
 
 COPY clan-service clan-service
+COPY stats-service stats-service
 
 RUN chmod +x ./gradlew
 RUN ./gradlew :clan-service:bootJar --no-daemon

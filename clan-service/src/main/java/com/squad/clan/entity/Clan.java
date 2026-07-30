@@ -48,7 +48,7 @@ public class Clan {
 
     @Enumerated(EnumType.STRING)
     @Builder.Default
-    private ClanStatus clanStatus;
+    private ClanStatus clanStatus = ClanStatus.UNVERIFIED;
 
     @Column(name = "total_elo")
     @Builder.Default
