@@ -1,6 +1,6 @@
 package com.squad.gateway.controller;
 
-import com.squad.gateway.record.PlayerStats;
+import com.squad.gateway.record.StatsService.PlayerStats;
 import com.squad.gateway.service.StatsGrpcClientService;
 import com.squad.stats.grpc.GetPlayerStatsResponse;
 import lombok.RequiredArgsConstructor;

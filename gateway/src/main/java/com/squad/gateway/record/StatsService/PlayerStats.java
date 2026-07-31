@@ -1,4 +1,4 @@
-package com.squad.gateway.record;
+package com.squad.gateway.record.StatsService;
 
 public record PlayerStats(
         int eloRating,

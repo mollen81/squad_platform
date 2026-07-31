@@ -1,4 +1,4 @@
-package com.squad.gateway.record;
+package com.squad.gateway.record.ClanService;
 
 import java.util.List;
 
