@@ -14,11 +14,20 @@ public class ClanGrpcClientService {
     @GrpcClient("clan-service")
     private ClanServiceGrpc.ClanServiceBlockingStub clanStub;
 
-    public CreateClanResponse createClan(String name, String tag, String leaderSteamId) {
+    public CreateClanResponse createClan(
+            String name,
+            String tag,
+            String leaderId,
+            String description,
+            String requirements,
+            String avatarUrl) {
         CreateClanRequest request = CreateClanRequest.newBuilder()
                 .setName(name)
                 .setTag(tag)
-                .setLeaderId(leaderSteamId)
+                .setLeaderId(leaderId)
+                .setDescription(description)
+                .setRequirements(requirements)
+                .setAvatarUrl(avatarUrl)
                 .build();
 
         var response = clanStub.createClan(request);
