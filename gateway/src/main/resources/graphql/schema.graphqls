@@ -28,30 +28,65 @@ type PlayerStats {
 
 
 #Clan Service
+type ClanMember {
+    id: ID!
+    userId: String!
+    role: String!
+}
+
 type Clan {
     id: ID!
     name: String!
     tag: String!
-    leaderSteamId: String!
-    totalElo: Int!
+    description: String
+    requirements: String
+    avatarUrl: String
+    isRecruiting: Boolean!
     status: String!
-    membersCount: Int!
+    totalElo: Int!
+    minElo: Int!
+    createdAt: String!
+    members: [ClanMember!]!
 }
 
-type ClanApplication {
-    id: ID!
+type CreateClanResponse {
     clanId: ID!
-    applicantSteamId: String!
-    status: String!
+    message: String!
+}
+
+type ApplyToClanResponse {
+    applicationId: ID!
+    message: String!
+}
+
+type ProcessAcceptanceResponse {
+    newMember: ClanMember
+    message: String!
 }
 
 extend type Query {
-    getClan(id: ID!): Clan
-    getClans: [Clan]
-    getClanApplications(clanId: ID!): [ClanApplication]
+    getClanWithMembers(clanId: ID!): Clan
 }
 
 extend type Mutation {
-    createClan(name: String!, tag: String!, leaderSteamId: String!): Clan
-    applyToClan(clanId: ID!, applicantSteamId: String!): ClanApplication
+    createClan(
+        leaderId: String!,
+        name: String!,
+        tag: String!,
+        description: String,
+        requirements: String,
+        avatarUrl: String
+    ): CreateClanResponse
+
+    applyToClan(
+        userId: String!,
+        clanId: ID!,
+        socialLink: String,
+        experienceText: String
+    ): ApplyToClanResponse
+
+    processAcceptance(
+        applicationId: ID!,
+        acceptorId: String!
+    ): ProcessAcceptanceResponse
 }
