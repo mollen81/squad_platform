@@ -4,7 +4,7 @@ public record ClanResponse(
         String id,
         String name,
         String tag,
-        String leaderSteamId,
+        String leaderId,
         int totalElo,
         String status,
         int membersCount
