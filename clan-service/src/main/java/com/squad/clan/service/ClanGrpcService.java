@@ -28,8 +28,12 @@ public class ClanGrpcService extends com.squad.clan.grpc.ClanServiceGrpc.ClanSer
         try {
             // gRPC request -> DTO
             ClanRequests.CreateClanDto dto = ClanRequests.CreateClanDto.builder()
+                    .leaderId(UUID.fromString(request.getLeaderId()))
                     .tag(request.getTag())
                     .name(request.getName())
+                    .description(request.getDescription())
+                    .requirements(request.getRequirements())
+                    .avatarUrl(request.getAvatarUrl())
                     .build();
 
             // Facade call, (ELO fetching from stats-service + saving in DB)
@@ -172,7 +176,7 @@ public class ClanGrpcService extends com.squad.clan.grpc.ClanServiceGrpc.ClanSer
                 .setRequirements(clan.getRequirements() != null ? clan.getRequirements() : "")
                 .setAvatarUrl(clan.getAvatar_url() != null ? clan.getAvatar_url() : "")
                 .setIsRecruiting(clan.getIsRecruiting() != null ? clan.getIsRecruiting() : true)
-                .setStatus(clan.getClanStatus() != null ? clan.getClanStatus().name() : "")
+                .setStatus(clan.getStatus() != null ? clan.getStatus().name() : "")
                 .setTotalElo(clan.getTotalElo() != null ? clan.getTotalElo() : 0)
                 .setMinElo(clan.getMinElo())
                 .setCreatedAt(clan.getCreatedAt() != null ? clan.getCreatedAt().toString() : "")

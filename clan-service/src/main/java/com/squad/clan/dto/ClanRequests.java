@@ -16,7 +16,6 @@ public class ClanRequests {
 
     @Data
     @Builder
-    @NotBlank
     public static class CreateClanDto {
         private UUID leaderId; // В реальном проекте берется из JWT токена
         @Size(min = 2, max = 40)
@@ -48,7 +47,7 @@ public class ClanRequests {
 
     @Builder
     public record AcceptApplicationDto(
-            UUID applicationId,
-            UUID accepterId // LEADER or MODERATOR
+        UUID applicationId,
+        UUID accepterId // LEADER or MODERATOR
     ) {}
 }

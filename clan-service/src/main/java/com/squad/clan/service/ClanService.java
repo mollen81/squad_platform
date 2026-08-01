@@ -42,7 +42,7 @@ public class ClanService {
                 .description(dto.getDescription())
                 .requirements(dto.getRequirements())
                 .avatar_url(dto.getAvatarUrl())
-                .clanStatus(ClanStatus.UNVERIFIED)
+                .status(ClanStatus.UNVERIFIED)
                 .totalElo(leaderElo)
                 .build();
         clan = clanRepository.save(clan);
