@@ -19,7 +19,7 @@ public class SteamWebApiClient {
                 .build();
     }
 
-    public SteamProfile fetchUserprofile(String steamId) {
+    public SteamProfile fetchUserProfile(String steamId) {
         try {
             JsonNode response = restClient.get()
                         .uri(uriBuilder -> uriBuilder
