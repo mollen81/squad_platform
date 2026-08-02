@@ -3,12 +3,41 @@ CREATE TABLE IF NOT EXISTS events (
     name TEXT NOT NULL,
     user_create_id UUID NOT NULL,
     time_start TIMESTAMP NOT NULL,
-    create_time TIMESTAMP NOT NULL, 
+    time_finish TIMESTAMP,
+    create_time TIMESTAMP NOT NULL,
     user_count INT NOT NULL DEFAULT 0,
+    event_team_winner TEXT,
+    event_team_loser TEXT
 ) ORDER BY (time_start);
 
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
     event_id UUID,
-    join_time TIMESTAMP,
+    clan_id TEXT,
+    team_id TEXT,
+    role TEXT NOT NULL,
+    join_time TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS games (
+    id UUID PRIMARY KEY,
+    event_id UUID NOT NULL,
+    map_id TEXT NOT NULL,
+    game_team_winner_id TEXT,
+    game_team_loser_id TEXT,
+    time_start TIMESTAMP NOT NULL,
+    time_finish TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS game_user_stats (
+    id UUID PRIMARY KEY,
+    game_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    clan_id TEXT,
+    team_id TEXT,
+    role TEXT NOT NULL,
+    kills BIGINT NOT NULL DEFAULT 0,
+    deaths BIGINT NOT NULL DEFAULT 0,
+    points BIGINT NOT NULL DEFAULT 0
 );
