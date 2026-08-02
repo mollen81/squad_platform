@@ -67,7 +67,7 @@ public class AuthGrpcService extends AuthServiceGrpc.AuthServiceImplBase {
                 user = userOpt.get();
                 user.setDisplayName(profile.displayName());
                 user.setAvatarUrl(profile.avatarUrl());
-                user.setLastLoginAt(OffsetDateTime.from(LocalDateTime.now()));
+                user.setLastLoginAt(OffsetDateTime.now());
                 user = userRepository.save(user);
                 log.info("User {} ({}) is successfully authenticated.", user.getDisplayName(), steamId);
             }

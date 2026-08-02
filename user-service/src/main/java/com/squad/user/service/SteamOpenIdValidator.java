@@ -11,9 +11,12 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -21,7 +24,7 @@ import java.util.regex.Pattern;
 public class SteamOpenIdValidator {
     private static final String STEAM_OPENID_URL = "https://steamcommunity.com/openid/login";
     private static final Pattern STEAM_ID_PATTERN =
-            Pattern.compile("https://steamcommunity\\\\.com/openid/id/(\\\\d+)");
+            Pattern.compile("https://steamcommunity\\.com/openid/id/(\\d+)");
 
     private final RestTemplate restTemplate = new RestTemplate();
 
@@ -32,15 +35,24 @@ public class SteamOpenIdValidator {
             return openIdParams.get("test_steam_id");
         }
 
-        MultiValueMap<String, String> requestBody = new LinkedMultiValueMap<>();
-        openIdParams.forEach(requestBody::add);
-        requestBody.set("openIid.Mode", "check_authentication");
+        String requestBody = openIdParams.entrySet().stream()
+                .map(entry -> {
+                    String key = entry.getKey();
+                    String value = entry.getValue();
+
+                    if("openid.mode".equals(key)) {
+                        value = "check_authentication";
+                    }
+
+                    return URLEncoder.encode(key, StandardCharsets.UTF_8) + "=" +
+                            URLEncoder.encode(value, StandardCharsets.UTF_8);
+                })
+                .collect(Collectors.joining("&"));
 
         HttpHeaders httpHeaders = new HttpHeaders();
         httpHeaders.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        HttpEntity<MultiValueMap<String, String>> request =
-                new HttpEntity<>(requestBody, httpHeaders);
+        HttpEntity<String> request = new HttpEntity<>(requestBody, httpHeaders);
 
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(
