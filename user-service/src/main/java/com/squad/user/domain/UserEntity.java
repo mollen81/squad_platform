@@ -32,7 +32,7 @@ public class UserEntity {
     private OffsetDateTime createdAt;
 
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 
     @Column(name = "last_login_at")
     private OffsetDateTime lastLoginAt;
