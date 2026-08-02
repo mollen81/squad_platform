@@ -11,7 +11,7 @@ const (
 )
 
 type Event struct {
-	ID string
+	EventID string
 	Name string
 	UserCreateID string
 	UserCount int64
@@ -23,14 +23,15 @@ type Event struct {
 }
 
 type User struct {
-	ID string
+	UserEventID string
+	UserID string
 	ClanID string
 	TeamID string
 	Role Role
 }
 
 type Game struct {
-	ID string
+	GameID string
 	EventID string
 	MapID string
 	Game_team_winner_id string
@@ -40,7 +41,8 @@ type Game struct {
 }
 
 type GameUserStats struct {
-	ID string
+	GameUserStatsID string
+	Game
 	User
 	Kills int64
 	Deaths int64

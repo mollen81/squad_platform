@@ -22,7 +22,7 @@ func NewEventService(eventRepo EventRepository) EventService {
 
 func (s *eventService) CreateEvent(ctx context.Context, userCreateID, eventName string, timeStart time.Time) error {
 	event := domain.Event{
-		ID: uuid.New().String(),
+		EventID: uuid.New().String(),
 		Name: eventName,
 		UserCreateID: userCreateID,
 		UserCount: 0,
@@ -35,7 +35,7 @@ func (s *eventService) CreateEvent(ctx context.Context, userCreateID, eventName 
 		return err
 	}
 
-	if err := s.eventRepo.JoinToEvent(ctx, userCreateID, event.ID, time.Now()); err != nil {
+	if err := s.eventRepo.JoinToEvent(ctx, userCreateID, event.EventID, time.Now()); err != nil {
 		/*kafka*/
 		return err
 	}
@@ -115,7 +115,7 @@ func (s *eventService) JoinToEvent(ctx context.Context, eventID, userID string, 
 		return err
 	}
 
-	if event.ID == "" {
+	if event.EventID == "" {
 		/*kafka*/
 		return errors.New("event not found")
 	}
@@ -136,7 +136,7 @@ func (s *eventService) LeaveEvent(ctx context.Context, userID, eventID string) e
 		return err
 	}
 
-	if event.ID == "" {
+	if event.EventID == "" {
 		/*kafka*/
 		return errors.New("event not found")
 	}
@@ -162,13 +162,13 @@ func (s *eventService) CreateGame(ctx context.Context, eventID, mapID string, ti
 		return err
 	}
 
-	if event.ID == "" {
+	if event.EventID == "" {
 		/*kafka*/
 		return errors.New("event not found")
 	}
 
 	game := domain.Game{
-		ID:                   uuid.New().String(),
+		GameID:                   uuid.New().String(),
 		EventID:              eventID,
 		MapID:                mapID,
 		Game_team_winner_id:  "",
@@ -193,7 +193,7 @@ func (s *eventService) GetGameByID(ctx context.Context, gameID string) (domain.G
 		return domain.Game{}, err
 	}
 
-	if game.ID == "" {
+	if game.GameID == "" {
 		/*kafka*/
 		return domain.Game{}, errors.New("game not found")
 	}
@@ -220,7 +220,7 @@ func (s *eventService) UpdateGameWinner(ctx context.Context, gameID, winnerTeamI
 		return err
 	}
 
-	if game.ID == "" {
+	if game.GameID == "" {
 		/*kafka*/
 		return errors.New("game not found")
 	}
@@ -241,7 +241,7 @@ func (s *eventService) UpdateGameLoser(ctx context.Context, gameID, loserTeamID 
 		return err
 	}
 
-	if game.ID == "" {
+	if game.GameID == "" {
 		/*kafka*/
 		return errors.New("game not found")
 	}
@@ -262,7 +262,7 @@ func (s *eventService) FinishGame(ctx context.Context, gameID string, timeFinish
 		return err
 	}
 
-	if game.ID == "" {
+	if game.GameID == "" {
 		/*kafka*/
 		return errors.New("game not found")
 	}
@@ -283,7 +283,7 @@ func (s *eventService) DeleteGame(ctx context.Context, gameID string) error {
 		return err
 	}
 
-	if game.ID == "" {
+	if game.GameID == "" {
 		/*kafka*/
 		return errors.New("game not found")
 	}
@@ -304,7 +304,7 @@ func (s *eventService) AddUserStatsToGame(ctx context.Context, gameID, userID st
 		return err
 	}
 
-	if game.ID == "" {
+	if game.GameID == "" {
 		/*kafka*/
 		return errors.New("game not found")
 	}
@@ -315,13 +315,14 @@ func (s *eventService) AddUserStatsToGame(ctx context.Context, gameID, userID st
 		return err
 	}
 
-	if user.ID == "" {
+	if user.UserID == "" {
 		/*kafka*/
 		return errors.New("user not found")
 	}
 
 	stats := domain.GameUserStats{
-		ID:     uuid.New().String(),
+		GameUserStatsID: uuid.New().String(),
+		Game:   game,
 		User:   user,
 		Kills:  kills,
 		Deaths: deaths,
@@ -344,7 +345,7 @@ func (s *eventService) GetGameStats(ctx context.Context, gameID string) ([]domai
 		return nil, err
 	}
 
-	if game.ID == "" {
+	if game.GameID == "" {
 		/*kafka*/
 		return nil, errors.New("game not found")
 	}

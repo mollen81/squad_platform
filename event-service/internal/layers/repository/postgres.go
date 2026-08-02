@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"event-service/internal/core/domain"
-	service "event-service/internal/event/service"
+	service "event-service/internal/layers/service"
 
 	"github.com/jackc/pgx/v5"
 	pgxpool "github.com/jackc/pgx/v5/pgxpool"
@@ -27,7 +27,7 @@ func (r *postgresRepository) CreateEvent(ctx context.Context, event domain.Event
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 
-	_, err := r.pool.Exec(ctx, query, event.ID, event.Name, event.UserCreateID, event.TimeStart, event.TimeFinish, event.CreateTime, event.UserCount, event.Event_team_winner, event.Event_team_loser)
+	_, err := r.pool.Exec(ctx, query, event.EventID, event.Name, event.UserCreateID, event.TimeStart, event.TimeFinish, event.CreateTime, event.UserCount, event.Event_team_winner, event.Event_team_loser)
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func (r *postgresRepository) GetEventsByUserID(ctx context.Context, userCreateID
 	for rows.Next() {
 		evn := &domain.Event{}
 		err := rows.Scan(
-			&evn.ID,
+			&evn.EventID,
 			&evn.Name,
 			&evn.UserCreateID,
 			&evn.UserCount,
@@ -83,7 +83,7 @@ func (r *postgresRepository) GetEventByID(ctx context.Context, eventID string) (
 	`
 	var event domain.Event
 	err := r.pool.QueryRow(ctx, query, eventID).Scan(
-		&event.ID,
+		&event.EventID,
 		&event.Name,
 		&event.UserCreateID,
 		&event.UserCount,
@@ -125,7 +125,7 @@ func (r *postgresRepository) GetEventsByEventName(ctx context.Context, eventName
 	for rows.Next() {
 		evn := domain.Event{}
 		err := rows.Scan(
-			&evn.ID,
+			&evn.EventID,
 			&evn.Name,
 			&evn.UserCreateID,
 			&evn.UserCount,
@@ -234,7 +234,7 @@ func (r *postgresRepository) CreateGame(ctx context.Context, game domain.Game) e
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 
-	_, err := r.pool.Exec(ctx, query, game.ID, game.EventID, game.MapID, game.Game_team_winner_id, game.Game_team_loser_id, game.TimeStart, game.TimeFinish)
+	_, err := r.pool.Exec(ctx, query, game.GameID, game.EventID, game.MapID, game.Game_team_winner_id, game.Game_team_loser_id, game.TimeStart, game.TimeFinish)
 	return err
 }
 
@@ -247,7 +247,7 @@ func (r *postgresRepository) GetGameByID(ctx context.Context, gameID string) (do
 
 	var game domain.Game
 	err := r.pool.QueryRow(ctx, query, gameID).Scan(
-		&game.ID,
+		&game.GameID,
 		&game.EventID,
 		&game.MapID,
 		&game.Game_team_winner_id,
@@ -288,7 +288,7 @@ func (r *postgresRepository) GetGamesByEventID(ctx context.Context, eventID stri
 	for rows.Next() {
 		var game domain.Game
 		err := rows.Scan(
-			&game.ID,
+			&game.GameID,
 			&game.EventID,
 			&game.MapID,
 			&game.Game_team_winner_id,
@@ -356,7 +356,7 @@ func (r *postgresRepository) GetUserByID(ctx context.Context, userID string) (do
 
 	var user domain.User
 	err := r.pool.QueryRow(ctx, query, userID).Scan(
-		&user.ID,
+		&user.UserID,
 		&user.ClanID,
 		&user.TeamID,
 		&user.Role,
@@ -379,7 +379,7 @@ func (r *postgresRepository) AddUserStatsToGame(ctx context.Context, stats domai
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 
-	_, err := r.pool.Exec(ctx, query, stats.ID, stats.User.ID, stats.User.ID, stats.User.ClanID, stats.User.TeamID, stats.User.Role, stats.Kills, stats.Deaths, stats.Points)
+	_, err := r.pool.Exec(ctx, query, stats.GameUserStatsID, stats.Game.GameID, stats.User.UserID, stats.User.ClanID, stats.User.TeamID, stats.User.Role, stats.Kills, stats.Deaths, stats.Points)
 	return err
 }
 
@@ -404,8 +404,8 @@ func (r *postgresRepository) GetGameStats(ctx context.Context, gameID string) ([
 	for rows.Next() {
 		var stat domain.GameUserStats
 		err := rows.Scan(
-			&stat.ID,
-			&stat.User.ID,
+			&stat.GameUserStatsID,
+			&stat.User.UserID,
 			&stat.User.ClanID,
 			&stat.User.TeamID,
 			&stat.User.Role,
