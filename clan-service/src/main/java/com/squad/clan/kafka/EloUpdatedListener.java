@@ -18,8 +18,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class EloUpdatedListener {
 
-    private ClanRepository clanRepository;
-    private ClanMemberRepository clanMemberRepository;
+    private final ClanRepository clanRepository;
+    private final ClanMemberRepository clanMemberRepository;
 
     @KafkaListener(topics = "user.elo.updated", groupId = "clan-workers")
     public void onUserEloUpdated(UserEloUpdatedEvent event) {
@@ -39,13 +39,13 @@ public class EloUpdatedListener {
         clan.setTotalElo(clan.getTotalElo() + delta);
         log.info("Clan [{}] {}: new total_elo: {}", clan.getTag(), clan.getName(), clan.getTotalElo());
 
-        if(clan.getClanStatus() == ClanStatus.UNVERIFIED) {
+        if(clan.getStatus() == ClanStatus.UNVERIFIED) {
             if(clan.getTotalElo() >= 11000) {
                 int memberCount = clanMemberRepository.countByClanId(clan.getId());
                 if(memberCount >= 7) {
-                    clan.setClanStatus(ClanStatus.OFFICIAL);
+                    clan.setStatus(ClanStatus.OFFICIAL);
                     // TODO Kafka notification to notification-service about new clan status to members
-                    log.info("Clan [{}] {}: received OFFICIAL status!!!", clan.getClanStatus(), clan.getName());
+                    log.info("Clan [{}] {}: received OFFICIAL status!!!", clan.getStatus(), clan.getName());
                 }
             }
         }
