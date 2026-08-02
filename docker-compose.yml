@@ -110,6 +110,9 @@ services:
         - STATS_SERVICE_GRPC_PORT=${STATS_SERVICE_GRPC_PORT}
         - CLAN_SERVICE_GRPC_HOST=${CLAN_SERVICE_GRPC_HOST}
         - CLAN_SERVICE_GRPC_PORT=${CLAN_SERVICE_GRPC_PORT}
+      depends_on:
+        - user-service
+        - stats-service
 
   battlemetrics-service:
     build:
