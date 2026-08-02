@@ -35,11 +35,11 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
-  steam:
-    api-key: ${STEAM_API_KEY}
-    jwt:
-      secret: ${JWT_SECRET}
-      expiration-ms: ${JWT_EXPIRATION}
+steam:
+  api-key: ${STEAM_API_KEY}
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-ms: ${JWT_EXPIRATION}
 
 grpc:
   server:
