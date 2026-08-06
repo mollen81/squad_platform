@@ -29,12 +29,13 @@ message Event {
     string event_id = 1;
     string name = 2;
     string user_create_id = 3;
-    int64 user_count = 4;
-    google.protobuf.Timestamp time_start = 5;
-    google.protobuf.Timestamp time_finish = 6;
-    google.protobuf.Timestamp create_time = 7;
-    string event_team_winner = 8;
-    string event_team_loser = 9;
+    string enemy_side_leader = 4;
+    int64 user_count = 5;
+    google.protobuf.Timestamp time_start = 6;
+    google.protobuf.Timestamp time_finish = 7;
+    google.protobuf.Timestamp create_time = 8;
+    string event_team_winner = 9;
+    string event_team_loser = 10;
 }
 
 message User {
@@ -48,11 +49,13 @@ message User {
 message Game {
     string game_id = 1;
     string event_id = 2;
-    string map_id = 3;
-    string game_team_winner_id = 4;
-    string game_team_loser_id = 5;
-    google.protobuf.Timestamp time_start = 6;
-    google.protobuf.Timestamp time_finish = 7;
+    string user_create_id = 3;
+    string enemy_side_leader = 4;
+    string map_name = 5;
+    string game_team_winner_id = 6;
+    string game_team_loser_id = 7;
+    google.protobuf.Timestamp time_start = 8;
+    google.protobuf.Timestamp time_finish = 9;
 }
 
 message GameUserStats {
@@ -132,7 +135,7 @@ message LeaveEventResponse {
 
 message CreateGameRequest {
     string event_id = 1;
-    string map_id = 2;
+    string map_name = 2;
     google.protobuf.Timestamp time_start = 3;
 }
 

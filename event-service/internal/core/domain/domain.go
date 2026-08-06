@@ -14,6 +14,7 @@ type Event struct {
 	EventID string
 	Name string
 	UserCreateID string
+	EnemySideLeader string
 	UserCount int64
 	TimeStart time.Time
 	TimeFinish time.Time
@@ -33,7 +34,9 @@ type User struct {
 type Game struct {
 	GameID string
 	EventID string
-	MapID string
+	UserCreateID string
+	EnemySideLeader string
+	MapName string
 	Game_team_winner_id string
 	Game_team_loser_id string
 	TimeStart time.Time

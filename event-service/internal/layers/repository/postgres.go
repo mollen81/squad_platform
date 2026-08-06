@@ -23,11 +23,11 @@ func NewPostgresRepository(pool *pgxpool.Pool) service.EventRepository {
 
 func (r *postgresRepository) CreateEvent(ctx context.Context, event domain.Event) error {
 	query := `
-	INSERT INTO events (id, name, user_create_id, time_start, time_finish, create_time, user_count, event_team_winner, event_team_loser)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	INSERT INTO events (id, name, user_create_id, enemy_side_leader, time_start, time_finish, create_time, user_count, event_team_winner, event_team_loser)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 
-	_, err := r.pool.Exec(ctx, query, event.EventID, event.Name, event.UserCreateID, event.TimeStart, event.TimeFinish, event.CreateTime, event.UserCount, event.Event_team_winner, event.Event_team_loser)
+	_, err := r.pool.Exec(ctx, query, event.EventID, event.Name, event.UserCreateID, event.EnemySideLeader, event.TimeStart, event.TimeFinish, event.CreateTime, event.UserCount, event.Event_team_winner, event.Event_team_loser)
 	if err != nil {
 		return err
 	}
@@ -37,7 +37,7 @@ func (r *postgresRepository) CreateEvent(ctx context.Context, event domain.Event
 
 func (r *postgresRepository) GetEventsByUserID(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
 	query := `
-		SELECT id, name, user_create_id, user_count, time_start, time_finish, create_time, event_team_winner, event_team_loser
+		SELECT id, name, user_create_id, enemy_side_leader, user_count, time_start, time_finish, create_time, event_team_winner, event_team_loser
 		FROM events
 		WHERE user_create_id = $1
 	`
@@ -59,6 +59,7 @@ func (r *postgresRepository) GetEventsByUserID(ctx context.Context, userCreateID
 			&evn.EventID,
 			&evn.Name,
 			&evn.UserCreateID,
+			&evn.EnemySideLeader,
 			&evn.UserCount,
 			&evn.TimeStart,
 			&evn.TimeFinish,
@@ -77,7 +78,7 @@ func (r *postgresRepository) GetEventsByUserID(ctx context.Context, userCreateID
 
 func (r *postgresRepository) GetEventByID(ctx context.Context, eventID string) (domain.Event, error) {
 	query := `
-		SELECT id, name, user_create_id, user_count, time_start, time_finish, create_time, event_team_winner, event_team_loser
+		SELECT id, name, user_create_id, enemy_side_leader, user_count, time_start, time_finish, create_time, event_team_winner, event_team_loser
 		FROM events
 		WHERE id = $1
 	`
@@ -86,6 +87,7 @@ func (r *postgresRepository) GetEventByID(ctx context.Context, eventID string) (
 		&event.EventID,
 		&event.Name,
 		&event.UserCreateID,
+		&event.EnemySideLeader,
 		&event.UserCount,
 		&event.TimeStart,
 		&event.TimeFinish,
@@ -107,7 +109,7 @@ func (r *postgresRepository) GetEventByID(ctx context.Context, eventID string) (
 
 func (r *postgresRepository) GetEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error) {
 	query := `
-		SELECT id, name, user_create_id, user_count, time_start, time_finish, create_time, event_team_winner, event_team_loser
+		SELECT id, name, user_create_id, enemy_side_leader, user_count, time_start, time_finish, create_time, event_team_winner, event_team_loser
 		FROM events
 		WHERE name = $1
 	`
@@ -128,6 +130,7 @@ func (r *postgresRepository) GetEventsByEventName(ctx context.Context, eventName
 			&evn.EventID,
 			&evn.Name,
 			&evn.UserCreateID,
+			&evn.EnemySideLeader,
 			&evn.UserCount,
 			&evn.TimeStart,
 			&evn.TimeFinish,
@@ -230,17 +233,17 @@ func (r *postgresRepository) LeaveEvent(ctx context.Context, userID, eventID str
 
 func (r *postgresRepository) CreateGame(ctx context.Context, game domain.Game) error {
 	query := `
-		INSERT INTO games (id, event_id, map_id, game_team_winner_id, game_team_loser_id, time_start, time_finish)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO games (id, event_id, user_create_id, enemy_side_leader, map_name, game_team_winner_id, game_team_loser_id, time_start, time_finish)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 
-	_, err := r.pool.Exec(ctx, query, game.GameID, game.EventID, game.MapID, game.Game_team_winner_id, game.Game_team_loser_id, game.TimeStart, game.TimeFinish)
+	_, err := r.pool.Exec(ctx, query, game.GameID, game.EventID, game.UserCreateID, game.EnemySideLeader, game.MapName, game.Game_team_winner_id, game.Game_team_loser_id, game.TimeStart, game.TimeFinish)
 	return err
 }
 
 func (r *postgresRepository) GetGameByID(ctx context.Context, gameID string) (domain.Game, error) {
 	query := `
-		SELECT id, event_id, map_id, game_team_winner_id, game_team_loser_id, time_start, time_finish
+		SELECT id, event_id, user_create_id, enemy_side_leader, map_name, game_team_winner_id, game_team_loser_id, time_start, time_finish
 		FROM games
 		WHERE id = $1
 	`
@@ -249,7 +252,9 @@ func (r *postgresRepository) GetGameByID(ctx context.Context, gameID string) (do
 	err := r.pool.QueryRow(ctx, query, gameID).Scan(
 		&game.GameID,
 		&game.EventID,
-		&game.MapID,
+		&game.UserCreateID,
+		&game.EnemySideLeader,
+		&game.MapName,
 		&game.Game_team_winner_id,
 		&game.Game_team_loser_id,
 		&game.TimeStart,
@@ -269,7 +274,7 @@ func (r *postgresRepository) GetGameByID(ctx context.Context, gameID string) (do
 
 func (r *postgresRepository) GetGamesByEventID(ctx context.Context, eventID string) ([]domain.Game, error) {
 	query := `
-		SELECT id, event_id, map_id, game_team_winner_id, game_team_loser_id, time_start, time_finish
+		SELECT id, event_id, user_create_id, enemy_side_leader, map_name, game_team_winner_id, game_team_loser_id, time_start, time_finish
 		FROM games
 		WHERE event_id = $1
 	`
@@ -290,7 +295,9 @@ func (r *postgresRepository) GetGamesByEventID(ctx context.Context, eventID stri
 		err := rows.Scan(
 			&game.GameID,
 			&game.EventID,
-			&game.MapID,
+			&game.UserCreateID,
+			&game.EnemySideLeader,
+			&game.MapName,
 			&game.Game_team_winner_id,
 			&game.Game_team_loser_id,
 			&game.TimeStart,

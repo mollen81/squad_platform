@@ -117,7 +117,7 @@ func (p *Producer) PublishGameCreated(ctx context.Context, game domain.Game) err
 		"type":       "game_created",
 		"game_id":    game.GameID,
 		"event_id":   game.EventID,
-		"map_id":     game.MapID,
+		"map_name":   game.MapName,
 		"time_start": game.TimeStart,
 	})
 	if err != nil {

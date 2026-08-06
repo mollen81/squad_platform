@@ -54,7 +54,7 @@ func toProtoGame(g domain.Game) *pb.Game {
 	return &pb.Game{
 		GameId:           g.GameID,
 		EventId:          g.EventID,
-		MapId:            g.MapID,
+		MapName:            g.MapName,
 		GameTeamWinnerId: g.Game_team_winner_id,
 		GameTeamLoserId:  g.Game_team_loser_id,
 		TimeStart:        timestamppb.New(g.TimeStart),

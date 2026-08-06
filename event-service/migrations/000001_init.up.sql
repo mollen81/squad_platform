@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS events (
     id UUID PRIMARY KEY,
     name TEXT NOT NULL,
     user_create_id UUID NOT NULL,
+    enemy_side_leader UUID,
     time_start TIMESTAMP NOT NULL,
     time_finish TIMESTAMP,
     create_time TIMESTAMP NOT NULL,
@@ -23,7 +24,9 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS games (
     id UUID PRIMARY KEY,
     event_id UUID NOT NULL,
-    map_id TEXT NOT NULL,
+    user_create_id UUID NOT NULL,
+    enemy_side_leader UUID NOT NULL,
+    map_name TEXT NOT NULL,
     game_team_winner_id TEXT,
     game_team_loser_id TEXT,
     time_start TIMESTAMP NOT NULL,

@@ -27,12 +27,13 @@ type Event struct {
 	EventId         string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	Name            string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	UserCreateId    string                 `protobuf:"bytes,3,opt,name=user_create_id,json=userCreateId,proto3" json:"user_create_id,omitempty"`
-	UserCount       int64                  `protobuf:"varint,4,opt,name=user_count,json=userCount,proto3" json:"user_count,omitempty"`
-	TimeStart       *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=time_start,json=timeStart,proto3" json:"time_start,omitempty"`
-	TimeFinish      *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=time_finish,json=timeFinish,proto3" json:"time_finish,omitempty"`
-	CreateTime      *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
-	EventTeamWinner string                 `protobuf:"bytes,8,opt,name=event_team_winner,json=eventTeamWinner,proto3" json:"event_team_winner,omitempty"`
-	EventTeamLoser  string                 `protobuf:"bytes,9,opt,name=event_team_loser,json=eventTeamLoser,proto3" json:"event_team_loser,omitempty"`
+	EnemySideLeader string                 `protobuf:"bytes,4,opt,name=enemy_side_leader,json=enemySideLeader,proto3" json:"enemy_side_leader,omitempty"`
+	UserCount       int64                  `protobuf:"varint,5,opt,name=user_count,json=userCount,proto3" json:"user_count,omitempty"`
+	TimeStart       *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=time_start,json=timeStart,proto3" json:"time_start,omitempty"`
+	TimeFinish      *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=time_finish,json=timeFinish,proto3" json:"time_finish,omitempty"`
+	CreateTime      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
+	EventTeamWinner string                 `protobuf:"bytes,9,opt,name=event_team_winner,json=eventTeamWinner,proto3" json:"event_team_winner,omitempty"`
+	EventTeamLoser  string                 `protobuf:"bytes,10,opt,name=event_team_loser,json=eventTeamLoser,proto3" json:"event_team_loser,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -84,6 +85,13 @@ func (x *Event) GetName() string {
 func (x *Event) GetUserCreateId() string {
 	if x != nil {
 		return x.UserCreateId
+	}
+	return ""
+}
+
+func (x *Event) GetEnemySideLeader() string {
+	if x != nil {
+		return x.EnemySideLeader
 	}
 	return ""
 }
@@ -210,11 +218,13 @@ type Game struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	GameId           string                 `protobuf:"bytes,1,opt,name=game_id,json=gameId,proto3" json:"game_id,omitempty"`
 	EventId          string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	MapId            string                 `protobuf:"bytes,3,opt,name=map_id,json=mapId,proto3" json:"map_id,omitempty"`
-	GameTeamWinnerId string                 `protobuf:"bytes,4,opt,name=game_team_winner_id,json=gameTeamWinnerId,proto3" json:"game_team_winner_id,omitempty"`
-	GameTeamLoserId  string                 `protobuf:"bytes,5,opt,name=game_team_loser_id,json=gameTeamLoserId,proto3" json:"game_team_loser_id,omitempty"`
-	TimeStart        *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=time_start,json=timeStart,proto3" json:"time_start,omitempty"`
-	TimeFinish       *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=time_finish,json=timeFinish,proto3" json:"time_finish,omitempty"`
+	UserCreateId     string                 `protobuf:"bytes,3,opt,name=user_create_id,json=userCreateId,proto3" json:"user_create_id,omitempty"`
+	EnemySideLeader  string                 `protobuf:"bytes,4,opt,name=enemy_side_leader,json=enemySideLeader,proto3" json:"enemy_side_leader,omitempty"`
+	MapName          string                 `protobuf:"bytes,5,opt,name=map_name,json=mapName,proto3" json:"map_name,omitempty"`
+	GameTeamWinnerId string                 `protobuf:"bytes,6,opt,name=game_team_winner_id,json=gameTeamWinnerId,proto3" json:"game_team_winner_id,omitempty"`
+	GameTeamLoserId  string                 `protobuf:"bytes,7,opt,name=game_team_loser_id,json=gameTeamLoserId,proto3" json:"game_team_loser_id,omitempty"`
+	TimeStart        *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=time_start,json=timeStart,proto3" json:"time_start,omitempty"`
+	TimeFinish       *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=time_finish,json=timeFinish,proto3" json:"time_finish,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -263,9 +273,23 @@ func (x *Game) GetEventId() string {
 	return ""
 }
 
-func (x *Game) GetMapId() string {
+func (x *Game) GetUserCreateId() string {
 	if x != nil {
-		return x.MapId
+		return x.UserCreateId
+	}
+	return ""
+}
+
+func (x *Game) GetEnemySideLeader() string {
+	if x != nil {
+		return x.EnemySideLeader
+	}
+	return ""
+}
+
+func (x *Game) GetMapName() string {
+	if x != nil {
+		return x.MapName
 	}
 	return ""
 }
@@ -1081,7 +1105,7 @@ func (x *LeaveEventResponse) GetError() string {
 type CreateGameRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	MapId         string                 `protobuf:"bytes,2,opt,name=map_id,json=mapId,proto3" json:"map_id,omitempty"`
+	MapName       string                 `protobuf:"bytes,2,opt,name=map_name,json=mapName,proto3" json:"map_name,omitempty"`
 	TimeStart     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=time_start,json=timeStart,proto3" json:"time_start,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1124,9 +1148,9 @@ func (x *CreateGameRequest) GetEventId() string {
 	return ""
 }
 
-func (x *CreateGameRequest) GetMapId() string {
+func (x *CreateGameRequest) GetMapName() string {
 	if x != nil {
-		return x.MapId
+		return x.MapName
 	}
 	return ""
 }
@@ -1970,36 +1994,40 @@ var File_internal_core_proto_event_proto protoreflect.FileDescriptor
 
 const file_internal_core_proto_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1finternal/core/proto/event.proto\x12\x05event\x1a\x1fgoogle/protobuf/timestamp.proto\"\x86\x03\n" +
+	"\x1finternal/core/proto/event.proto\x12\x05event\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb2\x03\n" +
 	"\x05Event\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12$\n" +
-	"\x0euser_create_id\x18\x03 \x01(\tR\fuserCreateId\x12\x1d\n" +
+	"\x0euser_create_id\x18\x03 \x01(\tR\fuserCreateId\x12*\n" +
+	"\x11enemy_side_leader\x18\x04 \x01(\tR\x0fenemySideLeader\x12\x1d\n" +
 	"\n" +
-	"user_count\x18\x04 \x01(\x03R\tuserCount\x129\n" +
+	"user_count\x18\x05 \x01(\x03R\tuserCount\x129\n" +
 	"\n" +
-	"time_start\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\ttimeStart\x12;\n" +
-	"\vtime_finish\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"time_start\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\ttimeStart\x12;\n" +
+	"\vtime_finish\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"timeFinish\x12;\n" +
-	"\vcreate_time\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"\vcreate_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"createTime\x12*\n" +
-	"\x11event_team_winner\x18\b \x01(\tR\x0feventTeamWinner\x12(\n" +
-	"\x10event_team_loser\x18\t \x01(\tR\x0eeventTeamLoser\"\x89\x01\n" +
+	"\x11event_team_winner\x18\t \x01(\tR\x0feventTeamWinner\x12(\n" +
+	"\x10event_team_loser\x18\n" +
+	" \x01(\tR\x0eeventTeamLoser\"\x89\x01\n" +
 	"\x04User\x12\"\n" +
 	"\ruser_event_id\x18\x01 \x01(\tR\vuserEventId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x17\n" +
 	"\aclan_id\x18\x03 \x01(\tR\x06clanId\x12\x17\n" +
 	"\ateam_id\x18\x04 \x01(\tR\x06teamId\x12\x12\n" +
-	"\x04role\x18\x05 \x01(\tR\x04role\"\xa5\x02\n" +
+	"\x04role\x18\x05 \x01(\tR\x04role\"\xfb\x02\n" +
 	"\x04Game\x12\x17\n" +
 	"\agame_id\x18\x01 \x01(\tR\x06gameId\x12\x19\n" +
-	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x15\n" +
-	"\x06map_id\x18\x03 \x01(\tR\x05mapId\x12-\n" +
-	"\x13game_team_winner_id\x18\x04 \x01(\tR\x10gameTeamWinnerId\x12+\n" +
-	"\x12game_team_loser_id\x18\x05 \x01(\tR\x0fgameTeamLoserId\x129\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12$\n" +
+	"\x0euser_create_id\x18\x03 \x01(\tR\fuserCreateId\x12*\n" +
+	"\x11enemy_side_leader\x18\x04 \x01(\tR\x0fenemySideLeader\x12\x19\n" +
+	"\bmap_name\x18\x05 \x01(\tR\amapName\x12-\n" +
+	"\x13game_team_winner_id\x18\x06 \x01(\tR\x10gameTeamWinnerId\x12+\n" +
+	"\x12game_team_loser_id\x18\a \x01(\tR\x0fgameTeamLoserId\x129\n" +
 	"\n" +
-	"time_start\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\ttimeStart\x12;\n" +
-	"\vtime_finish\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"time_start\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\ttimeStart\x12;\n" +
+	"\vtime_finish\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"timeFinish\"\xc4\x01\n" +
 	"\rGameUserStats\x12+\n" +
 	"\x12game_user_stats_id\x18\x01 \x01(\tR\x0fgameUserStatsId\x12\x1f\n" +
@@ -2048,10 +2076,10 @@ const file_internal_core_proto_event_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\"*\n" +
 	"\x12LeaveEventResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"\x80\x01\n" +
+	"\x05error\x18\x01 \x01(\tR\x05error\"\x84\x01\n" +
 	"\x11CreateGameRequest\x12\x19\n" +
-	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x15\n" +
-	"\x06map_id\x18\x02 \x01(\tR\x05mapId\x129\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x19\n" +
+	"\bmap_name\x18\x02 \x01(\tR\amapName\x129\n" +
 	"\n" +
 	"time_start\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\ttimeStart\"*\n" +
 	"\x12CreateGameResponse\x12\x14\n" +

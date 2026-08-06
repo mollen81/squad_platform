@@ -77,7 +77,7 @@ func (t *GRPCTransport) LeaveEvent(ctx context.Context, req *pb.LeaveEventReques
 }
 
 func (t *GRPCTransport) CreateGame(ctx context.Context, req *pb.CreateGameRequest) (*pb.CreateGameResponse, error) {
-	err := t.eventService.CreateGame(ctx, req.GetEventId(), req.GetMapId(), req.GetTimeStart().AsTime())
+	err := t.eventService.CreateGame(ctx, req.GetEventId(), req.GetMapName(), req.GetTimeStart().AsTime())
 
 	return &pb.CreateGameResponse{
 		Error: errString(err),

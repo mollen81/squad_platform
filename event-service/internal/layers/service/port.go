@@ -14,7 +14,7 @@ type EventService interface {
 	DeleteEvent(ctx context.Context, eventID, userCreateID string) error
 	JoinToEvent(ctx context.Context, eventID, userID string, joinTime time.Time) error
 	LeaveEvent(ctx context.Context, userID, eventID string) error
-	CreateGame(ctx context.Context, eventID, mapID string, timeStart time.Time) error
+	CreateGame(ctx context.Context, eventID, mapName string, timeStart time.Time) error
 	GetGameByID(ctx context.Context, gameID string) (domain.Game, error)
 	GetGamesByEventID(ctx context.Context, eventID string) ([]domain.Game, error)
 	UpdateGameWinner(ctx context.Context, gameID, winnerTeamID string) error

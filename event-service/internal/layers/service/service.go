@@ -158,7 +158,7 @@ func (s *eventService) LeaveEvent(ctx context.Context, userID, eventID string) e
 	return nil
 }
 
-func (s *eventService) CreateGame(ctx context.Context, eventID, mapID string, timeStart time.Time) error {
+func (s *eventService) CreateGame(ctx context.Context, eventID, mapName string, timeStart time.Time) error {
 	event, err := s.eventRepo.GetEventByID(ctx, eventID)
 	if err != nil {
 		return err
@@ -171,7 +171,9 @@ func (s *eventService) CreateGame(ctx context.Context, eventID, mapID string, ti
 	game := domain.Game{
 		GameID:                   uuid.New().String(),
 		EventID:              eventID,
-		MapID:                mapID,
+		UserCreateID:         event.UserCreateID,
+		EnemySideLeader:      event.EnemySideLeader,
+		MapName:              mapName,
 		Game_team_winner_id:  "",
 		Game_team_loser_id:   "",
 		TimeStart:            timeStart,
