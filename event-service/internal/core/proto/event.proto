@@ -14,6 +14,7 @@ service EventService {
     rpc DeleteEvent(DeleteEventRequest) returns (DeleteEventResponse);
     rpc JoinToEvent(JoinToEventRequest) returns (JoinToEventResponse);
     rpc LeaveEvent(LeaveEventRequest) returns (LeaveEventResponse);
+    rpc SetRole(SetRoleRequest) returns (SetRoleResponse);
     rpc CreateGame(CreateGameRequest) returns (CreateGameResponse);
     rpc GetGameByID(GetGameByIDRequest) returns (GetGameByIDResponse);
     rpc GetGamesByEventID(GetGamesByEventIDRequest) returns (GetGamesByEventIDResponse);
@@ -80,8 +81,9 @@ message GameUserStats {
 
 message CreateEventRequest {
     string user_create_id = 1;
-    string event_name = 2;
-    google.protobuf.Timestamp time_start = 3;
+    string enemy_side_leader = 2;
+    string event_name = 3;
+    google.protobuf.Timestamp time_start = 4;
 }
 
 message CreateEventResponse {
@@ -141,6 +143,17 @@ message LeaveEventRequest {
 }
 
 message LeaveEventResponse {
+    string error = 1;
+}
+
+message SetRoleRequest {
+    string event_id = 1;
+    string side_leader_id = 2;
+    string user_id = 3;
+    string role = 4;
+}
+
+message SetRoleResponse {
     string error = 1;
 }
 

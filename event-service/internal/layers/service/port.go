@@ -7,13 +7,14 @@ import (
 )
 
 type EventService interface {
-	CreateEvent(ctx context.Context, userCreateID, eventName string, timeStart time.Time) error
+	CreateEvent(ctx context.Context, userCreateID, enemySideLeader, eventName string, timeStart time.Time) error
 	GetEventsByUserID(ctx context.Context, userCreateID string) ([]*domain.Event, error)
 	GetEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error)
 	UpdateTimeEvent(ctx context.Context, eventID, userCreateID string, newTimeStart time.Time) error
 	DeleteEvent(ctx context.Context, eventID, userCreateID string) error
 	JoinToEvent(ctx context.Context, eventID, userID string, joinTime time.Time) error
 	LeaveEvent(ctx context.Context, userID, eventID string) error
+	SetRole(ctx context.Context, eventID, sideLeaderID, userID string, role domain.Role) error
 	CreateGame(ctx context.Context, eventID, mapName string, timeStart time.Time) error
 	GetGameByID(ctx context.Context, gameID string) (domain.Game, error)
 	GetGamesByEventID(ctx context.Context, eventID string) ([]domain.Game, error)
@@ -41,6 +42,7 @@ type EventRepository interface {
 	DeleteEvent(ctx context.Context, eventID string) error
 	JoinToEvent(ctx context.Context, userID, eventID string, joinTime time.Time) error
 	LeaveEvent(ctx context.Context, userID, eventID string) error
+	UpdateUserRole(ctx context.Context, userID, eventID string, role domain.Role) error
 	CreateGame(ctx context.Context, game domain.Game) error
 	GetGameByID(ctx context.Context, gameID string) (domain.Game, error)
 	GetGamesByEventID(ctx context.Context, eventID string) ([]domain.Game, error)

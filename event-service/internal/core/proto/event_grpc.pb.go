@@ -26,6 +26,7 @@ const (
 	EventService_DeleteEvent_FullMethodName          = "/event.EventService/DeleteEvent"
 	EventService_JoinToEvent_FullMethodName          = "/event.EventService/JoinToEvent"
 	EventService_LeaveEvent_FullMethodName           = "/event.EventService/LeaveEvent"
+	EventService_SetRole_FullMethodName              = "/event.EventService/SetRole"
 	EventService_CreateGame_FullMethodName           = "/event.EventService/CreateGame"
 	EventService_GetGameByID_FullMethodName          = "/event.EventService/GetGameByID"
 	EventService_GetGamesByEventID_FullMethodName    = "/event.EventService/GetGamesByEventID"
@@ -51,6 +52,7 @@ type EventServiceClient interface {
 	DeleteEvent(ctx context.Context, in *DeleteEventRequest, opts ...grpc.CallOption) (*DeleteEventResponse, error)
 	JoinToEvent(ctx context.Context, in *JoinToEventRequest, opts ...grpc.CallOption) (*JoinToEventResponse, error)
 	LeaveEvent(ctx context.Context, in *LeaveEventRequest, opts ...grpc.CallOption) (*LeaveEventResponse, error)
+	SetRole(ctx context.Context, in *SetRoleRequest, opts ...grpc.CallOption) (*SetRoleResponse, error)
 	CreateGame(ctx context.Context, in *CreateGameRequest, opts ...grpc.CallOption) (*CreateGameResponse, error)
 	GetGameByID(ctx context.Context, in *GetGameByIDRequest, opts ...grpc.CallOption) (*GetGameByIDResponse, error)
 	GetGamesByEventID(ctx context.Context, in *GetGamesByEventIDRequest, opts ...grpc.CallOption) (*GetGamesByEventIDResponse, error)
@@ -137,6 +139,16 @@ func (c *eventServiceClient) LeaveEvent(ctx context.Context, in *LeaveEventReque
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(LeaveEventResponse)
 	err := c.cc.Invoke(ctx, EventService_LeaveEvent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *eventServiceClient) SetRole(ctx context.Context, in *SetRoleRequest, opts ...grpc.CallOption) (*SetRoleResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetRoleResponse)
+	err := c.cc.Invoke(ctx, EventService_SetRole_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -274,6 +286,7 @@ type EventServiceServer interface {
 	DeleteEvent(context.Context, *DeleteEventRequest) (*DeleteEventResponse, error)
 	JoinToEvent(context.Context, *JoinToEventRequest) (*JoinToEventResponse, error)
 	LeaveEvent(context.Context, *LeaveEventRequest) (*LeaveEventResponse, error)
+	SetRole(context.Context, *SetRoleRequest) (*SetRoleResponse, error)
 	CreateGame(context.Context, *CreateGameRequest) (*CreateGameResponse, error)
 	GetGameByID(context.Context, *GetGameByIDRequest) (*GetGameByIDResponse, error)
 	GetGamesByEventID(context.Context, *GetGamesByEventIDRequest) (*GetGamesByEventIDResponse, error)
@@ -316,6 +329,9 @@ func (UnimplementedEventServiceServer) JoinToEvent(context.Context, *JoinToEvent
 }
 func (UnimplementedEventServiceServer) LeaveEvent(context.Context, *LeaveEventRequest) (*LeaveEventResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method LeaveEvent not implemented")
+}
+func (UnimplementedEventServiceServer) SetRole(context.Context, *SetRoleRequest) (*SetRoleResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetRole not implemented")
 }
 func (UnimplementedEventServiceServer) CreateGame(context.Context, *CreateGameRequest) (*CreateGameResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateGame not implemented")
@@ -496,6 +512,24 @@ func _EventService_LeaveEvent_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(EventServiceServer).LeaveEvent(ctx, req.(*LeaveEventRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EventService_SetRole_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetRoleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).SetRole(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_SetRole_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).SetRole(ctx, req.(*SetRoleRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -750,6 +784,10 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "LeaveEvent",
 			Handler:    _EventService_LeaveEvent_Handler,
+		},
+		{
+			MethodName: "SetRole",
+			Handler:    _EventService_SetRole_Handler,
 		},
 		{
 			MethodName: "CreateGame",

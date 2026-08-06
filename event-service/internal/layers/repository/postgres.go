@@ -231,6 +231,17 @@ func (r *postgresRepository) LeaveEvent(ctx context.Context, userID, eventID str
 	return err
 }
 
+func (r *postgresRepository) UpdateUserRole(ctx context.Context, userID, eventID string, role domain.Role) error {
+	query := `
+		UPDATE users
+		SET role = $1
+		WHERE user_id = $2 AND event_id = $3
+	`
+
+	_, err := r.pool.Exec(ctx, query, string(role), userID, eventID)
+	return err
+}
+
 func (r *postgresRepository) CreateGame(ctx context.Context, game domain.Game) error {
 	query := `
 		INSERT INTO games (id, event_id, user_create_id, enemy_side_leader, team1_id, team2_id, map_name, game_team_winner_id, game_team_loser_id, time_start, time_finish)

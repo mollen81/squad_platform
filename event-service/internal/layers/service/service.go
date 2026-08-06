@@ -23,11 +23,12 @@ func NewEventService(eventRepo EventRepository, producer *kafka.Producer) EventS
 	}
 }
 
-func (s *eventService) CreateEvent(ctx context.Context, userCreateID, eventName string, timeStart time.Time) error {
+func (s *eventService) CreateEvent(ctx context.Context, userCreateID, enemySideLeader, eventName string, timeStart time.Time) error {
 	event := domain.Event{
 		EventID: uuid.New().String(),
 		Name: eventName,
 		UserCreateID: userCreateID,
+		EnemySideLeader: enemySideLeader,
 		UserCount: 0,
 		TimeStart: timeStart,
 		CreateTime: time.Now(),
@@ -152,6 +153,36 @@ func (s *eventService) LeaveEvent(ctx context.Context, userID, eventID string) e
 	}
 
 	if err = s.producer.PublishUserLeftEvent(ctx, eventID, userID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *eventService) SetRole(ctx context.Context, eventID, sideLeaderID, userID string, role domain.Role) error {
+	event, err := s.eventRepo.GetEventByID(ctx, eventID)
+	if err != nil {
+		return err
+	}
+
+	if event.EventID == "" {
+		return errors.New("event not found")
+	}
+
+	if event.UserCreateID != sideLeaderID && event.EnemySideLeader != sideLeaderID {
+		return errors.New("only side leaders can set roles")
+	}
+
+	user, err := s.eventRepo.GetUserByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	if user.UserID == "" {
+		return errors.New("user not found")
+	}
+
+	if err = s.eventRepo.UpdateUserRole(ctx, userID, eventID, role); err != nil {
 		return err
 	}
 

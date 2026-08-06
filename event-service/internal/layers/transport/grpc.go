@@ -20,7 +20,7 @@ func NewGRPCHandler(eventService service.EventService) *GRPCTransport {
 }
 
 func (t *GRPCTransport) CreateEvent(ctx context.Context, req *pb.CreateEventRequest) (*pb.CreateEventResponse, error) {
-	err := t.eventService.CreateEvent(ctx, req.GetUserCreateId(), req.GetEventName(), req.GetTimeStart().AsTime())
+	err := t.eventService.CreateEvent(ctx, req.GetUserCreateId(), req.GetEnemySideLeader(), req.GetEventName(), req.GetTimeStart().AsTime())
 
 	return &pb.CreateEventResponse{
 		Error: errString(err),
@@ -73,6 +73,14 @@ func (t *GRPCTransport) LeaveEvent(ctx context.Context, req *pb.LeaveEventReques
 	err := t.eventService.LeaveEvent(ctx, req.GetUserId(), req.GetEventId())
 
 	return &pb.LeaveEventResponse{
+		Error: errString(err),
+	}, nil
+}
+
+func (t *GRPCTransport) SetRole(ctx context.Context, req *pb.SetRoleRequest) (*pb.SetRoleResponse, error) {
+	err := t.eventService.SetRole(ctx, req.GetEventId(), req.GetSideLeaderId(), req.GetUserId(), domain.Role(req.GetRole()))
+
+	return &pb.SetRoleResponse{
 		Error: errString(err),
 	}, nil
 }
