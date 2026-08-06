@@ -23,6 +23,9 @@ service EventService {
     rpc DeleteGame(DeleteGameRequest) returns (DeleteGameResponse);
     rpc AddUserStatsToGame(AddUserStatsToGameRequest) returns (AddUserStatsToGameResponse);
     rpc GetGameStats(GetGameStatsRequest) returns (GetGameStatsResponse);
+    rpc GetTeamByID(GetTeamByIDRequest) returns (GetTeamByIDResponse);
+    rpc AddUserToTeam(AddUserToTeamRequest) returns (AddUserToTeamResponse);
+    rpc RemoveUserFromTeam(RemoveUserFromTeamRequest) returns (RemoveUserFromTeamResponse);
 }
 
 message Event {
@@ -51,11 +54,19 @@ message Game {
     string event_id = 2;
     string user_create_id = 3;
     string enemy_side_leader = 4;
-    string map_name = 5;
-    string game_team_winner_id = 6;
-    string game_team_loser_id = 7;
-    google.protobuf.Timestamp time_start = 8;
-    google.protobuf.Timestamp time_finish = 9;
+    string team1_id = 5;
+    string team2_id = 6;
+    string map_name = 7;
+    string game_team_winner_id = 8;
+    string game_team_loser_id = 9;
+    google.protobuf.Timestamp time_start = 10;
+    google.protobuf.Timestamp time_finish = 11;
+}
+
+message Team {
+    string team_id = 1;
+    string game_id = 2;
+    repeated User members = 3;
 }
 
 message GameUserStats {
@@ -215,4 +226,33 @@ message GetGameStatsRequest {
 message GetGameStatsResponse {
     repeated GameUserStats stats = 1;
     string error = 2;
+}
+
+message GetTeamByIDRequest {
+    string team_id = 1;
+}
+
+message GetTeamByIDResponse {
+    Team team = 1;
+    string error = 2;
+}
+
+message AddUserToTeamRequest {
+    string team_id = 1;
+    string user_id = 2;
+    string clan_id = 3;
+    string role = 4;
+}
+
+message AddUserToTeamResponse {
+    string error = 1;
+}
+
+message RemoveUserFromTeamRequest {
+    string team_id = 1;
+    string user_id = 2;
+}
+
+message RemoveUserFromTeamResponse {
+    string error = 1;
 }

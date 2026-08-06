@@ -23,6 +23,9 @@ type EventService interface {
 	DeleteGame(ctx context.Context, gameID string) error
 	AddUserStatsToGame(ctx context.Context, gameID, userID string, kills, deaths, points int64) error
 	GetGameStats(ctx context.Context, gameID string) ([]domain.GameUserStats, error)
+	GetTeamByID(ctx context.Context, teamID string) (domain.Team, error)
+	AddUserToTeam(ctx context.Context, teamID, userID, clanID string, role domain.Role) error
+	RemoveUserFromTeam(ctx context.Context, teamID, userID string) error
 }
 
 type EventRepository interface {
@@ -48,4 +51,8 @@ type EventRepository interface {
 	GetUserByID(ctx context.Context, userID string) (domain.User, error)
 	AddUserStatsToGame(ctx context.Context, stats domain.GameUserStats) error
 	GetGameStats(ctx context.Context, gameID string) ([]domain.GameUserStats, error)
+	CreateTeam(ctx context.Context, team domain.Team) error
+	GetTeamByID(ctx context.Context, teamID string) (domain.Team, error)
+	AddUserToTeam(ctx context.Context, teamID, userID, clanID string, role domain.Role) error
+	RemoveUserFromTeam(ctx context.Context, teamID, userID string) error
 }

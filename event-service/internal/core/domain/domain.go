@@ -36,6 +36,8 @@ type Game struct {
 	EventID string
 	UserCreateID string
 	EnemySideLeader string
+	Team1ID string
+	Team2ID string
 	MapName string
 	Game_team_winner_id string
 	Game_team_loser_id string
@@ -53,6 +55,7 @@ type GameUserStats struct {
 }
 
 type Team struct {
-	ID string
+	TeamID string
+	GameID string
 	Members [50]User
 }

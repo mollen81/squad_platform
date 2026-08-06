@@ -26,11 +26,27 @@ CREATE TABLE IF NOT EXISTS games (
     event_id UUID NOT NULL,
     user_create_id UUID NOT NULL,
     enemy_side_leader UUID NOT NULL,
+    team1_id UUID,
+    team2_id UUID,
     map_name TEXT NOT NULL,
     game_team_winner_id TEXT,
     game_team_loser_id TEXT,
     time_start TIMESTAMP NOT NULL,
     time_finish TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS teams (
+    id UUID PRIMARY KEY,
+    game_id UUID NOT NULL,
+    name TEXT
+);
+
+CREATE TABLE IF NOT EXISTS team_members (
+    team_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    clan_id TEXT,
+    role TEXT NOT NULL,
+    PRIMARY KEY (team_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS game_user_stats (

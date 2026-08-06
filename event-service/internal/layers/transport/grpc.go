@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 
+	"event-service/internal/core/domain"
 	pb "event-service/internal/core/proto"
 	service "event-service/internal/layers/service"
 )
@@ -153,4 +154,54 @@ func (t *GRPCTransport) GetGameStats(ctx context.Context, req *pb.GetGameStatsRe
 		Stats: toProtoGameUserStatsSlice(stats),
 		Error: errString(err),
 	}, nil
+}
+
+func (t *GRPCTransport) GetTeamByID(ctx context.Context, req *pb.GetTeamByIDRequest) (*pb.GetTeamByIDResponse, error) {
+	team, err := t.eventService.GetTeamByID(ctx, req.GetTeamId())
+
+	resp := &pb.GetTeamByIDResponse{
+		Error: errString(err),
+	}
+	if err == nil {
+		resp.Team = toProtoTeam(team)
+	}
+
+	return resp, nil
+}
+
+func (t *GRPCTransport) AddUserToTeam(ctx context.Context, req *pb.AddUserToTeamRequest) (*pb.AddUserToTeamResponse, error) {
+	err := t.eventService.AddUserToTeam(ctx, req.GetTeamId(), req.GetUserId(), req.GetClanId(), domain.Role(req.GetRole()))
+
+	return &pb.AddUserToTeamResponse{
+		Error: errString(err),
+	}, nil
+}
+
+func (t *GRPCTransport) RemoveUserFromTeam(ctx context.Context, req *pb.RemoveUserFromTeamRequest) (*pb.RemoveUserFromTeamResponse, error) {
+	err := t.eventService.RemoveUserFromTeam(ctx, req.GetTeamId(), req.GetUserId())
+
+	return &pb.RemoveUserFromTeamResponse{
+		Error: errString(err),
+	}, nil
+}
+
+func toProtoTeam(team domain.Team) *pb.Team {
+	members := make([]*pb.User, 0)
+	for _, member := range team.Members {
+		if member.UserID != "" {
+			members = append(members, &pb.User{
+				UserEventId: member.UserEventID,
+				UserId:      member.UserID,
+				ClanId:      member.ClanID,
+				TeamId:      member.TeamID,
+				Role:        string(member.Role),
+			})
+		}
+	}
+
+	return &pb.Team{
+		TeamId:  team.TeamID,
+		GameId:  team.GameID,
+		Members: members,
+	}
 }

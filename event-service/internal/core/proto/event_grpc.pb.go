@@ -35,6 +35,9 @@ const (
 	EventService_DeleteGame_FullMethodName           = "/event.EventService/DeleteGame"
 	EventService_AddUserStatsToGame_FullMethodName   = "/event.EventService/AddUserStatsToGame"
 	EventService_GetGameStats_FullMethodName         = "/event.EventService/GetGameStats"
+	EventService_GetTeamByID_FullMethodName          = "/event.EventService/GetTeamByID"
+	EventService_AddUserToTeam_FullMethodName        = "/event.EventService/AddUserToTeam"
+	EventService_RemoveUserFromTeam_FullMethodName   = "/event.EventService/RemoveUserFromTeam"
 )
 
 // EventServiceClient is the client API for EventService service.
@@ -57,6 +60,9 @@ type EventServiceClient interface {
 	DeleteGame(ctx context.Context, in *DeleteGameRequest, opts ...grpc.CallOption) (*DeleteGameResponse, error)
 	AddUserStatsToGame(ctx context.Context, in *AddUserStatsToGameRequest, opts ...grpc.CallOption) (*AddUserStatsToGameResponse, error)
 	GetGameStats(ctx context.Context, in *GetGameStatsRequest, opts ...grpc.CallOption) (*GetGameStatsResponse, error)
+	GetTeamByID(ctx context.Context, in *GetTeamByIDRequest, opts ...grpc.CallOption) (*GetTeamByIDResponse, error)
+	AddUserToTeam(ctx context.Context, in *AddUserToTeamRequest, opts ...grpc.CallOption) (*AddUserToTeamResponse, error)
+	RemoveUserFromTeam(ctx context.Context, in *RemoveUserFromTeamRequest, opts ...grpc.CallOption) (*RemoveUserFromTeamResponse, error)
 }
 
 type eventServiceClient struct {
@@ -227,6 +233,36 @@ func (c *eventServiceClient) GetGameStats(ctx context.Context, in *GetGameStatsR
 	return out, nil
 }
 
+func (c *eventServiceClient) GetTeamByID(ctx context.Context, in *GetTeamByIDRequest, opts ...grpc.CallOption) (*GetTeamByIDResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTeamByIDResponse)
+	err := c.cc.Invoke(ctx, EventService_GetTeamByID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *eventServiceClient) AddUserToTeam(ctx context.Context, in *AddUserToTeamRequest, opts ...grpc.CallOption) (*AddUserToTeamResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AddUserToTeamResponse)
+	err := c.cc.Invoke(ctx, EventService_AddUserToTeam_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *eventServiceClient) RemoveUserFromTeam(ctx context.Context, in *RemoveUserFromTeamRequest, opts ...grpc.CallOption) (*RemoveUserFromTeamResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RemoveUserFromTeamResponse)
+	err := c.cc.Invoke(ctx, EventService_RemoveUserFromTeam_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // EventServiceServer is the server API for EventService service.
 // All implementations must embed UnimplementedEventServiceServer
 // for forward compatibility.
@@ -247,6 +283,9 @@ type EventServiceServer interface {
 	DeleteGame(context.Context, *DeleteGameRequest) (*DeleteGameResponse, error)
 	AddUserStatsToGame(context.Context, *AddUserStatsToGameRequest) (*AddUserStatsToGameResponse, error)
 	GetGameStats(context.Context, *GetGameStatsRequest) (*GetGameStatsResponse, error)
+	GetTeamByID(context.Context, *GetTeamByIDRequest) (*GetTeamByIDResponse, error)
+	AddUserToTeam(context.Context, *AddUserToTeamRequest) (*AddUserToTeamResponse, error)
+	RemoveUserFromTeam(context.Context, *RemoveUserFromTeamRequest) (*RemoveUserFromTeamResponse, error)
 	mustEmbedUnimplementedEventServiceServer()
 }
 
@@ -304,6 +343,15 @@ func (UnimplementedEventServiceServer) AddUserStatsToGame(context.Context, *AddU
 }
 func (UnimplementedEventServiceServer) GetGameStats(context.Context, *GetGameStatsRequest) (*GetGameStatsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetGameStats not implemented")
+}
+func (UnimplementedEventServiceServer) GetTeamByID(context.Context, *GetTeamByIDRequest) (*GetTeamByIDResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetTeamByID not implemented")
+}
+func (UnimplementedEventServiceServer) AddUserToTeam(context.Context, *AddUserToTeamRequest) (*AddUserToTeamResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AddUserToTeam not implemented")
+}
+func (UnimplementedEventServiceServer) RemoveUserFromTeam(context.Context, *RemoveUserFromTeamRequest) (*RemoveUserFromTeamResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RemoveUserFromTeam not implemented")
 }
 func (UnimplementedEventServiceServer) mustEmbedUnimplementedEventServiceServer() {}
 func (UnimplementedEventServiceServer) testEmbeddedByValue()                      {}
@@ -614,6 +662,60 @@ func _EventService_GetGameStats_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _EventService_GetTeamByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTeamByIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).GetTeamByID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_GetTeamByID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).GetTeamByID(ctx, req.(*GetTeamByIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EventService_AddUserToTeam_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddUserToTeamRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).AddUserToTeam(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_AddUserToTeam_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).AddUserToTeam(ctx, req.(*AddUserToTeamRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EventService_RemoveUserFromTeam_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveUserFromTeamRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).RemoveUserFromTeam(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_RemoveUserFromTeam_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).RemoveUserFromTeam(ctx, req.(*RemoveUserFromTeamRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // EventService_ServiceDesc is the grpc.ServiceDesc for EventService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -684,6 +786,18 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetGameStats",
 			Handler:    _EventService_GetGameStats_Handler,
+		},
+		{
+			MethodName: "GetTeamByID",
+			Handler:    _EventService_GetTeamByID_Handler,
+		},
+		{
+			MethodName: "AddUserToTeam",
+			Handler:    _EventService_AddUserToTeam_Handler,
+		},
+		{
+			MethodName: "RemoveUserFromTeam",
+			Handler:    _EventService_RemoveUserFromTeam_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

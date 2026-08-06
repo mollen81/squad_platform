@@ -233,17 +233,17 @@ func (r *postgresRepository) LeaveEvent(ctx context.Context, userID, eventID str
 
 func (r *postgresRepository) CreateGame(ctx context.Context, game domain.Game) error {
 	query := `
-		INSERT INTO games (id, event_id, user_create_id, enemy_side_leader, map_name, game_team_winner_id, game_team_loser_id, time_start, time_finish)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO games (id, event_id, user_create_id, enemy_side_leader, team1_id, team2_id, map_name, game_team_winner_id, game_team_loser_id, time_start, time_finish)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 
-	_, err := r.pool.Exec(ctx, query, game.GameID, game.EventID, game.UserCreateID, game.EnemySideLeader, game.MapName, game.Game_team_winner_id, game.Game_team_loser_id, game.TimeStart, game.TimeFinish)
+	_, err := r.pool.Exec(ctx, query, game.GameID, game.EventID, game.UserCreateID, game.EnemySideLeader, game.Team1ID, game.Team2ID, game.MapName, game.Game_team_winner_id, game.Game_team_loser_id, game.TimeStart, game.TimeFinish)
 	return err
 }
 
 func (r *postgresRepository) GetGameByID(ctx context.Context, gameID string) (domain.Game, error) {
 	query := `
-		SELECT id, event_id, user_create_id, enemy_side_leader, map_name, game_team_winner_id, game_team_loser_id, time_start, time_finish
+		SELECT id, event_id, user_create_id, enemy_side_leader, team1_id, team2_id, map_name, game_team_winner_id, game_team_loser_id, time_start, time_finish
 		FROM games
 		WHERE id = $1
 	`
@@ -254,6 +254,8 @@ func (r *postgresRepository) GetGameByID(ctx context.Context, gameID string) (do
 		&game.EventID,
 		&game.UserCreateID,
 		&game.EnemySideLeader,
+		&game.Team1ID,
+		&game.Team2ID,
 		&game.MapName,
 		&game.Game_team_winner_id,
 		&game.Game_team_loser_id,
@@ -274,7 +276,7 @@ func (r *postgresRepository) GetGameByID(ctx context.Context, gameID string) (do
 
 func (r *postgresRepository) GetGamesByEventID(ctx context.Context, eventID string) ([]domain.Game, error) {
 	query := `
-		SELECT id, event_id, user_create_id, enemy_side_leader, map_name, game_team_winner_id, game_team_loser_id, time_start, time_finish
+		SELECT id, event_id, user_create_id, enemy_side_leader, team1_id, team2_id, map_name, game_team_winner_id, game_team_loser_id, time_start, time_finish
 		FROM games
 		WHERE event_id = $1
 	`
@@ -297,6 +299,8 @@ func (r *postgresRepository) GetGamesByEventID(ctx context.Context, eventID stri
 			&game.EventID,
 			&game.UserCreateID,
 			&game.EnemySideLeader,
+			&game.Team1ID,
+			&game.Team2ID,
 			&game.MapName,
 			&game.Game_team_winner_id,
 			&game.Game_team_loser_id,
@@ -427,4 +431,88 @@ func (r *postgresRepository) GetGameStats(ctx context.Context, gameID string) ([
 	}
 
 	return stats, rows.Err()
+}
+
+func (r *postgresRepository) CreateTeam(ctx context.Context, team domain.Team) error {
+	query := `
+		INSERT INTO teams (id, game_id, name)
+		VALUES ($1, $2, $3)
+	`
+
+	_, err := r.pool.Exec(ctx, query, team.TeamID, team.GameID, "Team")
+	return err
+}
+
+func (r *postgresRepository) GetTeamByID(ctx context.Context, teamID string) (domain.Team, error) {
+	query := `
+		SELECT id, game_id
+		FROM teams
+		WHERE id = $1
+	`
+
+	var team domain.Team
+	err := r.pool.QueryRow(ctx, query, teamID).Scan(
+		&team.TeamID,
+		&team.GameID,
+	)
+
+	if err == pgx.ErrNoRows {
+		return domain.Team{}, nil
+	}
+
+	if err != nil {
+		return domain.Team{}, err
+	}
+
+	membersQuery := `
+		SELECT user_id, clan_id, role
+		FROM team_members
+		WHERE team_id = $1
+	`
+
+	rows, err := r.pool.Query(ctx, membersQuery, teamID)
+	if err != nil {
+		return team, nil
+	}
+	defer rows.Close()
+
+	members := make([]domain.User, 0)
+	for rows.Next() {
+		var user domain.User
+		err := rows.Scan(
+			&user.UserID,
+			&user.ClanID,
+			&user.Role,
+		)
+		if err != nil {
+			return team, err
+		}
+		members = append(members, user)
+	}
+
+	for i := 0; i < len(members) && i < 50; i++ {
+		team.Members[i] = members[i]
+	}
+
+	return team, nil
+}
+
+func (r *postgresRepository) AddUserToTeam(ctx context.Context, teamID, userID, clanID string, role domain.Role) error {
+	query := `
+		INSERT INTO team_members (team_id, user_id, clan_id, role)
+		VALUES ($1, $2, $3, $4)
+	`
+
+	_, err := r.pool.Exec(ctx, query, teamID, userID, clanID, string(role))
+	return err
+}
+
+func (r *postgresRepository) RemoveUserFromTeam(ctx context.Context, teamID, userID string) error {
+	query := `
+		DELETE FROM team_members
+		WHERE team_id = $1 AND user_id = $2
+	`
+
+	_, err := r.pool.Exec(ctx, query, teamID, userID)
+	return err
 }

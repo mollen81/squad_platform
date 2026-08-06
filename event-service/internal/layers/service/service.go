@@ -168,16 +168,39 @@ func (s *eventService) CreateGame(ctx context.Context, eventID, mapName string, 
 		return errors.New("event not found")
 	}
 
+	team1 := domain.Team{
+		TeamID: uuid.New().String(),
+		GameID: "",
+	}
+
+	team2 := domain.Team{
+		TeamID: uuid.New().String(),
+		GameID: "",
+	}
+
 	game := domain.Game{
-		GameID:                   uuid.New().String(),
-		EventID:              eventID,
-		UserCreateID:         event.UserCreateID,
-		EnemySideLeader:      event.EnemySideLeader,
-		MapName:              mapName,
-		Game_team_winner_id:  "",
-		Game_team_loser_id:   "",
-		TimeStart:            timeStart,
-		TimeFinish:           time.Time{},
+		GameID:              uuid.New().String(),
+		EventID:             eventID,
+		UserCreateID:        event.UserCreateID,
+		EnemySideLeader:     event.EnemySideLeader,
+		Team1ID:             team1.TeamID,
+		Team2ID:             team2.TeamID,
+		MapName:             mapName,
+		Game_team_winner_id: "",
+		Game_team_loser_id:  "",
+		TimeStart:           timeStart,
+		TimeFinish:          time.Time{},
+	}
+
+	team1.GameID = game.GameID
+	team2.GameID = game.GameID
+
+	if err := s.eventRepo.CreateTeam(ctx, team1); err != nil {
+		return err
+	}
+
+	if err := s.eventRepo.CreateTeam(ctx, team2); err != nil {
+		return err
 	}
 
 	if err := s.eventRepo.CreateGame(ctx, game); err != nil {
@@ -352,4 +375,51 @@ func (s *eventService) GetGameStats(ctx context.Context, gameID string) ([]domai
 	}
 
 	return stats, nil
+}
+
+func (s *eventService) GetTeamByID(ctx context.Context, teamID string) (domain.Team, error) {
+	team, err := s.eventRepo.GetTeamByID(ctx, teamID)
+	if err != nil {
+		return domain.Team{}, err
+	}
+
+	if team.TeamID == "" {
+		return domain.Team{}, errors.New("team not found")
+	}
+
+	return team, nil
+}
+
+func (s *eventService) AddUserToTeam(ctx context.Context, teamID, userID, clanID string, role domain.Role) error {
+	team, err := s.eventRepo.GetTeamByID(ctx, teamID)
+	if err != nil {
+		return err
+	}
+
+	if team.TeamID == "" {
+		return errors.New("team not found")
+	}
+
+	if err := s.eventRepo.AddUserToTeam(ctx, teamID, userID, clanID, role); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *eventService) RemoveUserFromTeam(ctx context.Context, teamID, userID string) error {
+	team, err := s.eventRepo.GetTeamByID(ctx, teamID)
+	if err != nil {
+		return err
+	}
+
+	if team.TeamID == "" {
+		return errors.New("team not found")
+	}
+
+	if err := s.eventRepo.RemoveUserFromTeam(ctx, teamID, userID); err != nil {
+		return err
+	}
+
+	return nil
 }
