@@ -189,7 +189,7 @@ func (s *eventService) SetRole(ctx context.Context, eventID, sideLeaderID, userI
 	return nil
 }
 
-func (s *eventService) CreateGame(ctx context.Context, eventID, mapName string, timeStart time.Time) error {
+func (s *eventService) CreateTeamsForEvent(ctx context.Context, eventID string) error {
 	event, err := s.eventRepo.GetEventByID(ctx, eventID)
 	if err != nil {
 		return err
@@ -200,31 +200,18 @@ func (s *eventService) CreateGame(ctx context.Context, eventID, mapName string, 
 	}
 
 	team1 := domain.Team{
-		TeamID: uuid.New().String(),
-		GameID: "",
+		TeamID:       uuid.New().String(),
+		EventID:      eventID,
+		SideLeaderID: event.UserCreateID,
+		IsConfirmed:  false,
 	}
 
 	team2 := domain.Team{
-		TeamID: uuid.New().String(),
-		GameID: "",
+		TeamID:       uuid.New().String(),
+		EventID:      eventID,
+		SideLeaderID: event.EnemySideLeader,
+		IsConfirmed:  false,
 	}
-
-	game := domain.Game{
-		GameID:              uuid.New().String(),
-		EventID:             eventID,
-		UserCreateID:        event.UserCreateID,
-		EnemySideLeader:     event.EnemySideLeader,
-		Team1ID:             team1.TeamID,
-		Team2ID:             team2.TeamID,
-		MapName:             mapName,
-		Game_team_winner_id: "",
-		Game_team_loser_id:  "",
-		TimeStart:           timeStart,
-		TimeFinish:          time.Time{},
-	}
-
-	team1.GameID = game.GameID
-	team2.GameID = game.GameID
 
 	if err := s.eventRepo.CreateTeam(ctx, team1); err != nil {
 		return err
@@ -232,6 +219,123 @@ func (s *eventService) CreateGame(ctx context.Context, eventID, mapName string, 
 
 	if err := s.eventRepo.CreateTeam(ctx, team2); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (s *eventService) GetTeamsByEventID(ctx context.Context, eventID string) ([]domain.Team, error) {
+	teams, err := s.eventRepo.GetTeamsByEventID(ctx, eventID)
+	if err != nil {
+		return nil, err
+	}
+
+	return teams, nil
+}
+
+func (s *eventService) StartEvent(ctx context.Context, eventID, sideLeaderID string) error {
+	event, err := s.eventRepo.GetEventByID(ctx, eventID)
+	if err != nil {
+		return err
+	}
+
+	if event.EventID == "" {
+		return errors.New("event not found")
+	}
+
+	if event.UserCreateID != sideLeaderID && event.EnemySideLeader != sideLeaderID {
+		return errors.New("only side leaders can start event")
+	}
+
+	teams, err := s.eventRepo.GetTeamsByEventID(ctx, eventID)
+	if err != nil {
+		return err
+	}
+
+	if len(teams) != 2 {
+		return errors.New("event must have exactly 2 teams")
+	}
+
+	var teamToConfirm *domain.Team
+	for i := range teams {
+		if teams[i].SideLeaderID == sideLeaderID {
+			teamToConfirm = &teams[i]
+			break
+		}
+	}
+
+	if teamToConfirm == nil {
+		return errors.New("side leader team not found")
+	}
+
+	team, err := s.eventRepo.GetTeamByID(ctx, teamToConfirm.TeamID)
+	if err != nil {
+		return err
+	}
+
+	for _, member := range team.Members {
+		if member.UserID == "" {
+			break
+		}
+
+		if member.ClanID != "" {
+			hasSixClanMembers, err := s.eventRepo.CheckSixClanMembers(ctx, eventID, member.UserID, member.ClanID)
+			if err != nil {
+				return err
+			}
+
+			if err := s.eventRepo.UpdateUserSixClanMembers(ctx, member.UserID, eventID, hasSixClanMembers); err != nil {
+				return err
+			}
+
+			if !hasSixClanMembers {
+				return errors.New("user " + member.UserID + " does not have 6 clan members (including himself)")
+			}
+		}
+	}
+
+	if err := s.eventRepo.ConfirmTeam(ctx, teamToConfirm.TeamID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *eventService) CreateGame(ctx context.Context, eventID, mapName string, timeStart time.Time) error {
+	event, err := s.eventRepo.GetEventByID(ctx, eventID)
+	if err != nil {
+		return err
+	}
+
+	if event.EventID == "" {
+		return errors.New("event not found")
+	}
+
+	teams, err := s.eventRepo.GetTeamsByEventID(ctx, eventID)
+	if err != nil {
+		return err
+	}
+
+	if len(teams) != 2 {
+		return errors.New("event must have exactly 2 teams")
+	}
+
+	if !teams[0].IsConfirmed || !teams[1].IsConfirmed {
+		return errors.New("both teams must be confirmed before creating a game")
+	}
+
+	game := domain.Game{
+		GameID:              uuid.New().String(),
+		EventID:             eventID,
+		UserCreateID:        event.UserCreateID,
+		EnemySideLeader:     event.EnemySideLeader,
+		Team1ID:             teams[0].TeamID,
+		Team2ID:             teams[1].TeamID,
+		MapName:             mapName,
+		Game_team_winner_id: "",
+		Game_team_loser_id:  "",
+		TimeStart:           timeStart,
+		TimeFinish:          time.Time{},
 	}
 
 	if err := s.eventRepo.CreateGame(ctx, game); err != nil {

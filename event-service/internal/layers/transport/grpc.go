@@ -85,6 +85,31 @@ func (t *GRPCTransport) SetRole(ctx context.Context, req *pb.SetRoleRequest) (*p
 	}, nil
 }
 
+func (t *GRPCTransport) CreateTeamsForEvent(ctx context.Context, req *pb.CreateTeamsForEventRequest) (*pb.CreateTeamsForEventResponse, error) {
+	err := t.eventService.CreateTeamsForEvent(ctx, req.GetEventId())
+
+	return &pb.CreateTeamsForEventResponse{
+		Error: errString(err),
+	}, nil
+}
+
+func (t *GRPCTransport) GetTeamsByEventID(ctx context.Context, req *pb.GetTeamsByEventIDRequest) (*pb.GetTeamsByEventIDResponse, error) {
+	teams, err := t.eventService.GetTeamsByEventID(ctx, req.GetEventId())
+
+	return &pb.GetTeamsByEventIDResponse{
+		Teams: toProtoTeams(teams),
+		Error: errString(err),
+	}, nil
+}
+
+func (t *GRPCTransport) StartEvent(ctx context.Context, req *pb.StartEventRequest) (*pb.StartEventResponse, error) {
+	err := t.eventService.StartEvent(ctx, req.GetEventId(), req.GetSideLeaderId())
+
+	return &pb.StartEventResponse{
+		Error: errString(err),
+	}, nil
+}
+
 func (t *GRPCTransport) CreateGame(ctx context.Context, req *pb.CreateGameRequest) (*pb.CreateGameResponse, error) {
 	err := t.eventService.CreateGame(ctx, req.GetEventId(), req.GetMapName(), req.GetTimeStart().AsTime())
 
@@ -198,18 +223,29 @@ func toProtoTeam(team domain.Team) *pb.Team {
 	for _, member := range team.Members {
 		if member.UserID != "" {
 			members = append(members, &pb.User{
-				UserEventId: member.UserEventID,
-				UserId:      member.UserID,
-				ClanId:      member.ClanID,
-				TeamId:      member.TeamID,
-				Role:        string(member.Role),
+				UserEventId:     member.UserEventID,
+				UserId:          member.UserID,
+				ClanId:          member.ClanID,
+				TeamId:          member.TeamID,
+				Role:            string(member.Role),
+				SixClanMembers:  member.SixClanMembers,
 			})
 		}
 	}
 
 	return &pb.Team{
-		TeamId:  team.TeamID,
-		GameId:  team.GameID,
-		Members: members,
+		TeamId:       team.TeamID,
+		EventId:      team.EventID,
+		SideLeaderId: team.SideLeaderID,
+		IsConfirmed:  team.IsConfirmed,
+		Members:      members,
 	}
+}
+
+func toProtoTeams(teams []domain.Team) []*pb.Team {
+	result := make([]*pb.Team, 0, len(teams))
+	for _, team := range teams {
+		result = append(result, toProtoTeam(team))
+	}
+	return result
 }

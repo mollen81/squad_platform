@@ -27,6 +27,9 @@ const (
 	EventService_JoinToEvent_FullMethodName          = "/event.EventService/JoinToEvent"
 	EventService_LeaveEvent_FullMethodName           = "/event.EventService/LeaveEvent"
 	EventService_SetRole_FullMethodName              = "/event.EventService/SetRole"
+	EventService_CreateTeamsForEvent_FullMethodName  = "/event.EventService/CreateTeamsForEvent"
+	EventService_GetTeamsByEventID_FullMethodName    = "/event.EventService/GetTeamsByEventID"
+	EventService_StartEvent_FullMethodName           = "/event.EventService/StartEvent"
 	EventService_CreateGame_FullMethodName           = "/event.EventService/CreateGame"
 	EventService_GetGameByID_FullMethodName          = "/event.EventService/GetGameByID"
 	EventService_GetGamesByEventID_FullMethodName    = "/event.EventService/GetGamesByEventID"
@@ -53,6 +56,9 @@ type EventServiceClient interface {
 	JoinToEvent(ctx context.Context, in *JoinToEventRequest, opts ...grpc.CallOption) (*JoinToEventResponse, error)
 	LeaveEvent(ctx context.Context, in *LeaveEventRequest, opts ...grpc.CallOption) (*LeaveEventResponse, error)
 	SetRole(ctx context.Context, in *SetRoleRequest, opts ...grpc.CallOption) (*SetRoleResponse, error)
+	CreateTeamsForEvent(ctx context.Context, in *CreateTeamsForEventRequest, opts ...grpc.CallOption) (*CreateTeamsForEventResponse, error)
+	GetTeamsByEventID(ctx context.Context, in *GetTeamsByEventIDRequest, opts ...grpc.CallOption) (*GetTeamsByEventIDResponse, error)
+	StartEvent(ctx context.Context, in *StartEventRequest, opts ...grpc.CallOption) (*StartEventResponse, error)
 	CreateGame(ctx context.Context, in *CreateGameRequest, opts ...grpc.CallOption) (*CreateGameResponse, error)
 	GetGameByID(ctx context.Context, in *GetGameByIDRequest, opts ...grpc.CallOption) (*GetGameByIDResponse, error)
 	GetGamesByEventID(ctx context.Context, in *GetGamesByEventIDRequest, opts ...grpc.CallOption) (*GetGamesByEventIDResponse, error)
@@ -149,6 +155,36 @@ func (c *eventServiceClient) SetRole(ctx context.Context, in *SetRoleRequest, op
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SetRoleResponse)
 	err := c.cc.Invoke(ctx, EventService_SetRole_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *eventServiceClient) CreateTeamsForEvent(ctx context.Context, in *CreateTeamsForEventRequest, opts ...grpc.CallOption) (*CreateTeamsForEventResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateTeamsForEventResponse)
+	err := c.cc.Invoke(ctx, EventService_CreateTeamsForEvent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *eventServiceClient) GetTeamsByEventID(ctx context.Context, in *GetTeamsByEventIDRequest, opts ...grpc.CallOption) (*GetTeamsByEventIDResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetTeamsByEventIDResponse)
+	err := c.cc.Invoke(ctx, EventService_GetTeamsByEventID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *eventServiceClient) StartEvent(ctx context.Context, in *StartEventRequest, opts ...grpc.CallOption) (*StartEventResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StartEventResponse)
+	err := c.cc.Invoke(ctx, EventService_StartEvent_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -287,6 +323,9 @@ type EventServiceServer interface {
 	JoinToEvent(context.Context, *JoinToEventRequest) (*JoinToEventResponse, error)
 	LeaveEvent(context.Context, *LeaveEventRequest) (*LeaveEventResponse, error)
 	SetRole(context.Context, *SetRoleRequest) (*SetRoleResponse, error)
+	CreateTeamsForEvent(context.Context, *CreateTeamsForEventRequest) (*CreateTeamsForEventResponse, error)
+	GetTeamsByEventID(context.Context, *GetTeamsByEventIDRequest) (*GetTeamsByEventIDResponse, error)
+	StartEvent(context.Context, *StartEventRequest) (*StartEventResponse, error)
 	CreateGame(context.Context, *CreateGameRequest) (*CreateGameResponse, error)
 	GetGameByID(context.Context, *GetGameByIDRequest) (*GetGameByIDResponse, error)
 	GetGamesByEventID(context.Context, *GetGamesByEventIDRequest) (*GetGamesByEventIDResponse, error)
@@ -332,6 +371,15 @@ func (UnimplementedEventServiceServer) LeaveEvent(context.Context, *LeaveEventRe
 }
 func (UnimplementedEventServiceServer) SetRole(context.Context, *SetRoleRequest) (*SetRoleResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetRole not implemented")
+}
+func (UnimplementedEventServiceServer) CreateTeamsForEvent(context.Context, *CreateTeamsForEventRequest) (*CreateTeamsForEventResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateTeamsForEvent not implemented")
+}
+func (UnimplementedEventServiceServer) GetTeamsByEventID(context.Context, *GetTeamsByEventIDRequest) (*GetTeamsByEventIDResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetTeamsByEventID not implemented")
+}
+func (UnimplementedEventServiceServer) StartEvent(context.Context, *StartEventRequest) (*StartEventResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method StartEvent not implemented")
 }
 func (UnimplementedEventServiceServer) CreateGame(context.Context, *CreateGameRequest) (*CreateGameResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateGame not implemented")
@@ -530,6 +578,60 @@ func _EventService_SetRole_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(EventServiceServer).SetRole(ctx, req.(*SetRoleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EventService_CreateTeamsForEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateTeamsForEventRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).CreateTeamsForEvent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_CreateTeamsForEvent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).CreateTeamsForEvent(ctx, req.(*CreateTeamsForEventRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EventService_GetTeamsByEventID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTeamsByEventIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).GetTeamsByEventID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_GetTeamsByEventID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).GetTeamsByEventID(ctx, req.(*GetTeamsByEventIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EventService_StartEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartEventRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).StartEvent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_StartEvent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).StartEvent(ctx, req.(*StartEventRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -788,6 +890,18 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SetRole",
 			Handler:    _EventService_SetRole_Handler,
+		},
+		{
+			MethodName: "CreateTeamsForEvent",
+			Handler:    _EventService_CreateTeamsForEvent_Handler,
+		},
+		{
+			MethodName: "GetTeamsByEventID",
+			Handler:    _EventService_GetTeamsByEventID_Handler,
+		},
+		{
+			MethodName: "StartEvent",
+			Handler:    _EventService_StartEvent_Handler,
 		},
 		{
 			MethodName: "CreateGame",

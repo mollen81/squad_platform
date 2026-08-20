@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
     clan_id TEXT,
     team_id TEXT,
     role TEXT NOT NULL,
+    six_clan_members BOOLEAN NOT NULL DEFAULT false,
     join_time TIMESTAMP
 );
 
@@ -37,8 +38,9 @@ CREATE TABLE IF NOT EXISTS games (
 
 CREATE TABLE IF NOT EXISTS teams (
     id UUID PRIMARY KEY,
-    game_id UUID NOT NULL,
-    name TEXT
+    event_id UUID NOT NULL,
+    side_leader_id UUID NOT NULL,
+    is_confirmed BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE TABLE IF NOT EXISTS team_members (

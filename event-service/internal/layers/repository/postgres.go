@@ -446,17 +446,17 @@ func (r *postgresRepository) GetGameStats(ctx context.Context, gameID string) ([
 
 func (r *postgresRepository) CreateTeam(ctx context.Context, team domain.Team) error {
 	query := `
-		INSERT INTO teams (id, game_id, name)
-		VALUES ($1, $2, $3)
+		INSERT INTO teams (id, event_id, side_leader_id, is_confirmed)
+		VALUES ($1, $2, $3, $4)
 	`
 
-	_, err := r.pool.Exec(ctx, query, team.TeamID, team.GameID, "Team")
+	_, err := r.pool.Exec(ctx, query, team.TeamID, team.EventID, team.SideLeaderID, team.IsConfirmed)
 	return err
 }
 
 func (r *postgresRepository) GetTeamByID(ctx context.Context, teamID string) (domain.Team, error) {
 	query := `
-		SELECT id, game_id
+		SELECT id, event_id, side_leader_id, is_confirmed
 		FROM teams
 		WHERE id = $1
 	`
@@ -464,7 +464,9 @@ func (r *postgresRepository) GetTeamByID(ctx context.Context, teamID string) (do
 	var team domain.Team
 	err := r.pool.QueryRow(ctx, query, teamID).Scan(
 		&team.TeamID,
-		&team.GameID,
+		&team.EventID,
+		&team.SideLeaderID,
+		&team.IsConfirmed,
 	)
 
 	if err == pgx.ErrNoRows {
@@ -476,9 +478,10 @@ func (r *postgresRepository) GetTeamByID(ctx context.Context, teamID string) (do
 	}
 
 	membersQuery := `
-		SELECT user_id, clan_id, role
+		SELECT user_id, clan_id, role, six_clan_members
 		FROM team_members
-		WHERE team_id = $1
+		INNER JOIN users ON team_members.user_id = users.user_id
+		WHERE team_members.team_id = $1
 	`
 
 	rows, err := r.pool.Query(ctx, membersQuery, teamID)
@@ -494,6 +497,7 @@ func (r *postgresRepository) GetTeamByID(ctx context.Context, teamID string) (do
 			&user.UserID,
 			&user.ClanID,
 			&user.Role,
+			&user.SixClanMembers,
 		)
 		if err != nil {
 			return team, err
@@ -525,5 +529,81 @@ func (r *postgresRepository) RemoveUserFromTeam(ctx context.Context, teamID, use
 	`
 
 	_, err := r.pool.Exec(ctx, query, teamID, userID)
+	return err
+}
+
+func (r *postgresRepository) GetTeamsByEventID(ctx context.Context, eventID string) ([]domain.Team, error) {
+	query := `
+		SELECT id, event_id, side_leader_id, is_confirmed
+		FROM teams
+		WHERE event_id = $1
+	`
+
+	rows, err := r.pool.Query(ctx, query, eventID)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	teams := make([]domain.Team, 0)
+	for rows.Next() {
+		var team domain.Team
+		err := rows.Scan(
+			&team.TeamID,
+			&team.EventID,
+			&team.SideLeaderID,
+			&team.IsConfirmed,
+		)
+		if err != nil {
+			return nil, err
+		}
+		teams = append(teams, team)
+	}
+
+	return teams, rows.Err()
+}
+
+func (r *postgresRepository) ConfirmTeam(ctx context.Context, teamID string) error {
+	query := `
+		UPDATE teams
+		SET is_confirmed = true
+		WHERE id = $1
+	`
+
+	_, err := r.pool.Exec(ctx, query, teamID)
+	return err
+}
+
+func (r *postgresRepository) CheckSixClanMembers(ctx context.Context, eventID, userID, clanID string) (bool, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM users
+		WHERE event_id = $1
+		AND clan_id = $2
+		AND clan_id != ''
+		AND user_id != $3
+	`
+
+	var count int
+	err := r.pool.QueryRow(ctx, query, eventID, clanID, userID).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+
+	return count >= 5, nil
+}
+
+func (r *postgresRepository) UpdateUserSixClanMembers(ctx context.Context, userID, eventID string, hasSixClanMembers bool) error {
+	query := `
+		UPDATE users
+		SET six_clan_members = $1
+		WHERE user_id = $2 AND event_id = $3
+	`
+
+	_, err := r.pool.Exec(ctx, query, hasSixClanMembers, userID, eventID)
 	return err
 }

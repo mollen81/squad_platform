@@ -29,6 +29,7 @@ type User struct {
 	ClanID string
 	TeamID string
 	Role Role
+	SixClanMembers bool
 }
 
 type Game struct {
@@ -56,6 +57,8 @@ type GameUserStats struct {
 
 type Team struct {
 	TeamID string
-	GameID string
+	EventID string
+	SideLeaderID string
+	IsConfirmed bool
 	Members [50]User
 }

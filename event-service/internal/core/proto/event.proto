@@ -15,6 +15,9 @@ service EventService {
     rpc JoinToEvent(JoinToEventRequest) returns (JoinToEventResponse);
     rpc LeaveEvent(LeaveEventRequest) returns (LeaveEventResponse);
     rpc SetRole(SetRoleRequest) returns (SetRoleResponse);
+    rpc CreateTeamsForEvent(CreateTeamsForEventRequest) returns (CreateTeamsForEventResponse);
+    rpc GetTeamsByEventID(GetTeamsByEventIDRequest) returns (GetTeamsByEventIDResponse);
+    rpc StartEvent(StartEventRequest) returns (StartEventResponse);
     rpc CreateGame(CreateGameRequest) returns (CreateGameResponse);
     rpc GetGameByID(GetGameByIDRequest) returns (GetGameByIDResponse);
     rpc GetGamesByEventID(GetGamesByEventIDRequest) returns (GetGamesByEventIDResponse);
@@ -48,6 +51,7 @@ message User {
     string clan_id = 3;
     string team_id = 4;
     string role = 5;
+    bool six_clan_members = 6;
 }
 
 message Game {
@@ -66,8 +70,10 @@ message Game {
 
 message Team {
     string team_id = 1;
-    string game_id = 2;
-    repeated User members = 3;
+    string event_id = 2;
+    string side_leader_id = 3;
+    bool is_confirmed = 4;
+    repeated User members = 5;
 }
 
 message GameUserStats {
@@ -154,6 +160,32 @@ message SetRoleRequest {
 }
 
 message SetRoleResponse {
+    string error = 1;
+}
+
+message CreateTeamsForEventRequest {
+    string event_id = 1;
+}
+
+message CreateTeamsForEventResponse {
+    string error = 1;
+}
+
+message GetTeamsByEventIDRequest {
+    string event_id = 1;
+}
+
+message GetTeamsByEventIDResponse {
+    repeated Team teams = 1;
+    string error = 2;
+}
+
+message StartEventRequest {
+    string event_id = 1;
+    string side_leader_id = 2;
+}
+
+message StartEventResponse {
     string error = 1;
 }
 

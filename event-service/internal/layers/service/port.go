@@ -15,6 +15,9 @@ type EventService interface {
 	JoinToEvent(ctx context.Context, eventID, userID string, joinTime time.Time) error
 	LeaveEvent(ctx context.Context, userID, eventID string) error
 	SetRole(ctx context.Context, eventID, sideLeaderID, userID string, role domain.Role) error
+	CreateTeamsForEvent(ctx context.Context, eventID string) error
+	GetTeamsByEventID(ctx context.Context, eventID string) ([]domain.Team, error)
+	StartEvent(ctx context.Context, eventID, sideLeaderID string) error
 	CreateGame(ctx context.Context, eventID, mapName string, timeStart time.Time) error
 	GetGameByID(ctx context.Context, gameID string) (domain.Game, error)
 	GetGamesByEventID(ctx context.Context, eventID string) ([]domain.Game, error)
@@ -55,6 +58,10 @@ type EventRepository interface {
 	GetGameStats(ctx context.Context, gameID string) ([]domain.GameUserStats, error)
 	CreateTeam(ctx context.Context, team domain.Team) error
 	GetTeamByID(ctx context.Context, teamID string) (domain.Team, error)
+	GetTeamsByEventID(ctx context.Context, eventID string) ([]domain.Team, error)
+	ConfirmTeam(ctx context.Context, teamID string) error
+	CheckSixClanMembers(ctx context.Context, eventID, userID, clanID string) (bool, error)
+	UpdateUserSixClanMembers(ctx context.Context, userID, eventID string, hasSixClanMembers bool) error
 	AddUserToTeam(ctx context.Context, teamID, userID, clanID string, role domain.Role) error
 	RemoveUserFromTeam(ctx context.Context, teamID, userID string) error
 }
