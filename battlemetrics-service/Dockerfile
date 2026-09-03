@@ -17,7 +17,7 @@ WORKDIR /app
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 USER appuser
 
-COPY --from=builder /app/battlemetrics-service/build/libs/*.jar app.jar
+COPY --from=builder /app/battlemetrics-service/build/libs/*-ALPHA.jar app.jar
 
 EXPOSE 8082
 EXPOSE ${SPRING_KAFKA_BOOTSTRAP_SERVERS_PORT}
