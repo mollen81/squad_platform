@@ -34,9 +34,6 @@ type EventService interface {
 	GetTeamByID(ctx context.Context, teamID string) (domain.Team, error)
 	AddUserToTeam(ctx context.Context, teamID, userID, clanID string, role domain.Role) error
 	RemoveUserFromTeam(ctx context.Context, teamID, userID string) error
-	ControlEventTimerDenial(ctx context.Context, eventID string, controlTime time.Time) error
-	ConfirmEvent80(ctx context.Context, eventID string) error
-	DeclineEvent80(ctx context.Context, eventID string) error
 }
 
 type EventRepository interface {

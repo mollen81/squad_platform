@@ -55,7 +55,7 @@ func (s *eventService) CreateEvent(ctx context.Context, userCreateID, enemySideL
 	}
 
 	controlTime := timeStart.Add(-30 * time.Minute)
-	if err := s.ControlEventTimerDenial(ctx, event.EventID, controlTime); err != nil {
+	if err := s.controlEventTimerDenial(event.EventID, controlTime); err != nil {
 		return err
 	}
 
@@ -108,7 +108,7 @@ func (s *eventService) UpdateTimeEvent(ctx context.Context, eventID, userCreateI
 	}
 
 	controlTime := newTimeStart.Add(-30 * time.Minute)
-	if err := s.ControlEventTimerDenial(ctx, eventID, controlTime); err != nil {
+	if err := s.controlEventTimerDenial(eventID, controlTime); err != nil {
 		return err
 	}
 
@@ -612,7 +612,7 @@ func (s *eventService) RemoveUserFromTeam(ctx context.Context, teamID, userID st
 	return nil
 }
 
-func (s *eventService) ControlEventTimerDenial(ctx context.Context, eventID string, controlTime time.Time) error {
+func (s *eventService) controlEventTimerDenial(eventID string, controlTime time.Time) error {
 	duration := time.Until(controlTime)
 	if duration <= 0 {
 		return errors.New("control time must be in the future")
@@ -636,9 +636,9 @@ func (s *eventService) ControlEventTimerDenial(ctx context.Context, eventID stri
 			}
 
 			if event.UserCount >= 80 {
-				s.ConfirmEvent80(context.Background(), eventID)
+				s.confirmEvent80(context.Background(), eventID)
 			} else {
-				s.DeclineEvent80(context.Background(), eventID)
+				s.declineEvent80(context.Background(), eventID)
 			}
 
 			s.timersMutex.Lock()
@@ -652,7 +652,7 @@ func (s *eventService) ControlEventTimerDenial(ctx context.Context, eventID stri
 	return nil
 }
 
-func (s *eventService) ConfirmEvent80(ctx context.Context, eventID string) error {
+func (s *eventService) confirmEvent80(ctx context.Context, eventID string) error {
 	event, err := s.eventRepo.GetEventByID(ctx, eventID)
 	if err != nil {
 		return err
@@ -695,7 +695,7 @@ func (s *eventService) ConfirmEvent80(ctx context.Context, eventID string) error
 	return nil
 }
 
-func (s *eventService) DeclineEvent80(ctx context.Context, eventID string) error {
+func (s *eventService) declineEvent80(ctx context.Context, eventID string) error {
 	event, err := s.eventRepo.GetEventByID(ctx, eventID)
 	if err != nil {
 		return err
