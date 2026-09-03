@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 	"errors"
+	"sync"
 
 	domain "event-service/internal/core/domain"
 	kafka "event-service/internal/core/kafka"
@@ -14,12 +15,15 @@ import (
 type eventService struct {
 	eventRepo EventRepository
 	producer  *kafka.Producer
+	eventTimers map[string]context.CancelFunc
+	timersMutex sync.Mutex
 }
 
 func NewEventService(eventRepo EventRepository, producer *kafka.Producer) EventService {
 	return &eventService{
 		eventRepo: eventRepo,
 		producer:  producer,
+		eventTimers: make(map[string]context.CancelFunc),
 	}
 }
 
@@ -100,6 +104,11 @@ func (s *eventService) UpdateTimeEvent(ctx context.Context, eventID, userCreateI
 	}
 
 	if err = s.producer.PublishEventTimeUpdated(ctx, eventID, userCreateID, newTimeStart); err != nil {
+		return err
+	}
+
+	controlTime := newTimeStart.Add(-30 * time.Minute)
+	if err := s.ControlEventTimerDenial(ctx, eventID, controlTime); err != nil {
 		return err
 	}
 
@@ -609,18 +618,34 @@ func (s *eventService) ControlEventTimerDenial(ctx context.Context, eventID stri
 		return errors.New("control time must be in the future")
 	}
 
+	s.timersMutex.Lock()
+	if cancelFunc, exists := s.eventTimers[eventID]; exists {
+		cancelFunc()
+	}
+
+	timerCtx, cancel := context.WithCancel(context.Background())
+	s.eventTimers[eventID] = cancel
+	s.timersMutex.Unlock()
+
 	go func() {
-		time.Sleep(duration)
+		select {
+		case <-time.After(duration):
+			event, err := s.eventRepo.GetEventByID(context.Background(), eventID)
+			if err != nil {
+				return
+			}
 
-		event, err := s.eventRepo.GetEventByID(context.Background(), eventID)
-		if err != nil {
+			if event.UserCount >= 80 {
+				s.ConfirmEvent80(context.Background(), eventID)
+			} else {
+				s.DeclineEvent80(context.Background(), eventID)
+			}
+
+			s.timersMutex.Lock()
+			delete(s.eventTimers, eventID)
+			s.timersMutex.Unlock()
+		case <-timerCtx.Done():
 			return
-		}
-
-		if event.UserCount >= 80 {
-			s.ConfirmEvent80(context.Background(), eventID)
-		} else {
-			s.DeclineEvent80(context.Background(), eventID)
 		}
 	}()
 
@@ -643,19 +668,16 @@ func (s *eventService) ConfirmEvent80(ctx context.Context, eventID string) error
 		return err
 	}
 
-	// Через 15 минут после подтверждения отправить запрос на аренду сервера
 	rentServerTime := time.Until(event.TimeStart.Add(-15 * time.Minute))
 	if rentServerTime > 0 {
 		go func() {
 			time.Sleep(rentServerTime)
 
-			// Получаем список всех игроков ивента
 			playersList, err := s.eventRepo.GetUserIDsByEventID(context.Background(), eventID)
 			if err != nil {
 				return
 			}
 
-			// Отправляем сообщение в Kafka для аренды сервера
 			if err := s.producer.PublishRentServer(context.Background(), eventID, playersList, event.TimeStart); err != nil {
 				return
 			}
