@@ -74,6 +74,7 @@ type EventRepository interface {
 	UpdateUserSixClanMembers(ctx context.Context, userID, eventID string, hasSixClanMembers bool) error
 	AddUserToTeam(ctx context.Context, teamID, userID, clanID string, role domain.Role) error
 	RemoveUserFromTeam(ctx context.Context, teamID, userID string) error
+	GetUserIDsByEventID(ctx context.Context, eventID string) ([]string, error)
 	ConfirmEvent80(ctx context.Context, eventID string)
 	DeclineEvent80(ctx context.Context, eventID string)
 	StartEventDB(ctx context.Context, eventID string) error

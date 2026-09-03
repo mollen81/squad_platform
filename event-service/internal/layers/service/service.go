@@ -643,6 +643,25 @@ func (s *eventService) ConfirmEvent80(ctx context.Context, eventID string) error
 		return err
 	}
 
+	// Через 15 минут после подтверждения отправить запрос на аренду сервера
+	rentServerTime := time.Until(event.TimeStart.Add(-15 * time.Minute))
+	if rentServerTime > 0 {
+		go func() {
+			time.Sleep(rentServerTime)
+
+			// Получаем список всех игроков ивента
+			playersList, err := s.eventRepo.GetUserIDsByEventID(context.Background(), eventID)
+			if err != nil {
+				return
+			}
+
+			// Отправляем сообщение в Kafka для аренды сервера
+			if err := s.producer.PublishRentServer(context.Background(), eventID, playersList, event.TimeStart); err != nil {
+				return
+			}
+		}()
+	}
+
 	duration := time.Until(event.TimeStart)
 	if duration > 0 {
 		go func() {

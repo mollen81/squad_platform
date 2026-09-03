@@ -310,6 +310,22 @@ func (p *Producer) PublishTeamConfirmed(ctx context.Context, eventID, teamID str
 	})
 }
 
+func (p *Producer) PublishRentServer(ctx context.Context, eventID string, playersList []string, timeStart time.Time) error {
+	data, err := json.Marshal(map[string]interface{}{
+		"type":         "rent_server",
+		"event_id":     eventID,
+		"players_list": playersList,
+		"time_start":   timeStart,
+	})
+	if err != nil {
+		return err
+	}
+	return p.writer.WriteMessages(ctx, kafka.Message{
+		Key:   []byte(eventID),
+		Value: data,
+	})
+}
+
 func (p *Producer) Close() error {
 	return p.writer.Close()
 }

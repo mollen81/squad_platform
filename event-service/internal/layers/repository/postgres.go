@@ -676,6 +676,36 @@ func (r *postgresRepository) UpdateUserSixClanMembers(ctx context.Context, userI
 	return err
 }
 
+func (r *postgresRepository) GetUserIDsByEventID(ctx context.Context, eventID string) ([]string, error) {
+	query := `
+		SELECT user_id
+		FROM users
+		WHERE event_id = $1
+	`
+
+	rows, err := r.pool.Query(ctx, query, eventID)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	userIDs := make([]string, 0)
+	for rows.Next() {
+		var userID string
+		err := rows.Scan(&userID)
+		if err != nil {
+			return nil, err
+		}
+		userIDs = append(userIDs, userID)
+	}
+
+	return userIDs, rows.Err()
+}
+
 func (r *postgresRepository) ConfirmEvent80(ctx context.Context, eventID string) {
 	query := `
 		UPDATE events
