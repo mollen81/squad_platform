@@ -57,3 +57,7 @@ test {
     // динамическая загрузка агентов для тестов
     jvmArgs '-XX:+EnableDynamicAgentLoading'
 }
+
+jar {
+    enabled = false
+}
