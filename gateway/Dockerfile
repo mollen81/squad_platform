@@ -20,7 +20,7 @@ WORKDIR /app
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 USER appuser
 
-COPY --from=builder /app/gateway/build/libs/*.jar app.jar
+COPY --from=builder /app/gateway/build/libs/*-ALPHA.jar app.jar
 
 EXPOSE 8080
 
