@@ -28,7 +28,6 @@ type EventService interface {
 	UpdateGameWinner(ctx context.Context, gameID, winnerTeamID string) error
 	UpdateGameLoser(ctx context.Context, gameID, loserTeamID string) error
 	FinishGame(ctx context.Context, gameID string, timeFinish time.Time) error
-	DeleteGame(ctx context.Context, gameID string) error
 	AddUserStatsToGame(ctx context.Context, gameID, userID string, kills, deaths, points int64) error
 	GetGameStats(ctx context.Context, gameID string) ([]domain.GameUserStats, error)
 	GetTeamByID(ctx context.Context, teamID string) (domain.Team, error)
@@ -59,7 +58,6 @@ type EventRepository interface {
 	UpdateGameWinner(ctx context.Context, gameID, winnerTeamID string) error
 	UpdateGameLoser(ctx context.Context, gameID, loserTeamID string) error
 	FinishGame(ctx context.Context, gameID string, timeFinish time.Time) error
-	DeleteGame(ctx context.Context, gameID string) error
 	GetUserByID(ctx context.Context, userID string) (domain.User, error)
 	AddUserStatsToGame(ctx context.Context, stats domain.GameUserStats) error
 	GetGameStats(ctx context.Context, gameID string) ([]domain.GameUserStats, error)

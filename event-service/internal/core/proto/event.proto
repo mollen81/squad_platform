@@ -28,7 +28,6 @@ service EventService {
     rpc UpdateGameWinner(UpdateGameWinnerRequest) returns (UpdateGameWinnerResponse);
     rpc UpdateGameLoser(UpdateGameLoserRequest) returns (UpdateGameLoserResponse);
     rpc FinishGame(FinishGameRequest) returns (FinishGameResponse);
-    rpc DeleteGame(DeleteGameRequest) returns (DeleteGameResponse);
     rpc AddUserStatsToGame(AddUserStatsToGameRequest) returns (AddUserStatsToGameResponse);
     rpc GetGameStats(GetGameStatsRequest) returns (GetGameStatsResponse);
     rpc GetTeamByID(GetTeamByIDRequest) returns (GetTeamByIDResponse);
@@ -257,14 +256,6 @@ message FinishGameRequest {
 }
 
 message FinishGameResponse {
-    string error = 1;
-}
-
-message DeleteGameRequest {
-    string game_id = 1;
-}
-
-message DeleteGameResponse {
     string error = 1;
 }
 

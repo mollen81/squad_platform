@@ -487,27 +487,6 @@ func (s *eventService) FinishGame(ctx context.Context, gameID string, timeFinish
 	return nil
 }
 
-func (s *eventService) DeleteGame(ctx context.Context, gameID string) error {
-	game, err := s.eventRepo.GetGameByID(ctx, gameID)
-	if err != nil {
-		return err
-	}
-
-	if game.GameID == "" {
-		return errors.New("game not found")
-	}
-
-	if err = s.eventRepo.DeleteGame(ctx, gameID); err != nil {
-		return err
-	}
-
-	if err = s.producer.PublishGameDeleted(ctx, gameID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (s *eventService) AddUserStatsToGame(ctx context.Context, gameID, userID string, kills, deaths, points int64) error {
 	game, err := s.eventRepo.GetGameByID(ctx, gameID)
 	if err != nil {

@@ -40,7 +40,6 @@ const (
 	EventService_UpdateGameWinner_FullMethodName               = "/event.EventService/UpdateGameWinner"
 	EventService_UpdateGameLoser_FullMethodName                = "/event.EventService/UpdateGameLoser"
 	EventService_FinishGame_FullMethodName                     = "/event.EventService/FinishGame"
-	EventService_DeleteGame_FullMethodName                     = "/event.EventService/DeleteGame"
 	EventService_AddUserStatsToGame_FullMethodName             = "/event.EventService/AddUserStatsToGame"
 	EventService_GetGameStats_FullMethodName                   = "/event.EventService/GetGameStats"
 	EventService_GetTeamByID_FullMethodName                    = "/event.EventService/GetTeamByID"
@@ -73,7 +72,6 @@ type EventServiceClient interface {
 	UpdateGameWinner(ctx context.Context, in *UpdateGameWinnerRequest, opts ...grpc.CallOption) (*UpdateGameWinnerResponse, error)
 	UpdateGameLoser(ctx context.Context, in *UpdateGameLoserRequest, opts ...grpc.CallOption) (*UpdateGameLoserResponse, error)
 	FinishGame(ctx context.Context, in *FinishGameRequest, opts ...grpc.CallOption) (*FinishGameResponse, error)
-	DeleteGame(ctx context.Context, in *DeleteGameRequest, opts ...grpc.CallOption) (*DeleteGameResponse, error)
 	AddUserStatsToGame(ctx context.Context, in *AddUserStatsToGameRequest, opts ...grpc.CallOption) (*AddUserStatsToGameResponse, error)
 	GetGameStats(ctx context.Context, in *GetGameStatsRequest, opts ...grpc.CallOption) (*GetGameStatsResponse, error)
 	GetTeamByID(ctx context.Context, in *GetTeamByIDRequest, opts ...grpc.CallOption) (*GetTeamByIDResponse, error)
@@ -299,16 +297,6 @@ func (c *eventServiceClient) FinishGame(ctx context.Context, in *FinishGameReque
 	return out, nil
 }
 
-func (c *eventServiceClient) DeleteGame(ctx context.Context, in *DeleteGameRequest, opts ...grpc.CallOption) (*DeleteGameResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DeleteGameResponse)
-	err := c.cc.Invoke(ctx, EventService_DeleteGame_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *eventServiceClient) AddUserStatsToGame(ctx context.Context, in *AddUserStatsToGameRequest, opts ...grpc.CallOption) (*AddUserStatsToGameResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(AddUserStatsToGameResponse)
@@ -384,7 +372,6 @@ type EventServiceServer interface {
 	UpdateGameWinner(context.Context, *UpdateGameWinnerRequest) (*UpdateGameWinnerResponse, error)
 	UpdateGameLoser(context.Context, *UpdateGameLoserRequest) (*UpdateGameLoserResponse, error)
 	FinishGame(context.Context, *FinishGameRequest) (*FinishGameResponse, error)
-	DeleteGame(context.Context, *DeleteGameRequest) (*DeleteGameResponse, error)
 	AddUserStatsToGame(context.Context, *AddUserStatsToGameRequest) (*AddUserStatsToGameResponse, error)
 	GetGameStats(context.Context, *GetGameStatsRequest) (*GetGameStatsResponse, error)
 	GetTeamByID(context.Context, *GetTeamByIDRequest) (*GetTeamByIDResponse, error)
@@ -462,9 +449,6 @@ func (UnimplementedEventServiceServer) UpdateGameLoser(context.Context, *UpdateG
 }
 func (UnimplementedEventServiceServer) FinishGame(context.Context, *FinishGameRequest) (*FinishGameResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method FinishGame not implemented")
-}
-func (UnimplementedEventServiceServer) DeleteGame(context.Context, *DeleteGameRequest) (*DeleteGameResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method DeleteGame not implemented")
 }
 func (UnimplementedEventServiceServer) AddUserStatsToGame(context.Context, *AddUserStatsToGameRequest) (*AddUserStatsToGameResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AddUserStatsToGame not implemented")
@@ -880,24 +864,6 @@ func _EventService_FinishGame_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventService_DeleteGame_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteGameRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(EventServiceServer).DeleteGame(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: EventService_DeleteGame_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventServiceServer).DeleteGame(ctx, req.(*DeleteGameRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _EventService_AddUserStatsToGame_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AddUserStatsToGameRequest)
 	if err := dec(in); err != nil {
@@ -1078,10 +1044,6 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "FinishGame",
 			Handler:    _EventService_FinishGame_Handler,
-		},
-		{
-			MethodName: "DeleteGame",
-			Handler:    _EventService_DeleteGame_Handler,
 		},
 		{
 			MethodName: "AddUserStatsToGame",

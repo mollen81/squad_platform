@@ -428,15 +428,6 @@ func (r *postgresRepository) FinishGame(ctx context.Context, gameID string, time
 	return err
 }
 
-func (r *postgresRepository) DeleteGame(ctx context.Context, gameID string) error {
-	query := `
-		DELETE FROM games WHERE id = $1
-	`
-
-	_, err := r.pool.Exec(ctx, query, gameID)
-	return err
-}
-
 func (r *postgresRepository) GetUserByID(ctx context.Context, userID string) (domain.User, error) {
 	query := `
 		SELECT id, clan_id, team_id, role

@@ -174,20 +174,6 @@ func (p *Producer) PublishGameFinished(ctx context.Context, gameID string, timeF
 	})
 }
 
-func (p *Producer) PublishGameDeleted(ctx context.Context, gameID string) error {
-	data, err := json.Marshal(map[string]interface{}{
-		"type":    "game_deleted",
-		"game_id": gameID,
-	})
-	if err != nil {
-		return err
-	}
-	return p.writer.WriteMessages(ctx, kafka.Message{
-		Key:   []byte(gameID),
-		Value: data,
-	})
-}
-
 func (p *Producer) PublishUserStatsAdded(ctx context.Context, stats domain.GameUserStats) error {
 	data, err := json.Marshal(map[string]interface{}{
 		"type":      "user_stats_added",

@@ -177,14 +177,6 @@ func (t *GRPCTransport) FinishGame(ctx context.Context, req *pb.FinishGameReques
 	}, nil
 }
 
-func (t *GRPCTransport) DeleteGame(ctx context.Context, req *pb.DeleteGameRequest) (*pb.DeleteGameResponse, error) {
-	err := t.eventService.DeleteGame(ctx, req.GetGameId())
-
-	return &pb.DeleteGameResponse{
-		Error: errString(err),
-	}, nil
-}
-
 func (t *GRPCTransport) AddUserStatsToGame(ctx context.Context, req *pb.AddUserStatsToGameRequest) (*pb.AddUserStatsToGameResponse, error) {
 	err := t.eventService.AddUserStatsToGame(ctx, req.GetGameId(), req.GetUserId(), req.GetKills(), req.GetDeaths(), req.GetPoints())
 
