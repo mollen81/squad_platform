@@ -18,7 +18,7 @@ WORKDIR /app
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 USER appuser
 
-COPY --from=builder /app/clan-service/build/libs/*.jar app.jar
+COPY --from=builder /app/clan-service/build/libs/*-ALPHA.jar app.jar
 
 EXPOSE 8084
 EXPOSE 9094
