@@ -19,29 +19,32 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	EventService_CreateEvent_FullMethodName          = "/event.EventService/CreateEvent"
-	EventService_GetEventsByUserID_FullMethodName    = "/event.EventService/GetEventsByUserID"
-	EventService_GetEventsByEventName_FullMethodName = "/event.EventService/GetEventsByEventName"
-	EventService_UpdateTimeEvent_FullMethodName      = "/event.EventService/UpdateTimeEvent"
-	EventService_DeleteEvent_FullMethodName          = "/event.EventService/DeleteEvent"
-	EventService_JoinToEvent_FullMethodName          = "/event.EventService/JoinToEvent"
-	EventService_LeaveEvent_FullMethodName           = "/event.EventService/LeaveEvent"
-	EventService_SetRole_FullMethodName              = "/event.EventService/SetRole"
-	EventService_CreateTeamsForEvent_FullMethodName  = "/event.EventService/CreateTeamsForEvent"
-	EventService_GetTeamsByEventID_FullMethodName    = "/event.EventService/GetTeamsByEventID"
-	EventService_StartEvent_FullMethodName           = "/event.EventService/StartEvent"
-	EventService_CreateGame_FullMethodName           = "/event.EventService/CreateGame"
-	EventService_GetGameByID_FullMethodName          = "/event.EventService/GetGameByID"
-	EventService_GetGamesByEventID_FullMethodName    = "/event.EventService/GetGamesByEventID"
-	EventService_UpdateGameWinner_FullMethodName     = "/event.EventService/UpdateGameWinner"
-	EventService_UpdateGameLoser_FullMethodName      = "/event.EventService/UpdateGameLoser"
-	EventService_FinishGame_FullMethodName           = "/event.EventService/FinishGame"
-	EventService_DeleteGame_FullMethodName           = "/event.EventService/DeleteGame"
-	EventService_AddUserStatsToGame_FullMethodName   = "/event.EventService/AddUserStatsToGame"
-	EventService_GetGameStats_FullMethodName         = "/event.EventService/GetGameStats"
-	EventService_GetTeamByID_FullMethodName          = "/event.EventService/GetTeamByID"
-	EventService_AddUserToTeam_FullMethodName        = "/event.EventService/AddUserToTeam"
-	EventService_RemoveUserFromTeam_FullMethodName   = "/event.EventService/RemoveUserFromTeam"
+	EventService_CreateEvent_FullMethodName                    = "/event.EventService/CreateEvent"
+	EventService_GetEventsByUserID_FullMethodName              = "/event.EventService/GetEventsByUserID"
+	EventService_GetEventsByEventName_FullMethodName           = "/event.EventService/GetEventsByEventName"
+	EventService_GetUnfinishedEventsByUserID_FullMethodName    = "/event.EventService/GetUnfinishedEventsByUserID"
+	EventService_GetUnfinishedEventsByEventName_FullMethodName = "/event.EventService/GetUnfinishedEventsByEventName"
+	EventService_UpdateTimeEvent_FullMethodName                = "/event.EventService/UpdateTimeEvent"
+	EventService_DeleteEvent_FullMethodName                    = "/event.EventService/DeleteEvent"
+	EventService_JoinToEvent_FullMethodName                    = "/event.EventService/JoinToEvent"
+	EventService_LeaveEvent_FullMethodName                     = "/event.EventService/LeaveEvent"
+	EventService_SetRole_FullMethodName                        = "/event.EventService/SetRole"
+	EventService_CreateTeamsForEvent_FullMethodName            = "/event.EventService/CreateTeamsForEvent"
+	EventService_GetTeamsByEventID_FullMethodName              = "/event.EventService/GetTeamsByEventID"
+	EventService_StartEvent_FullMethodName                     = "/event.EventService/StartEvent"
+	EventService_FinishEvent_FullMethodName                    = "/event.EventService/FinishEvent"
+	EventService_CreateGame_FullMethodName                     = "/event.EventService/CreateGame"
+	EventService_GetGameByID_FullMethodName                    = "/event.EventService/GetGameByID"
+	EventService_GetGamesByEventID_FullMethodName              = "/event.EventService/GetGamesByEventID"
+	EventService_UpdateGameWinner_FullMethodName               = "/event.EventService/UpdateGameWinner"
+	EventService_UpdateGameLoser_FullMethodName                = "/event.EventService/UpdateGameLoser"
+	EventService_FinishGame_FullMethodName                     = "/event.EventService/FinishGame"
+	EventService_DeleteGame_FullMethodName                     = "/event.EventService/DeleteGame"
+	EventService_AddUserStatsToGame_FullMethodName             = "/event.EventService/AddUserStatsToGame"
+	EventService_GetGameStats_FullMethodName                   = "/event.EventService/GetGameStats"
+	EventService_GetTeamByID_FullMethodName                    = "/event.EventService/GetTeamByID"
+	EventService_AddUserToTeam_FullMethodName                  = "/event.EventService/AddUserToTeam"
+	EventService_RemoveUserFromTeam_FullMethodName             = "/event.EventService/RemoveUserFromTeam"
 )
 
 // EventServiceClient is the client API for EventService service.
@@ -51,6 +54,8 @@ type EventServiceClient interface {
 	CreateEvent(ctx context.Context, in *CreateEventRequest, opts ...grpc.CallOption) (*CreateEventResponse, error)
 	GetEventsByUserID(ctx context.Context, in *GetEventsByUserIDRequest, opts ...grpc.CallOption) (*GetEventsByUserIDResponse, error)
 	GetEventsByEventName(ctx context.Context, in *GetEventsByEventNameRequest, opts ...grpc.CallOption) (*GetEventsByEventNameResponse, error)
+	GetUnfinishedEventsByUserID(ctx context.Context, in *GetUnfinishedEventsByUserIDRequest, opts ...grpc.CallOption) (*GetUnfinishedEventsByUserIDResponse, error)
+	GetUnfinishedEventsByEventName(ctx context.Context, in *GetUnfinishedEventsByEventNameRequest, opts ...grpc.CallOption) (*GetUnfinishedEventsByEventNameResponse, error)
 	UpdateTimeEvent(ctx context.Context, in *UpdateTimeEventRequest, opts ...grpc.CallOption) (*UpdateTimeEventResponse, error)
 	DeleteEvent(ctx context.Context, in *DeleteEventRequest, opts ...grpc.CallOption) (*DeleteEventResponse, error)
 	JoinToEvent(ctx context.Context, in *JoinToEventRequest, opts ...grpc.CallOption) (*JoinToEventResponse, error)
@@ -59,6 +64,7 @@ type EventServiceClient interface {
 	CreateTeamsForEvent(ctx context.Context, in *CreateTeamsForEventRequest, opts ...grpc.CallOption) (*CreateTeamsForEventResponse, error)
 	GetTeamsByEventID(ctx context.Context, in *GetTeamsByEventIDRequest, opts ...grpc.CallOption) (*GetTeamsByEventIDResponse, error)
 	StartEvent(ctx context.Context, in *StartEventRequest, opts ...grpc.CallOption) (*StartEventResponse, error)
+	FinishEvent(ctx context.Context, in *FinishEventRequest, opts ...grpc.CallOption) (*FinishEventResponse, error)
 	CreateGame(ctx context.Context, in *CreateGameRequest, opts ...grpc.CallOption) (*CreateGameResponse, error)
 	GetGameByID(ctx context.Context, in *GetGameByIDRequest, opts ...grpc.CallOption) (*GetGameByIDResponse, error)
 	GetGamesByEventID(ctx context.Context, in *GetGamesByEventIDRequest, opts ...grpc.CallOption) (*GetGamesByEventIDResponse, error)
@@ -105,6 +111,26 @@ func (c *eventServiceClient) GetEventsByEventName(ctx context.Context, in *GetEv
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetEventsByEventNameResponse)
 	err := c.cc.Invoke(ctx, EventService_GetEventsByEventName_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *eventServiceClient) GetUnfinishedEventsByUserID(ctx context.Context, in *GetUnfinishedEventsByUserIDRequest, opts ...grpc.CallOption) (*GetUnfinishedEventsByUserIDResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetUnfinishedEventsByUserIDResponse)
+	err := c.cc.Invoke(ctx, EventService_GetUnfinishedEventsByUserID_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *eventServiceClient) GetUnfinishedEventsByEventName(ctx context.Context, in *GetUnfinishedEventsByEventNameRequest, opts ...grpc.CallOption) (*GetUnfinishedEventsByEventNameResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetUnfinishedEventsByEventNameResponse)
+	err := c.cc.Invoke(ctx, EventService_GetUnfinishedEventsByEventName_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -185,6 +211,16 @@ func (c *eventServiceClient) StartEvent(ctx context.Context, in *StartEventReque
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(StartEventResponse)
 	err := c.cc.Invoke(ctx, EventService_StartEvent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *eventServiceClient) FinishEvent(ctx context.Context, in *FinishEventRequest, opts ...grpc.CallOption) (*FinishEventResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(FinishEventResponse)
+	err := c.cc.Invoke(ctx, EventService_FinishEvent_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -318,6 +354,8 @@ type EventServiceServer interface {
 	CreateEvent(context.Context, *CreateEventRequest) (*CreateEventResponse, error)
 	GetEventsByUserID(context.Context, *GetEventsByUserIDRequest) (*GetEventsByUserIDResponse, error)
 	GetEventsByEventName(context.Context, *GetEventsByEventNameRequest) (*GetEventsByEventNameResponse, error)
+	GetUnfinishedEventsByUserID(context.Context, *GetUnfinishedEventsByUserIDRequest) (*GetUnfinishedEventsByUserIDResponse, error)
+	GetUnfinishedEventsByEventName(context.Context, *GetUnfinishedEventsByEventNameRequest) (*GetUnfinishedEventsByEventNameResponse, error)
 	UpdateTimeEvent(context.Context, *UpdateTimeEventRequest) (*UpdateTimeEventResponse, error)
 	DeleteEvent(context.Context, *DeleteEventRequest) (*DeleteEventResponse, error)
 	JoinToEvent(context.Context, *JoinToEventRequest) (*JoinToEventResponse, error)
@@ -326,6 +364,7 @@ type EventServiceServer interface {
 	CreateTeamsForEvent(context.Context, *CreateTeamsForEventRequest) (*CreateTeamsForEventResponse, error)
 	GetTeamsByEventID(context.Context, *GetTeamsByEventIDRequest) (*GetTeamsByEventIDResponse, error)
 	StartEvent(context.Context, *StartEventRequest) (*StartEventResponse, error)
+	FinishEvent(context.Context, *FinishEventRequest) (*FinishEventResponse, error)
 	CreateGame(context.Context, *CreateGameRequest) (*CreateGameResponse, error)
 	GetGameByID(context.Context, *GetGameByIDRequest) (*GetGameByIDResponse, error)
 	GetGamesByEventID(context.Context, *GetGamesByEventIDRequest) (*GetGamesByEventIDResponse, error)
@@ -357,6 +396,12 @@ func (UnimplementedEventServiceServer) GetEventsByUserID(context.Context, *GetEv
 func (UnimplementedEventServiceServer) GetEventsByEventName(context.Context, *GetEventsByEventNameRequest) (*GetEventsByEventNameResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetEventsByEventName not implemented")
 }
+func (UnimplementedEventServiceServer) GetUnfinishedEventsByUserID(context.Context, *GetUnfinishedEventsByUserIDRequest) (*GetUnfinishedEventsByUserIDResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUnfinishedEventsByUserID not implemented")
+}
+func (UnimplementedEventServiceServer) GetUnfinishedEventsByEventName(context.Context, *GetUnfinishedEventsByEventNameRequest) (*GetUnfinishedEventsByEventNameResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUnfinishedEventsByEventName not implemented")
+}
 func (UnimplementedEventServiceServer) UpdateTimeEvent(context.Context, *UpdateTimeEventRequest) (*UpdateTimeEventResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateTimeEvent not implemented")
 }
@@ -380,6 +425,9 @@ func (UnimplementedEventServiceServer) GetTeamsByEventID(context.Context, *GetTe
 }
 func (UnimplementedEventServiceServer) StartEvent(context.Context, *StartEventRequest) (*StartEventResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method StartEvent not implemented")
+}
+func (UnimplementedEventServiceServer) FinishEvent(context.Context, *FinishEventRequest) (*FinishEventResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method FinishEvent not implemented")
 }
 func (UnimplementedEventServiceServer) CreateGame(context.Context, *CreateGameRequest) (*CreateGameResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateGame not implemented")
@@ -488,6 +536,42 @@ func _EventService_GetEventsByEventName_Handler(srv interface{}, ctx context.Con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(EventServiceServer).GetEventsByEventName(ctx, req.(*GetEventsByEventNameRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EventService_GetUnfinishedEventsByUserID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUnfinishedEventsByUserIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).GetUnfinishedEventsByUserID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_GetUnfinishedEventsByUserID_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).GetUnfinishedEventsByUserID(ctx, req.(*GetUnfinishedEventsByUserIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EventService_GetUnfinishedEventsByEventName_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUnfinishedEventsByEventNameRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).GetUnfinishedEventsByEventName(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_GetUnfinishedEventsByEventName_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).GetUnfinishedEventsByEventName(ctx, req.(*GetUnfinishedEventsByEventNameRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -632,6 +716,24 @@ func _EventService_StartEvent_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(EventServiceServer).StartEvent(ctx, req.(*StartEventRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EventService_FinishEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FinishEventRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).FinishEvent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_FinishEvent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).FinishEvent(ctx, req.(*FinishEventRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -872,6 +974,14 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _EventService_GetEventsByEventName_Handler,
 		},
 		{
+			MethodName: "GetUnfinishedEventsByUserID",
+			Handler:    _EventService_GetUnfinishedEventsByUserID_Handler,
+		},
+		{
+			MethodName: "GetUnfinishedEventsByEventName",
+			Handler:    _EventService_GetUnfinishedEventsByEventName_Handler,
+		},
+		{
 			MethodName: "UpdateTimeEvent",
 			Handler:    _EventService_UpdateTimeEvent_Handler,
 		},
@@ -902,6 +1012,10 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "StartEvent",
 			Handler:    _EventService_StartEvent_Handler,
+		},
+		{
+			MethodName: "FinishEvent",
+			Handler:    _EventService_FinishEvent_Handler,
 		},
 		{
 			MethodName: "CreateGame",

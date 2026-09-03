@@ -12,12 +12,16 @@ func toProtoEvent(e domain.Event) *pb.Event {
 		EventId:         e.EventID,
 		Name:            e.Name,
 		UserCreateId:    e.UserCreateID,
+		EnemySideLeader: e.EnemySideLeader,
 		UserCount:       e.UserCount,
 		TimeStart:       timestamppb.New(e.TimeStart),
 		TimeFinish:      timestamppb.New(e.TimeFinish),
 		CreateTime:      timestamppb.New(e.CreateTime),
 		EventTeamWinner: e.Event_team_winner,
 		EventTeamLoser:  e.Event_team_loser,
+		IsConfirmed:     e.IsConfirmed,
+		IsStarted:       e.IsStarted,
+		IsFinished:      e.IsFinished,
 	}
 }
 

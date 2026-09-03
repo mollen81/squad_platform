@@ -207,6 +207,109 @@ func (p *Producer) PublishUserStatsAdded(ctx context.Context, stats domain.GameU
 	})
 }
 
+func (p *Producer) PublishEventConfirmed(ctx context.Context, eventID string) error {
+	data, err := json.Marshal(map[string]interface{}{
+		"type":     "event_confirmed",
+		"event_id": eventID,
+	})
+	if err != nil {
+		return err
+	}
+	return p.writer.WriteMessages(ctx, kafka.Message{
+		Key:   []byte(eventID),
+		Value: data,
+	})
+}
+
+func (p *Producer) PublishEventDeclined(ctx context.Context, eventID string) error {
+	data, err := json.Marshal(map[string]interface{}{
+		"type":     "event_declined",
+		"event_id": eventID,
+	})
+	if err != nil {
+		return err
+	}
+	return p.writer.WriteMessages(ctx, kafka.Message{
+		Key:   []byte(eventID),
+		Value: data,
+	})
+}
+
+func (p *Producer) PublishEventStarted(ctx context.Context, eventID string, timeStart time.Time) error {
+	data, err := json.Marshal(map[string]interface{}{
+		"type":       "event_started",
+		"event_id":   eventID,
+		"time_start": timeStart,
+	})
+	if err != nil {
+		return err
+	}
+	return p.writer.WriteMessages(ctx, kafka.Message{
+		Key:   []byte(eventID),
+		Value: data,
+	})
+}
+
+func (p *Producer) PublishEventFinished(ctx context.Context, eventID string, timeFinish time.Time) error {
+	data, err := json.Marshal(map[string]interface{}{
+		"type":        "event_finished",
+		"event_id":    eventID,
+		"time_finish": timeFinish,
+	})
+	if err != nil {
+		return err
+	}
+	return p.writer.WriteMessages(ctx, kafka.Message{
+		Key:   []byte(eventID),
+		Value: data,
+	})
+}
+
+func (p *Producer) PublishUserRoleChanged(ctx context.Context, eventID, userID string, role domain.Role) error {
+	data, err := json.Marshal(map[string]interface{}{
+		"type":     "user_role_changed",
+		"event_id": eventID,
+		"user_id":  userID,
+		"role":     string(role),
+	})
+	if err != nil {
+		return err
+	}
+	return p.writer.WriteMessages(ctx, kafka.Message{
+		Key:   []byte(eventID),
+		Value: data,
+	})
+}
+
+func (p *Producer) PublishTeamsCreated(ctx context.Context, eventID string) error {
+	data, err := json.Marshal(map[string]interface{}{
+		"type":     "teams_created",
+		"event_id": eventID,
+	})
+	if err != nil {
+		return err
+	}
+	return p.writer.WriteMessages(ctx, kafka.Message{
+		Key:   []byte(eventID),
+		Value: data,
+	})
+}
+
+func (p *Producer) PublishTeamConfirmed(ctx context.Context, eventID, teamID string) error {
+	data, err := json.Marshal(map[string]interface{}{
+		"type":     "team_confirmed",
+		"event_id": eventID,
+		"team_id":  teamID,
+	})
+	if err != nil {
+		return err
+	}
+	return p.writer.WriteMessages(ctx, kafka.Message{
+		Key:   []byte(eventID),
+		Value: data,
+	})
+}
+
 func (p *Producer) Close() error {
 	return p.writer.Close()
 }

@@ -218,6 +218,32 @@ func (t *GRPCTransport) RemoveUserFromTeam(ctx context.Context, req *pb.RemoveUs
 	}, nil
 }
 
+func (t *GRPCTransport) GetUnfinishedEventsByUserID(ctx context.Context, req *pb.GetUnfinishedEventsByUserIDRequest) (*pb.GetUnfinishedEventsByUserIDResponse, error) {
+	events, err := t.eventService.GetUnfinishedEventsByUserID(ctx, req.GetUserCreateId())
+
+	return &pb.GetUnfinishedEventsByUserIDResponse{
+		Events: toProtoEvents(events),
+		Error:  errString(err),
+	}, nil
+}
+
+func (t *GRPCTransport) GetUnfinishedEventsByEventName(ctx context.Context, req *pb.GetUnfinishedEventsByEventNameRequest) (*pb.GetUnfinishedEventsByEventNameResponse, error) {
+	events, err := t.eventService.GetUnfinishedEventsByEventName(ctx, req.GetEventName())
+
+	return &pb.GetUnfinishedEventsByEventNameResponse{
+		Events: toProtoEventsSlice(events),
+		Error:  errString(err),
+	}, nil
+}
+
+func (t *GRPCTransport) FinishEvent(ctx context.Context, req *pb.FinishEventRequest) (*pb.FinishEventResponse, error) {
+	err := t.eventService.FinishEvent(ctx, req.GetEventId(), req.GetUserCreateId())
+
+	return &pb.FinishEventResponse{
+		Error: errString(err),
+	}, nil
+}
+
 func toProtoTeam(team domain.Team) *pb.Team {
 	members := make([]*pb.User, 0)
 	for _, member := range team.Members {

@@ -34,6 +34,9 @@ type Event struct {
 	CreateTime      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=create_time,json=createTime,proto3" json:"create_time,omitempty"`
 	EventTeamWinner string                 `protobuf:"bytes,9,opt,name=event_team_winner,json=eventTeamWinner,proto3" json:"event_team_winner,omitempty"`
 	EventTeamLoser  string                 `protobuf:"bytes,10,opt,name=event_team_loser,json=eventTeamLoser,proto3" json:"event_team_loser,omitempty"`
+	IsConfirmed     bool                   `protobuf:"varint,11,opt,name=is_confirmed,json=isConfirmed,proto3" json:"is_confirmed,omitempty"`
+	IsStarted       bool                   `protobuf:"varint,12,opt,name=is_started,json=isStarted,proto3" json:"is_started,omitempty"`
+	IsFinished      bool                   `protobuf:"varint,13,opt,name=is_finished,json=isFinished,proto3" json:"is_finished,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -136,6 +139,27 @@ func (x *Event) GetEventTeamLoser() string {
 		return x.EventTeamLoser
 	}
 	return ""
+}
+
+func (x *Event) GetIsConfirmed() bool {
+	if x != nil {
+		return x.IsConfirmed
+	}
+	return false
+}
+
+func (x *Event) GetIsStarted() bool {
+	if x != nil {
+		return x.IsStarted
+	}
+	return false
+}
+
+func (x *Event) GetIsFinished() bool {
+	if x != nil {
+		return x.IsFinished
+	}
+	return false
 }
 
 type User struct {
@@ -2794,11 +2818,299 @@ func (x *RemoveUserFromTeamResponse) GetError() string {
 	return ""
 }
 
+type GetUnfinishedEventsByUserIDRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserCreateId  string                 `protobuf:"bytes,1,opt,name=user_create_id,json=userCreateId,proto3" json:"user_create_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUnfinishedEventsByUserIDRequest) Reset() {
+	*x = GetUnfinishedEventsByUserIDRequest{}
+	mi := &file_internal_core_proto_event_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUnfinishedEventsByUserIDRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUnfinishedEventsByUserIDRequest) ProtoMessage() {}
+
+func (x *GetUnfinishedEventsByUserIDRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_core_proto_event_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUnfinishedEventsByUserIDRequest.ProtoReflect.Descriptor instead.
+func (*GetUnfinishedEventsByUserIDRequest) Descriptor() ([]byte, []int) {
+	return file_internal_core_proto_event_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *GetUnfinishedEventsByUserIDRequest) GetUserCreateId() string {
+	if x != nil {
+		return x.UserCreateId
+	}
+	return ""
+}
+
+type GetUnfinishedEventsByUserIDResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Events        []*Event               `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUnfinishedEventsByUserIDResponse) Reset() {
+	*x = GetUnfinishedEventsByUserIDResponse{}
+	mi := &file_internal_core_proto_event_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUnfinishedEventsByUserIDResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUnfinishedEventsByUserIDResponse) ProtoMessage() {}
+
+func (x *GetUnfinishedEventsByUserIDResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_core_proto_event_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUnfinishedEventsByUserIDResponse.ProtoReflect.Descriptor instead.
+func (*GetUnfinishedEventsByUserIDResponse) Descriptor() ([]byte, []int) {
+	return file_internal_core_proto_event_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *GetUnfinishedEventsByUserIDResponse) GetEvents() []*Event {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+func (x *GetUnfinishedEventsByUserIDResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type GetUnfinishedEventsByEventNameRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventName     string                 `protobuf:"bytes,1,opt,name=event_name,json=eventName,proto3" json:"event_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUnfinishedEventsByEventNameRequest) Reset() {
+	*x = GetUnfinishedEventsByEventNameRequest{}
+	mi := &file_internal_core_proto_event_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUnfinishedEventsByEventNameRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUnfinishedEventsByEventNameRequest) ProtoMessage() {}
+
+func (x *GetUnfinishedEventsByEventNameRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_core_proto_event_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUnfinishedEventsByEventNameRequest.ProtoReflect.Descriptor instead.
+func (*GetUnfinishedEventsByEventNameRequest) Descriptor() ([]byte, []int) {
+	return file_internal_core_proto_event_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *GetUnfinishedEventsByEventNameRequest) GetEventName() string {
+	if x != nil {
+		return x.EventName
+	}
+	return ""
+}
+
+type GetUnfinishedEventsByEventNameResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Events        []*Event               `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
+	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUnfinishedEventsByEventNameResponse) Reset() {
+	*x = GetUnfinishedEventsByEventNameResponse{}
+	mi := &file_internal_core_proto_event_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUnfinishedEventsByEventNameResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUnfinishedEventsByEventNameResponse) ProtoMessage() {}
+
+func (x *GetUnfinishedEventsByEventNameResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_core_proto_event_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUnfinishedEventsByEventNameResponse.ProtoReflect.Descriptor instead.
+func (*GetUnfinishedEventsByEventNameResponse) Descriptor() ([]byte, []int) {
+	return file_internal_core_proto_event_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *GetUnfinishedEventsByEventNameResponse) GetEvents() []*Event {
+	if x != nil {
+		return x.Events
+	}
+	return nil
+}
+
+func (x *GetUnfinishedEventsByEventNameResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type FinishEventRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	UserCreateId  string                 `protobuf:"bytes,2,opt,name=user_create_id,json=userCreateId,proto3" json:"user_create_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FinishEventRequest) Reset() {
+	*x = FinishEventRequest{}
+	mi := &file_internal_core_proto_event_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FinishEventRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FinishEventRequest) ProtoMessage() {}
+
+func (x *FinishEventRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_core_proto_event_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FinishEventRequest.ProtoReflect.Descriptor instead.
+func (*FinishEventRequest) Descriptor() ([]byte, []int) {
+	return file_internal_core_proto_event_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *FinishEventRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *FinishEventRequest) GetUserCreateId() string {
+	if x != nil {
+		return x.UserCreateId
+	}
+	return ""
+}
+
+type FinishEventResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FinishEventResponse) Reset() {
+	*x = FinishEventResponse{}
+	mi := &file_internal_core_proto_event_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FinishEventResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FinishEventResponse) ProtoMessage() {}
+
+func (x *FinishEventResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_internal_core_proto_event_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FinishEventResponse.ProtoReflect.Descriptor instead.
+func (*FinishEventResponse) Descriptor() ([]byte, []int) {
+	return file_internal_core_proto_event_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *FinishEventResponse) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
 var File_internal_core_proto_event_proto protoreflect.FileDescriptor
 
 const file_internal_core_proto_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1finternal/core/proto/event.proto\x12\x05event\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb2\x03\n" +
+	"\x1finternal/core/proto/event.proto\x12\x05event\x1a\x1fgoogle/protobuf/timestamp.proto\"\x95\x04\n" +
 	"\x05Event\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12$\n" +
@@ -2814,7 +3126,12 @@ const file_internal_core_proto_event_proto_rawDesc = "" +
 	"createTime\x12*\n" +
 	"\x11event_team_winner\x18\t \x01(\tR\x0feventTeamWinner\x12(\n" +
 	"\x10event_team_loser\x18\n" +
-	" \x01(\tR\x0eeventTeamLoser\"\xb3\x01\n" +
+	" \x01(\tR\x0eeventTeamLoser\x12!\n" +
+	"\fis_confirmed\x18\v \x01(\bR\visConfirmed\x12\x1d\n" +
+	"\n" +
+	"is_started\x18\f \x01(\bR\tisStarted\x12\x1f\n" +
+	"\vis_finished\x18\r \x01(\bR\n" +
+	"isFinished\"\xb3\x01\n" +
 	"\x04User\x12\"\n" +
 	"\ruser_event_id\x18\x01 \x01(\tR\vuserEventId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x17\n" +
@@ -2979,11 +3296,29 @@ const file_internal_core_proto_event_proto_rawDesc = "" +
 	"\ateam_id\x18\x01 \x01(\tR\x06teamId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\"2\n" +
 	"\x1aRemoveUserFromTeamResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error2\x80\x0e\n" +
+	"\x05error\x18\x01 \x01(\tR\x05error\"J\n" +
+	"\"GetUnfinishedEventsByUserIDRequest\x12$\n" +
+	"\x0euser_create_id\x18\x01 \x01(\tR\fuserCreateId\"a\n" +
+	"#GetUnfinishedEventsByUserIDResponse\x12$\n" +
+	"\x06events\x18\x01 \x03(\v2\f.event.EventR\x06events\x12\x14\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\"F\n" +
+	"%GetUnfinishedEventsByEventNameRequest\x12\x1d\n" +
+	"\n" +
+	"event_name\x18\x01 \x01(\tR\teventName\"d\n" +
+	"&GetUnfinishedEventsByEventNameResponse\x12$\n" +
+	"\x06events\x18\x01 \x03(\v2\f.event.EventR\x06events\x12\x14\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\"U\n" +
+	"\x12FinishEventRequest\x12\x19\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12$\n" +
+	"\x0euser_create_id\x18\x02 \x01(\tR\fuserCreateId\"+\n" +
+	"\x13FinishEventResponse\x12\x14\n" +
+	"\x05error\x18\x01 \x01(\tR\x05error2\xbb\x10\n" +
 	"\fEventService\x12D\n" +
 	"\vCreateEvent\x12\x19.event.CreateEventRequest\x1a\x1a.event.CreateEventResponse\x12V\n" +
 	"\x11GetEventsByUserID\x12\x1f.event.GetEventsByUserIDRequest\x1a .event.GetEventsByUserIDResponse\x12_\n" +
-	"\x14GetEventsByEventName\x12\".event.GetEventsByEventNameRequest\x1a#.event.GetEventsByEventNameResponse\x12P\n" +
+	"\x14GetEventsByEventName\x12\".event.GetEventsByEventNameRequest\x1a#.event.GetEventsByEventNameResponse\x12t\n" +
+	"\x1bGetUnfinishedEventsByUserID\x12).event.GetUnfinishedEventsByUserIDRequest\x1a*.event.GetUnfinishedEventsByUserIDResponse\x12}\n" +
+	"\x1eGetUnfinishedEventsByEventName\x12,.event.GetUnfinishedEventsByEventNameRequest\x1a-.event.GetUnfinishedEventsByEventNameResponse\x12P\n" +
 	"\x0fUpdateTimeEvent\x12\x1d.event.UpdateTimeEventRequest\x1a\x1e.event.UpdateTimeEventResponse\x12D\n" +
 	"\vDeleteEvent\x12\x19.event.DeleteEventRequest\x1a\x1a.event.DeleteEventResponse\x12D\n" +
 	"\vJoinToEvent\x12\x19.event.JoinToEventRequest\x1a\x1a.event.JoinToEventResponse\x12A\n" +
@@ -2993,7 +3328,8 @@ const file_internal_core_proto_event_proto_rawDesc = "" +
 	"\x13CreateTeamsForEvent\x12!.event.CreateTeamsForEventRequest\x1a\".event.CreateTeamsForEventResponse\x12V\n" +
 	"\x11GetTeamsByEventID\x12\x1f.event.GetTeamsByEventIDRequest\x1a .event.GetTeamsByEventIDResponse\x12A\n" +
 	"\n" +
-	"StartEvent\x12\x18.event.StartEventRequest\x1a\x19.event.StartEventResponse\x12A\n" +
+	"StartEvent\x12\x18.event.StartEventRequest\x1a\x19.event.StartEventResponse\x12D\n" +
+	"\vFinishEvent\x12\x19.event.FinishEventRequest\x1a\x1a.event.FinishEventResponse\x12A\n" +
 	"\n" +
 	"CreateGame\x12\x18.event.CreateGameRequest\x1a\x19.event.CreateGameResponse\x12D\n" +
 	"\vGetGameByID\x12\x19.event.GetGameByIDRequest\x1a\x1a.event.GetGameByIDResponse\x12V\n" +
@@ -3022,133 +3358,147 @@ func file_internal_core_proto_event_proto_rawDescGZIP() []byte {
 	return file_internal_core_proto_event_proto_rawDescData
 }
 
-var file_internal_core_proto_event_proto_msgTypes = make([]protoimpl.MessageInfo, 51)
+var file_internal_core_proto_event_proto_msgTypes = make([]protoimpl.MessageInfo, 57)
 var file_internal_core_proto_event_proto_goTypes = []any{
-	(*Event)(nil),                        // 0: event.Event
-	(*User)(nil),                         // 1: event.User
-	(*Game)(nil),                         // 2: event.Game
-	(*Team)(nil),                         // 3: event.Team
-	(*GameUserStats)(nil),                // 4: event.GameUserStats
-	(*CreateEventRequest)(nil),           // 5: event.CreateEventRequest
-	(*CreateEventResponse)(nil),          // 6: event.CreateEventResponse
-	(*GetEventsByUserIDRequest)(nil),     // 7: event.GetEventsByUserIDRequest
-	(*GetEventsByUserIDResponse)(nil),    // 8: event.GetEventsByUserIDResponse
-	(*GetEventsByEventNameRequest)(nil),  // 9: event.GetEventsByEventNameRequest
-	(*GetEventsByEventNameResponse)(nil), // 10: event.GetEventsByEventNameResponse
-	(*UpdateTimeEventRequest)(nil),       // 11: event.UpdateTimeEventRequest
-	(*UpdateTimeEventResponse)(nil),      // 12: event.UpdateTimeEventResponse
-	(*DeleteEventRequest)(nil),           // 13: event.DeleteEventRequest
-	(*DeleteEventResponse)(nil),          // 14: event.DeleteEventResponse
-	(*JoinToEventRequest)(nil),           // 15: event.JoinToEventRequest
-	(*JoinToEventResponse)(nil),          // 16: event.JoinToEventResponse
-	(*LeaveEventRequest)(nil),            // 17: event.LeaveEventRequest
-	(*LeaveEventResponse)(nil),           // 18: event.LeaveEventResponse
-	(*SetRoleRequest)(nil),               // 19: event.SetRoleRequest
-	(*SetRoleResponse)(nil),              // 20: event.SetRoleResponse
-	(*CreateTeamsForEventRequest)(nil),   // 21: event.CreateTeamsForEventRequest
-	(*CreateTeamsForEventResponse)(nil),  // 22: event.CreateTeamsForEventResponse
-	(*GetTeamsByEventIDRequest)(nil),     // 23: event.GetTeamsByEventIDRequest
-	(*GetTeamsByEventIDResponse)(nil),    // 24: event.GetTeamsByEventIDResponse
-	(*StartEventRequest)(nil),            // 25: event.StartEventRequest
-	(*StartEventResponse)(nil),           // 26: event.StartEventResponse
-	(*CreateGameRequest)(nil),            // 27: event.CreateGameRequest
-	(*CreateGameResponse)(nil),           // 28: event.CreateGameResponse
-	(*GetGameByIDRequest)(nil),           // 29: event.GetGameByIDRequest
-	(*GetGameByIDResponse)(nil),          // 30: event.GetGameByIDResponse
-	(*GetGamesByEventIDRequest)(nil),     // 31: event.GetGamesByEventIDRequest
-	(*GetGamesByEventIDResponse)(nil),    // 32: event.GetGamesByEventIDResponse
-	(*UpdateGameWinnerRequest)(nil),      // 33: event.UpdateGameWinnerRequest
-	(*UpdateGameWinnerResponse)(nil),     // 34: event.UpdateGameWinnerResponse
-	(*UpdateGameLoserRequest)(nil),       // 35: event.UpdateGameLoserRequest
-	(*UpdateGameLoserResponse)(nil),      // 36: event.UpdateGameLoserResponse
-	(*FinishGameRequest)(nil),            // 37: event.FinishGameRequest
-	(*FinishGameResponse)(nil),           // 38: event.FinishGameResponse
-	(*DeleteGameRequest)(nil),            // 39: event.DeleteGameRequest
-	(*DeleteGameResponse)(nil),           // 40: event.DeleteGameResponse
-	(*AddUserStatsToGameRequest)(nil),    // 41: event.AddUserStatsToGameRequest
-	(*AddUserStatsToGameResponse)(nil),   // 42: event.AddUserStatsToGameResponse
-	(*GetGameStatsRequest)(nil),          // 43: event.GetGameStatsRequest
-	(*GetGameStatsResponse)(nil),         // 44: event.GetGameStatsResponse
-	(*GetTeamByIDRequest)(nil),           // 45: event.GetTeamByIDRequest
-	(*GetTeamByIDResponse)(nil),          // 46: event.GetTeamByIDResponse
-	(*AddUserToTeamRequest)(nil),         // 47: event.AddUserToTeamRequest
-	(*AddUserToTeamResponse)(nil),        // 48: event.AddUserToTeamResponse
-	(*RemoveUserFromTeamRequest)(nil),    // 49: event.RemoveUserFromTeamRequest
-	(*RemoveUserFromTeamResponse)(nil),   // 50: event.RemoveUserFromTeamResponse
-	(*timestamppb.Timestamp)(nil),        // 51: google.protobuf.Timestamp
+	(*Event)(nil),                                  // 0: event.Event
+	(*User)(nil),                                   // 1: event.User
+	(*Game)(nil),                                   // 2: event.Game
+	(*Team)(nil),                                   // 3: event.Team
+	(*GameUserStats)(nil),                          // 4: event.GameUserStats
+	(*CreateEventRequest)(nil),                     // 5: event.CreateEventRequest
+	(*CreateEventResponse)(nil),                    // 6: event.CreateEventResponse
+	(*GetEventsByUserIDRequest)(nil),               // 7: event.GetEventsByUserIDRequest
+	(*GetEventsByUserIDResponse)(nil),              // 8: event.GetEventsByUserIDResponse
+	(*GetEventsByEventNameRequest)(nil),            // 9: event.GetEventsByEventNameRequest
+	(*GetEventsByEventNameResponse)(nil),           // 10: event.GetEventsByEventNameResponse
+	(*UpdateTimeEventRequest)(nil),                 // 11: event.UpdateTimeEventRequest
+	(*UpdateTimeEventResponse)(nil),                // 12: event.UpdateTimeEventResponse
+	(*DeleteEventRequest)(nil),                     // 13: event.DeleteEventRequest
+	(*DeleteEventResponse)(nil),                    // 14: event.DeleteEventResponse
+	(*JoinToEventRequest)(nil),                     // 15: event.JoinToEventRequest
+	(*JoinToEventResponse)(nil),                    // 16: event.JoinToEventResponse
+	(*LeaveEventRequest)(nil),                      // 17: event.LeaveEventRequest
+	(*LeaveEventResponse)(nil),                     // 18: event.LeaveEventResponse
+	(*SetRoleRequest)(nil),                         // 19: event.SetRoleRequest
+	(*SetRoleResponse)(nil),                        // 20: event.SetRoleResponse
+	(*CreateTeamsForEventRequest)(nil),             // 21: event.CreateTeamsForEventRequest
+	(*CreateTeamsForEventResponse)(nil),            // 22: event.CreateTeamsForEventResponse
+	(*GetTeamsByEventIDRequest)(nil),               // 23: event.GetTeamsByEventIDRequest
+	(*GetTeamsByEventIDResponse)(nil),              // 24: event.GetTeamsByEventIDResponse
+	(*StartEventRequest)(nil),                      // 25: event.StartEventRequest
+	(*StartEventResponse)(nil),                     // 26: event.StartEventResponse
+	(*CreateGameRequest)(nil),                      // 27: event.CreateGameRequest
+	(*CreateGameResponse)(nil),                     // 28: event.CreateGameResponse
+	(*GetGameByIDRequest)(nil),                     // 29: event.GetGameByIDRequest
+	(*GetGameByIDResponse)(nil),                    // 30: event.GetGameByIDResponse
+	(*GetGamesByEventIDRequest)(nil),               // 31: event.GetGamesByEventIDRequest
+	(*GetGamesByEventIDResponse)(nil),              // 32: event.GetGamesByEventIDResponse
+	(*UpdateGameWinnerRequest)(nil),                // 33: event.UpdateGameWinnerRequest
+	(*UpdateGameWinnerResponse)(nil),               // 34: event.UpdateGameWinnerResponse
+	(*UpdateGameLoserRequest)(nil),                 // 35: event.UpdateGameLoserRequest
+	(*UpdateGameLoserResponse)(nil),                // 36: event.UpdateGameLoserResponse
+	(*FinishGameRequest)(nil),                      // 37: event.FinishGameRequest
+	(*FinishGameResponse)(nil),                     // 38: event.FinishGameResponse
+	(*DeleteGameRequest)(nil),                      // 39: event.DeleteGameRequest
+	(*DeleteGameResponse)(nil),                     // 40: event.DeleteGameResponse
+	(*AddUserStatsToGameRequest)(nil),              // 41: event.AddUserStatsToGameRequest
+	(*AddUserStatsToGameResponse)(nil),             // 42: event.AddUserStatsToGameResponse
+	(*GetGameStatsRequest)(nil),                    // 43: event.GetGameStatsRequest
+	(*GetGameStatsResponse)(nil),                   // 44: event.GetGameStatsResponse
+	(*GetTeamByIDRequest)(nil),                     // 45: event.GetTeamByIDRequest
+	(*GetTeamByIDResponse)(nil),                    // 46: event.GetTeamByIDResponse
+	(*AddUserToTeamRequest)(nil),                   // 47: event.AddUserToTeamRequest
+	(*AddUserToTeamResponse)(nil),                  // 48: event.AddUserToTeamResponse
+	(*RemoveUserFromTeamRequest)(nil),              // 49: event.RemoveUserFromTeamRequest
+	(*RemoveUserFromTeamResponse)(nil),             // 50: event.RemoveUserFromTeamResponse
+	(*GetUnfinishedEventsByUserIDRequest)(nil),     // 51: event.GetUnfinishedEventsByUserIDRequest
+	(*GetUnfinishedEventsByUserIDResponse)(nil),    // 52: event.GetUnfinishedEventsByUserIDResponse
+	(*GetUnfinishedEventsByEventNameRequest)(nil),  // 53: event.GetUnfinishedEventsByEventNameRequest
+	(*GetUnfinishedEventsByEventNameResponse)(nil), // 54: event.GetUnfinishedEventsByEventNameResponse
+	(*FinishEventRequest)(nil),                     // 55: event.FinishEventRequest
+	(*FinishEventResponse)(nil),                    // 56: event.FinishEventResponse
+	(*timestamppb.Timestamp)(nil),                  // 57: google.protobuf.Timestamp
 }
 var file_internal_core_proto_event_proto_depIdxs = []int32{
-	51, // 0: event.Event.time_start:type_name -> google.protobuf.Timestamp
-	51, // 1: event.Event.time_finish:type_name -> google.protobuf.Timestamp
-	51, // 2: event.Event.create_time:type_name -> google.protobuf.Timestamp
-	51, // 3: event.Game.time_start:type_name -> google.protobuf.Timestamp
-	51, // 4: event.Game.time_finish:type_name -> google.protobuf.Timestamp
+	57, // 0: event.Event.time_start:type_name -> google.protobuf.Timestamp
+	57, // 1: event.Event.time_finish:type_name -> google.protobuf.Timestamp
+	57, // 2: event.Event.create_time:type_name -> google.protobuf.Timestamp
+	57, // 3: event.Game.time_start:type_name -> google.protobuf.Timestamp
+	57, // 4: event.Game.time_finish:type_name -> google.protobuf.Timestamp
 	1,  // 5: event.Team.members:type_name -> event.User
 	2,  // 6: event.GameUserStats.game:type_name -> event.Game
 	1,  // 7: event.GameUserStats.user:type_name -> event.User
-	51, // 8: event.CreateEventRequest.time_start:type_name -> google.protobuf.Timestamp
+	57, // 8: event.CreateEventRequest.time_start:type_name -> google.protobuf.Timestamp
 	0,  // 9: event.GetEventsByUserIDResponse.events:type_name -> event.Event
 	0,  // 10: event.GetEventsByEventNameResponse.events:type_name -> event.Event
-	51, // 11: event.UpdateTimeEventRequest.new_time_start:type_name -> google.protobuf.Timestamp
-	51, // 12: event.JoinToEventRequest.join_time:type_name -> google.protobuf.Timestamp
+	57, // 11: event.UpdateTimeEventRequest.new_time_start:type_name -> google.protobuf.Timestamp
+	57, // 12: event.JoinToEventRequest.join_time:type_name -> google.protobuf.Timestamp
 	3,  // 13: event.GetTeamsByEventIDResponse.teams:type_name -> event.Team
-	51, // 14: event.CreateGameRequest.time_start:type_name -> google.protobuf.Timestamp
+	57, // 14: event.CreateGameRequest.time_start:type_name -> google.protobuf.Timestamp
 	2,  // 15: event.GetGameByIDResponse.game:type_name -> event.Game
 	2,  // 16: event.GetGamesByEventIDResponse.games:type_name -> event.Game
-	51, // 17: event.FinishGameRequest.time_finish:type_name -> google.protobuf.Timestamp
+	57, // 17: event.FinishGameRequest.time_finish:type_name -> google.protobuf.Timestamp
 	4,  // 18: event.GetGameStatsResponse.stats:type_name -> event.GameUserStats
 	3,  // 19: event.GetTeamByIDResponse.team:type_name -> event.Team
-	5,  // 20: event.EventService.CreateEvent:input_type -> event.CreateEventRequest
-	7,  // 21: event.EventService.GetEventsByUserID:input_type -> event.GetEventsByUserIDRequest
-	9,  // 22: event.EventService.GetEventsByEventName:input_type -> event.GetEventsByEventNameRequest
-	11, // 23: event.EventService.UpdateTimeEvent:input_type -> event.UpdateTimeEventRequest
-	13, // 24: event.EventService.DeleteEvent:input_type -> event.DeleteEventRequest
-	15, // 25: event.EventService.JoinToEvent:input_type -> event.JoinToEventRequest
-	17, // 26: event.EventService.LeaveEvent:input_type -> event.LeaveEventRequest
-	19, // 27: event.EventService.SetRole:input_type -> event.SetRoleRequest
-	21, // 28: event.EventService.CreateTeamsForEvent:input_type -> event.CreateTeamsForEventRequest
-	23, // 29: event.EventService.GetTeamsByEventID:input_type -> event.GetTeamsByEventIDRequest
-	25, // 30: event.EventService.StartEvent:input_type -> event.StartEventRequest
-	27, // 31: event.EventService.CreateGame:input_type -> event.CreateGameRequest
-	29, // 32: event.EventService.GetGameByID:input_type -> event.GetGameByIDRequest
-	31, // 33: event.EventService.GetGamesByEventID:input_type -> event.GetGamesByEventIDRequest
-	33, // 34: event.EventService.UpdateGameWinner:input_type -> event.UpdateGameWinnerRequest
-	35, // 35: event.EventService.UpdateGameLoser:input_type -> event.UpdateGameLoserRequest
-	37, // 36: event.EventService.FinishGame:input_type -> event.FinishGameRequest
-	39, // 37: event.EventService.DeleteGame:input_type -> event.DeleteGameRequest
-	41, // 38: event.EventService.AddUserStatsToGame:input_type -> event.AddUserStatsToGameRequest
-	43, // 39: event.EventService.GetGameStats:input_type -> event.GetGameStatsRequest
-	45, // 40: event.EventService.GetTeamByID:input_type -> event.GetTeamByIDRequest
-	47, // 41: event.EventService.AddUserToTeam:input_type -> event.AddUserToTeamRequest
-	49, // 42: event.EventService.RemoveUserFromTeam:input_type -> event.RemoveUserFromTeamRequest
-	6,  // 43: event.EventService.CreateEvent:output_type -> event.CreateEventResponse
-	8,  // 44: event.EventService.GetEventsByUserID:output_type -> event.GetEventsByUserIDResponse
-	10, // 45: event.EventService.GetEventsByEventName:output_type -> event.GetEventsByEventNameResponse
-	12, // 46: event.EventService.UpdateTimeEvent:output_type -> event.UpdateTimeEventResponse
-	14, // 47: event.EventService.DeleteEvent:output_type -> event.DeleteEventResponse
-	16, // 48: event.EventService.JoinToEvent:output_type -> event.JoinToEventResponse
-	18, // 49: event.EventService.LeaveEvent:output_type -> event.LeaveEventResponse
-	20, // 50: event.EventService.SetRole:output_type -> event.SetRoleResponse
-	22, // 51: event.EventService.CreateTeamsForEvent:output_type -> event.CreateTeamsForEventResponse
-	24, // 52: event.EventService.GetTeamsByEventID:output_type -> event.GetTeamsByEventIDResponse
-	26, // 53: event.EventService.StartEvent:output_type -> event.StartEventResponse
-	28, // 54: event.EventService.CreateGame:output_type -> event.CreateGameResponse
-	30, // 55: event.EventService.GetGameByID:output_type -> event.GetGameByIDResponse
-	32, // 56: event.EventService.GetGamesByEventID:output_type -> event.GetGamesByEventIDResponse
-	34, // 57: event.EventService.UpdateGameWinner:output_type -> event.UpdateGameWinnerResponse
-	36, // 58: event.EventService.UpdateGameLoser:output_type -> event.UpdateGameLoserResponse
-	38, // 59: event.EventService.FinishGame:output_type -> event.FinishGameResponse
-	40, // 60: event.EventService.DeleteGame:output_type -> event.DeleteGameResponse
-	42, // 61: event.EventService.AddUserStatsToGame:output_type -> event.AddUserStatsToGameResponse
-	44, // 62: event.EventService.GetGameStats:output_type -> event.GetGameStatsResponse
-	46, // 63: event.EventService.GetTeamByID:output_type -> event.GetTeamByIDResponse
-	48, // 64: event.EventService.AddUserToTeam:output_type -> event.AddUserToTeamResponse
-	50, // 65: event.EventService.RemoveUserFromTeam:output_type -> event.RemoveUserFromTeamResponse
-	43, // [43:66] is the sub-list for method output_type
-	20, // [20:43] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	0,  // 20: event.GetUnfinishedEventsByUserIDResponse.events:type_name -> event.Event
+	0,  // 21: event.GetUnfinishedEventsByEventNameResponse.events:type_name -> event.Event
+	5,  // 22: event.EventService.CreateEvent:input_type -> event.CreateEventRequest
+	7,  // 23: event.EventService.GetEventsByUserID:input_type -> event.GetEventsByUserIDRequest
+	9,  // 24: event.EventService.GetEventsByEventName:input_type -> event.GetEventsByEventNameRequest
+	51, // 25: event.EventService.GetUnfinishedEventsByUserID:input_type -> event.GetUnfinishedEventsByUserIDRequest
+	53, // 26: event.EventService.GetUnfinishedEventsByEventName:input_type -> event.GetUnfinishedEventsByEventNameRequest
+	11, // 27: event.EventService.UpdateTimeEvent:input_type -> event.UpdateTimeEventRequest
+	13, // 28: event.EventService.DeleteEvent:input_type -> event.DeleteEventRequest
+	15, // 29: event.EventService.JoinToEvent:input_type -> event.JoinToEventRequest
+	17, // 30: event.EventService.LeaveEvent:input_type -> event.LeaveEventRequest
+	19, // 31: event.EventService.SetRole:input_type -> event.SetRoleRequest
+	21, // 32: event.EventService.CreateTeamsForEvent:input_type -> event.CreateTeamsForEventRequest
+	23, // 33: event.EventService.GetTeamsByEventID:input_type -> event.GetTeamsByEventIDRequest
+	25, // 34: event.EventService.StartEvent:input_type -> event.StartEventRequest
+	55, // 35: event.EventService.FinishEvent:input_type -> event.FinishEventRequest
+	27, // 36: event.EventService.CreateGame:input_type -> event.CreateGameRequest
+	29, // 37: event.EventService.GetGameByID:input_type -> event.GetGameByIDRequest
+	31, // 38: event.EventService.GetGamesByEventID:input_type -> event.GetGamesByEventIDRequest
+	33, // 39: event.EventService.UpdateGameWinner:input_type -> event.UpdateGameWinnerRequest
+	35, // 40: event.EventService.UpdateGameLoser:input_type -> event.UpdateGameLoserRequest
+	37, // 41: event.EventService.FinishGame:input_type -> event.FinishGameRequest
+	39, // 42: event.EventService.DeleteGame:input_type -> event.DeleteGameRequest
+	41, // 43: event.EventService.AddUserStatsToGame:input_type -> event.AddUserStatsToGameRequest
+	43, // 44: event.EventService.GetGameStats:input_type -> event.GetGameStatsRequest
+	45, // 45: event.EventService.GetTeamByID:input_type -> event.GetTeamByIDRequest
+	47, // 46: event.EventService.AddUserToTeam:input_type -> event.AddUserToTeamRequest
+	49, // 47: event.EventService.RemoveUserFromTeam:input_type -> event.RemoveUserFromTeamRequest
+	6,  // 48: event.EventService.CreateEvent:output_type -> event.CreateEventResponse
+	8,  // 49: event.EventService.GetEventsByUserID:output_type -> event.GetEventsByUserIDResponse
+	10, // 50: event.EventService.GetEventsByEventName:output_type -> event.GetEventsByEventNameResponse
+	52, // 51: event.EventService.GetUnfinishedEventsByUserID:output_type -> event.GetUnfinishedEventsByUserIDResponse
+	54, // 52: event.EventService.GetUnfinishedEventsByEventName:output_type -> event.GetUnfinishedEventsByEventNameResponse
+	12, // 53: event.EventService.UpdateTimeEvent:output_type -> event.UpdateTimeEventResponse
+	14, // 54: event.EventService.DeleteEvent:output_type -> event.DeleteEventResponse
+	16, // 55: event.EventService.JoinToEvent:output_type -> event.JoinToEventResponse
+	18, // 56: event.EventService.LeaveEvent:output_type -> event.LeaveEventResponse
+	20, // 57: event.EventService.SetRole:output_type -> event.SetRoleResponse
+	22, // 58: event.EventService.CreateTeamsForEvent:output_type -> event.CreateTeamsForEventResponse
+	24, // 59: event.EventService.GetTeamsByEventID:output_type -> event.GetTeamsByEventIDResponse
+	26, // 60: event.EventService.StartEvent:output_type -> event.StartEventResponse
+	56, // 61: event.EventService.FinishEvent:output_type -> event.FinishEventResponse
+	28, // 62: event.EventService.CreateGame:output_type -> event.CreateGameResponse
+	30, // 63: event.EventService.GetGameByID:output_type -> event.GetGameByIDResponse
+	32, // 64: event.EventService.GetGamesByEventID:output_type -> event.GetGamesByEventIDResponse
+	34, // 65: event.EventService.UpdateGameWinner:output_type -> event.UpdateGameWinnerResponse
+	36, // 66: event.EventService.UpdateGameLoser:output_type -> event.UpdateGameLoserResponse
+	38, // 67: event.EventService.FinishGame:output_type -> event.FinishGameResponse
+	40, // 68: event.EventService.DeleteGame:output_type -> event.DeleteGameResponse
+	42, // 69: event.EventService.AddUserStatsToGame:output_type -> event.AddUserStatsToGameResponse
+	44, // 70: event.EventService.GetGameStats:output_type -> event.GetGameStatsResponse
+	46, // 71: event.EventService.GetTeamByID:output_type -> event.GetTeamByIDResponse
+	48, // 72: event.EventService.AddUserToTeam:output_type -> event.AddUserToTeamResponse
+	50, // 73: event.EventService.RemoveUserFromTeam:output_type -> event.RemoveUserFromTeamResponse
+	48, // [48:74] is the sub-list for method output_type
+	22, // [22:48] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_internal_core_proto_event_proto_init() }
@@ -3162,7 +3512,7 @@ func file_internal_core_proto_event_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_core_proto_event_proto_rawDesc), len(file_internal_core_proto_event_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   51,
+			NumMessages:   57,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

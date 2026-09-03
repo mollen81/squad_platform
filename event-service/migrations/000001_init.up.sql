@@ -8,7 +8,10 @@ CREATE TABLE IF NOT EXISTS events (
     create_time TIMESTAMP NOT NULL,
     user_count INT NOT NULL DEFAULT 0,
     event_team_winner TEXT,
-    event_team_loser TEXT
+    event_team_loser TEXT,
+    is_confirmed BOOLEAN NOT NULL DEFAULT false,
+    is_started BOOLEAN NOT NULL DEFAULT false,
+    is_finished BOOLEAN NOT NULL DEFAULT false
 ) ORDER BY (time_start);
 
 CREATE TABLE IF NOT EXISTS users (

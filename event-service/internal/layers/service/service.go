@@ -50,6 +50,11 @@ func (s *eventService) CreateEvent(ctx context.Context, userCreateID, enemySideL
 		return err
 	}
 
+	controlTime := timeStart.Add(-30 * time.Minute)
+	if err := s.ControlEventTimerDenial(ctx, event.EventID, controlTime); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -186,6 +191,10 @@ func (s *eventService) SetRole(ctx context.Context, eventID, sideLeaderID, userI
 		return err
 	}
 
+	if err = s.producer.PublishUserRoleChanged(ctx, eventID, userID, role); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -218,6 +227,10 @@ func (s *eventService) CreateTeamsForEvent(ctx context.Context, eventID string) 
 	}
 
 	if err := s.eventRepo.CreateTeam(ctx, team2); err != nil {
+		return err
+	}
+
+	if err := s.producer.PublishTeamsCreated(ctx, eventID); err != nil {
 		return err
 	}
 
@@ -287,15 +300,37 @@ func (s *eventService) StartEvent(ctx context.Context, eventID, sideLeaderID str
 			if err := s.eventRepo.UpdateUserSixClanMembers(ctx, member.UserID, eventID, hasSixClanMembers); err != nil {
 				return err
 			}
-
-			if !hasSixClanMembers {
-				return errors.New("user " + member.UserID + " does not have 6 clan members (including himself)")
+		} else {
+			if err := s.eventRepo.UpdateUserSixClanMembers(ctx, member.UserID, eventID, false); err != nil {
+				return err
 			}
 		}
 	}
 
 	if err := s.eventRepo.ConfirmTeam(ctx, teamToConfirm.TeamID); err != nil {
 		return err
+	}
+
+	if err := s.producer.PublishTeamConfirmed(ctx, eventID, teamToConfirm.TeamID); err != nil {
+		return err
+	}
+
+	allTeamsConfirmed := true
+	for _, t := range teams {
+		if !t.IsConfirmed && t.TeamID != teamToConfirm.TeamID {
+			allTeamsConfirmed = false
+			break
+		}
+	}
+
+	if allTeamsConfirmed {
+		if err := s.eventRepo.StartEventDB(ctx, eventID); err != nil {
+			return err
+		}
+
+		if err := s.producer.PublishEventStarted(ctx, eventID, event.TimeStart); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -553,6 +588,119 @@ func (s *eventService) RemoveUserFromTeam(ctx context.Context, teamID, userID st
 	}
 
 	if err := s.eventRepo.RemoveUserFromTeam(ctx, teamID, userID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *eventService) ControlEventTimerDenial(ctx context.Context, eventID string, controlTime time.Time) error {
+	duration := time.Until(controlTime)
+	if duration <= 0 {
+		return errors.New("control time must be in the future")
+	}
+
+	go func() {
+		time.Sleep(duration)
+
+		event, err := s.eventRepo.GetEventByID(context.Background(), eventID)
+		if err != nil {
+			return
+		}
+
+		if event.UserCount >= 80 {
+			s.ConfirmEvent80(context.Background(), eventID)
+		} else {
+			s.DeclineEvent80(context.Background(), eventID)
+		}
+	}()
+
+	return nil
+}
+
+func (s *eventService) ConfirmEvent80(ctx context.Context, eventID string) error {
+	event, err := s.eventRepo.GetEventByID(ctx, eventID)
+	if err != nil {
+		return err
+	}
+
+	if event.EventID == "" {
+		return errors.New("event not found")
+	}
+
+	s.eventRepo.ConfirmEvent80(ctx, eventID)
+
+	if err := s.producer.PublishEventConfirmed(ctx, eventID); err != nil {
+		return err
+	}
+
+	duration := time.Until(event.TimeStart)
+	if duration > 0 {
+		go func() {
+			time.Sleep(duration)
+			s.StartEvent(context.Background(), eventID, event.UserCreateID)
+		}()
+	}
+
+	return nil
+}
+
+func (s *eventService) DeclineEvent80(ctx context.Context, eventID string) error {
+	event, err := s.eventRepo.GetEventByID(ctx, eventID)
+	if err != nil {
+		return err
+	}
+
+	if event.EventID == "" {
+		return errors.New("event not found")
+	}
+
+	s.eventRepo.DeclineEvent80(ctx, eventID)
+
+	if err := s.producer.PublishEventDeclined(ctx, eventID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *eventService) GetUnfinishedEventsByUserID(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
+	events, err := s.eventRepo.GetUnfinishedEventsByUserID(ctx, userCreateID)
+	if err != nil {
+		return nil, err
+	}
+
+	return events, nil
+}
+
+func (s *eventService) GetUnfinishedEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error) {
+	events, err := s.eventRepo.GetUnfinishedEventsByEventName(ctx, eventName)
+	if err != nil {
+		return []domain.Event{}, err
+	}
+
+	return events, nil
+}
+
+func (s *eventService) FinishEvent(ctx context.Context, eventID, userCreateID string) error {
+	event, err := s.eventRepo.GetEventByID(ctx, eventID)
+	if err != nil {
+		return err
+	}
+
+	if event.EventID == "" {
+		return errors.New("event not found")
+	}
+
+	if event.UserCreateID != userCreateID {
+		return errors.New("you are not admin")
+	}
+
+	if err := s.eventRepo.FinishEventDB(ctx, eventID); err != nil {
+		return err
+	}
+
+	if err := s.producer.PublishEventFinished(ctx, eventID, time.Now()); err != nil {
 		return err
 	}
 

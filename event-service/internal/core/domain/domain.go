@@ -21,6 +21,9 @@ type Event struct {
 	CreateTime time.Time
 	Event_team_winner string
 	Event_team_loser string
+	IsConfirmed bool
+	IsStarted bool
+	IsFinished bool
 }
 
 type User struct {
