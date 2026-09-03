@@ -8,7 +8,8 @@ import (
 
 type EventService interface {
 	CreateEvent(ctx context.Context, userCreateID, enemySideLeader, eventName string, timeStart time.Time) error
-	GetEventsByUserID(ctx context.Context, userCreateID string) ([]*domain.Event, error)
+	GetEventsByCreatorId(ctx context.Context, userCreateID string) ([]*domain.Event, error)
+	GetLastEventByCreatorId(ctx context.Context, userCreateID string) (*domain.Event, error)
 	GetEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error)
 	GetUnfinishedEventsByUserID(ctx context.Context, userCreateID string) ([]*domain.Event, error)
 	GetUnfinishedEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error)
@@ -40,7 +41,8 @@ type EventService interface {
 
 type EventRepository interface {
 	CreateEvent(ctx context.Context, event domain.Event) error
-	GetEventsByUserID(ctx context.Context, userCreateID string) ([]*domain.Event, error)
+	GetEventsByCreatorId(ctx context.Context, userCreateID string) ([]*domain.Event, error)
+	GetLastEventByCreatorId(ctx context.Context, userCreateID string) (*domain.Event, error)
 	GetEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error)
 	GetUnfinishedEventsByUserID(ctx context.Context, userCreateID string) ([]*domain.Event, error)
 	GetUnfinishedEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error)

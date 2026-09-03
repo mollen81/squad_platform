@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v3.21.12
-// source: internal/core/proto/event.proto
+// source: event.proto
 
 package proto
 
@@ -20,7 +20,8 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	EventService_CreateEvent_FullMethodName                    = "/event.EventService/CreateEvent"
-	EventService_GetEventsByUserID_FullMethodName              = "/event.EventService/GetEventsByUserID"
+	EventService_GetEventsByCreatorId_FullMethodName           = "/event.EventService/GetEventsByCreatorId"
+	EventService_GetLastEventByCreatorId_FullMethodName        = "/event.EventService/GetLastEventByCreatorId"
 	EventService_GetEventsByEventName_FullMethodName           = "/event.EventService/GetEventsByEventName"
 	EventService_GetUnfinishedEventsByUserID_FullMethodName    = "/event.EventService/GetUnfinishedEventsByUserID"
 	EventService_GetUnfinishedEventsByEventName_FullMethodName = "/event.EventService/GetUnfinishedEventsByEventName"
@@ -52,7 +53,8 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type EventServiceClient interface {
 	CreateEvent(ctx context.Context, in *CreateEventRequest, opts ...grpc.CallOption) (*CreateEventResponse, error)
-	GetEventsByUserID(ctx context.Context, in *GetEventsByUserIDRequest, opts ...grpc.CallOption) (*GetEventsByUserIDResponse, error)
+	GetEventsByCreatorId(ctx context.Context, in *GetEventsByCreatorIdRequest, opts ...grpc.CallOption) (*GetEventsByCreatorIdResponse, error)
+	GetLastEventByCreatorId(ctx context.Context, in *GetLastEventByCreatorIdRequest, opts ...grpc.CallOption) (*GetLastEventByCreatorIdResponse, error)
 	GetEventsByEventName(ctx context.Context, in *GetEventsByEventNameRequest, opts ...grpc.CallOption) (*GetEventsByEventNameResponse, error)
 	GetUnfinishedEventsByUserID(ctx context.Context, in *GetUnfinishedEventsByUserIDRequest, opts ...grpc.CallOption) (*GetUnfinishedEventsByUserIDResponse, error)
 	GetUnfinishedEventsByEventName(ctx context.Context, in *GetUnfinishedEventsByEventNameRequest, opts ...grpc.CallOption) (*GetUnfinishedEventsByEventNameResponse, error)
@@ -97,10 +99,20 @@ func (c *eventServiceClient) CreateEvent(ctx context.Context, in *CreateEventReq
 	return out, nil
 }
 
-func (c *eventServiceClient) GetEventsByUserID(ctx context.Context, in *GetEventsByUserIDRequest, opts ...grpc.CallOption) (*GetEventsByUserIDResponse, error) {
+func (c *eventServiceClient) GetEventsByCreatorId(ctx context.Context, in *GetEventsByCreatorIdRequest, opts ...grpc.CallOption) (*GetEventsByCreatorIdResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetEventsByUserIDResponse)
-	err := c.cc.Invoke(ctx, EventService_GetEventsByUserID_FullMethodName, in, out, cOpts...)
+	out := new(GetEventsByCreatorIdResponse)
+	err := c.cc.Invoke(ctx, EventService_GetEventsByCreatorId_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *eventServiceClient) GetLastEventByCreatorId(ctx context.Context, in *GetLastEventByCreatorIdRequest, opts ...grpc.CallOption) (*GetLastEventByCreatorIdResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetLastEventByCreatorIdResponse)
+	err := c.cc.Invoke(ctx, EventService_GetLastEventByCreatorId_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +364,8 @@ func (c *eventServiceClient) RemoveUserFromTeam(ctx context.Context, in *RemoveU
 // for forward compatibility.
 type EventServiceServer interface {
 	CreateEvent(context.Context, *CreateEventRequest) (*CreateEventResponse, error)
-	GetEventsByUserID(context.Context, *GetEventsByUserIDRequest) (*GetEventsByUserIDResponse, error)
+	GetEventsByCreatorId(context.Context, *GetEventsByCreatorIdRequest) (*GetEventsByCreatorIdResponse, error)
+	GetLastEventByCreatorId(context.Context, *GetLastEventByCreatorIdRequest) (*GetLastEventByCreatorIdResponse, error)
 	GetEventsByEventName(context.Context, *GetEventsByEventNameRequest) (*GetEventsByEventNameResponse, error)
 	GetUnfinishedEventsByUserID(context.Context, *GetUnfinishedEventsByUserIDRequest) (*GetUnfinishedEventsByUserIDResponse, error)
 	GetUnfinishedEventsByEventName(context.Context, *GetUnfinishedEventsByEventNameRequest) (*GetUnfinishedEventsByEventNameResponse, error)
@@ -390,8 +403,11 @@ type UnimplementedEventServiceServer struct{}
 func (UnimplementedEventServiceServer) CreateEvent(context.Context, *CreateEventRequest) (*CreateEventResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateEvent not implemented")
 }
-func (UnimplementedEventServiceServer) GetEventsByUserID(context.Context, *GetEventsByUserIDRequest) (*GetEventsByUserIDResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetEventsByUserID not implemented")
+func (UnimplementedEventServiceServer) GetEventsByCreatorId(context.Context, *GetEventsByCreatorIdRequest) (*GetEventsByCreatorIdResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetEventsByCreatorId not implemented")
+}
+func (UnimplementedEventServiceServer) GetLastEventByCreatorId(context.Context, *GetLastEventByCreatorIdRequest) (*GetLastEventByCreatorIdResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetLastEventByCreatorId not implemented")
 }
 func (UnimplementedEventServiceServer) GetEventsByEventName(context.Context, *GetEventsByEventNameRequest) (*GetEventsByEventNameResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetEventsByEventName not implemented")
@@ -504,20 +520,38 @@ func _EventService_CreateEvent_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventService_GetEventsByUserID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetEventsByUserIDRequest)
+func _EventService_GetEventsByCreatorId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEventsByCreatorIdRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventServiceServer).GetEventsByUserID(ctx, in)
+		return srv.(EventServiceServer).GetEventsByCreatorId(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: EventService_GetEventsByUserID_FullMethodName,
+		FullMethod: EventService_GetEventsByCreatorId_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventServiceServer).GetEventsByUserID(ctx, req.(*GetEventsByUserIDRequest))
+		return srv.(EventServiceServer).GetEventsByCreatorId(ctx, req.(*GetEventsByCreatorIdRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EventService_GetLastEventByCreatorId_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetLastEventByCreatorIdRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).GetLastEventByCreatorId(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_GetLastEventByCreatorId_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).GetLastEventByCreatorId(ctx, req.(*GetLastEventByCreatorIdRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -966,8 +1000,12 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _EventService_CreateEvent_Handler,
 		},
 		{
-			MethodName: "GetEventsByUserID",
-			Handler:    _EventService_GetEventsByUserID_Handler,
+			MethodName: "GetEventsByCreatorId",
+			Handler:    _EventService_GetEventsByCreatorId_Handler,
+		},
+		{
+			MethodName: "GetLastEventByCreatorId",
+			Handler:    _EventService_GetLastEventByCreatorId_Handler,
 		},
 		{
 			MethodName: "GetEventsByEventName",
@@ -1067,5 +1105,5 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "internal/core/proto/event.proto",
+	Metadata: "event.proto",
 }

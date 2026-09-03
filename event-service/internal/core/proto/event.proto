@@ -8,7 +8,8 @@ import "google/protobuf/timestamp.proto";
 
 service EventService {
     rpc CreateEvent(CreateEventRequest) returns (CreateEventResponse);
-    rpc GetEventsByUserID(GetEventsByUserIDRequest) returns (GetEventsByUserIDResponse);
+    rpc GetEventsByCreatorId(GetEventsByCreatorIdRequest) returns (GetEventsByCreatorIdResponse);
+    rpc GetLastEventByCreatorId(GetLastEventByCreatorIdRequest) returns (GetLastEventByCreatorIdResponse);
     rpc GetEventsByEventName(GetEventsByEventNameRequest) returns (GetEventsByEventNameResponse);
     rpc GetUnfinishedEventsByUserID(GetUnfinishedEventsByUserIDRequest) returns (GetUnfinishedEventsByUserIDResponse);
     rpc GetUnfinishedEventsByEventName(GetUnfinishedEventsByEventNameRequest) returns (GetUnfinishedEventsByEventNameResponse);
@@ -102,12 +103,21 @@ message CreateEventResponse {
     string error = 1;
 }
 
-message GetEventsByUserIDRequest {
+message GetEventsByCreatorIdRequest {
     string user_create_id = 1;
 }
 
-message GetEventsByUserIDResponse {
+message GetEventsByCreatorIdResponse {
     repeated Event events = 1;
+    string error = 2;
+}
+
+message GetLastEventByCreatorIdRequest {
+    string user_create_id = 1;
+}
+
+message GetLastEventByCreatorIdResponse {
+    Event event = 1;
     string error = 2;
 }
 

@@ -27,13 +27,26 @@ func (t *GRPCTransport) CreateEvent(ctx context.Context, req *pb.CreateEventRequ
 	}, nil
 }
 
-func (t *GRPCTransport) GetEventsByUserID(ctx context.Context, req *pb.GetEventsByUserIDRequest) (*pb.GetEventsByUserIDResponse, error) {
-	events, err := t.eventService.GetEventsByUserID(ctx, req.GetUserCreateId())
+func (t *GRPCTransport) GetEventsByCreatorId(ctx context.Context, req *pb.GetEventsByCreatorIdRequest) (*pb.GetEventsByCreatorIdResponse, error) {
+	events, err := t.eventService.GetEventsByCreatorId(ctx, req.GetUserCreateId())
 
-	return &pb.GetEventsByUserIDResponse{
+	return &pb.GetEventsByCreatorIdResponse{
 		Events: toProtoEvents(events),
 		Error:  errString(err),
 	}, nil
+}
+
+func (t *GRPCTransport) GetLastEventByCreatorId(ctx context.Context, req *pb.GetLastEventByCreatorIdRequest) (*pb.GetLastEventByCreatorIdResponse, error) {
+	event, err := t.eventService.GetLastEventByCreatorId(ctx, req.GetUserCreateId())
+
+	resp := &pb.GetLastEventByCreatorIdResponse{
+		Error: errString(err),
+	}
+	if err == nil && event != nil {
+		resp.Event = toProtoEvent(*event)
+	}
+
+	return resp, nil
 }
 
 func (t *GRPCTransport) GetEventsByEventName(ctx context.Context, req *pb.GetEventsByEventNameRequest) (*pb.GetEventsByEventNameResponse, error) {

@@ -35,7 +35,7 @@ func (r *postgresRepository) CreateEvent(ctx context.Context, event domain.Event
 	return nil
 }
 
-func (r *postgresRepository) GetEventsByUserID(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
+func (r *postgresRepository) GetEventsByCreatorId(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
 	query := `
 		SELECT id, name, user_create_id, enemy_side_leader, user_count, time_start, time_finish, create_time, event_team_winner, event_team_loser, is_confirmed, is_started, is_finished
 		FROM events
@@ -77,6 +77,43 @@ func (r *postgresRepository) GetEventsByUserID(ctx context.Context, userCreateID
 	}
 
 	return events, rows.Err()
+}
+
+func (r *postgresRepository) GetLastEventByCreatorId(ctx context.Context, userCreateID string) (*domain.Event, error) {
+	query := `
+		SELECT id, name, user_create_id, enemy_side_leader, user_count, time_start, time_finish, create_time, event_team_winner, event_team_loser, is_confirmed, is_started, is_finished
+		FROM events
+		WHERE user_create_id = $1
+		ORDER BY create_time DESC
+		LIMIT 1
+	`
+
+	evn := &domain.Event{}
+	err := r.pool.QueryRow(ctx, query, userCreateID).Scan(
+		&evn.EventID,
+		&evn.Name,
+		&evn.UserCreateID,
+		&evn.EnemySideLeader,
+		&evn.UserCount,
+		&evn.TimeStart,
+		&evn.TimeFinish,
+		&evn.CreateTime,
+		&evn.Event_team_winner,
+		&evn.Event_team_loser,
+		&evn.IsConfirmed,
+		&evn.IsStarted,
+		&evn.IsFinished,
+	)
+
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return evn, nil
 }
 
 func (r *postgresRepository) GetEventByID(ctx context.Context, eventID string) (domain.Event, error) {

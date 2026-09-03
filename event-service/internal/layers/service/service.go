@@ -58,13 +58,22 @@ func (s *eventService) CreateEvent(ctx context.Context, userCreateID, enemySideL
 	return nil
 }
 
-func (s *eventService) GetEventsByUserID(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
-	events, err := s.eventRepo.GetEventsByUserID(ctx, userCreateID)
+func (s *eventService) GetEventsByCreatorId(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
+	events, err := s.eventRepo.GetEventsByCreatorId(ctx, userCreateID)
 	if err != nil {
 		return nil, err
 	}
 
 	return events, nil
+}
+
+func (s *eventService) GetLastEventByCreatorId(ctx context.Context, userCreateID string) (*domain.Event, error) {
+	event, err := s.eventRepo.GetLastEventByCreatorId(ctx, userCreateID)
+	if err != nil {
+		return nil, err
+	}
+
+	return event, nil
 }
 
 func (s *eventService) GetEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error) {
