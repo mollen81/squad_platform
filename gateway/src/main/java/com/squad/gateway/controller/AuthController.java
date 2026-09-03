@@ -1,33 +1,41 @@
 package com.squad.gateway.controller;
 
+import com.squad.gateway.record.AuthService.AuthResponse;
+import com.squad.gateway.record.AuthService.SteamLoginRequest;
 import com.squad.grpc.user.ResolveSteamAuthResponse;
-import com.squad.gateway.record.UserService.AuthResponse;
 import com.squad.gateway.service.AuthGrpcClientService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.graphql.data.method.annotation.Argument;
-import org.springframework.graphql.data.method.annotation.MutationMapping;
-import org.springframework.graphql.data.method.annotation.QueryMapping;
-import org.springframework.stereotype.Controller;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-@Controller
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 public class AuthController {
     private final AuthGrpcClientService authService;
 
-    @QueryMapping
+    @GetMapping
     public String ping() {
         return "pong";
     }
 
-    @MutationMapping(name = "loginWithSteam")
-    public AuthResponse loginWithSteam(@Argument("openidParamsJson") String openidParamsJson) {
-        ResolveSteamAuthResponse response = authService.loginWithSteam(openidParamsJson);
+    @PostMapping(name = "loginWithSteam")
+    public ResponseEntity<?> loginWithSteam(@RequestBody SteamLoginRequest request) {
+        try {
+            ResolveSteamAuthResponse grpcResponse = authService.loginWithSteam(request.openIdParamsJson());
 
-        return new AuthResponse(
-                response.getUserId(),
-                response.getSteamId(),
-                response.getIsNewUser(),
-                response.getToken()
-        );
+            AuthResponse response = new AuthResponse(
+                    grpcResponse.getUserId(),
+                    grpcResponse.getSteamId(),
+                    grpcResponse.getToken(),
+                    grpcResponse.getIsNewUser()
+            );
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(401).body(Map.of("error", e.getMessage()));
+        }
     }
 }
