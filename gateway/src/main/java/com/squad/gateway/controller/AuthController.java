@@ -14,10 +14,8 @@ import java.util.Map;
 public class AuthController {
     private final AuthGrpcClientService authService;
 
-    @GetMapping
-    public String ping() {
-        return "pong";
-    }
+    record AuthResponse(String userId, String steamId, String token, boolean isNewUser) {}
+    record SteamLoginRequest(String openIdParamsJson) {}
 
     @PostMapping(name = "loginWithSteam")
     public ResponseEntity<?> loginWithSteam(@RequestBody SteamLoginRequest request) {
@@ -37,7 +35,3 @@ public class AuthController {
         }
     }
 }
-
-record AuthResponse(String userId, String steamId, String token, boolean isNewUser) {}
-
-record SteamLoginRequest(String openIdParamsJson) {}

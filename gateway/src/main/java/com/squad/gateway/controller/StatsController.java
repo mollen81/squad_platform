@@ -15,6 +15,8 @@ import java.util.Map;
 public class StatsController {
     private final StatsGrpcClientService statsGrpcClientService;
 
+    record StatsResponse(int eloRating, int kills, int deaths, int revives, String favouriteRole, int totalPlaytimeHours) {}
+
     @GetMapping("/{userId}")
     public ResponseEntity<?> getPlayerStats(@PathVariable String userId) {
         try {
@@ -34,14 +36,4 @@ public class StatsController {
             return ResponseEntity.status(404).body(Map.of("error", "Stats is not found: " + e.getMessage()));
         }
     }
-
-
-    public record StatsResponse(
-            int eloRating,
-            int kills,
-            int deaths,
-            int revives,
-            String favouriteRole,
-            int totalPlaytimeHours
-    ) {}
 }
