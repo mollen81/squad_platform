@@ -1,6 +1,5 @@
 package com.squad.gateway.controller;
 
-import com.squad.gateway.record.ClanService.ProcessAcceptanceResponse;
 import com.squad.gateway.service.ClanGrpcClientService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,9 +14,8 @@ import java.util.Map;
 public class ClanController {
     private final ClanGrpcClientService clanGrpcClientService;
 
-    record CreateClanDto(String leaderId, String name, String tag, String description, String requirements, String avatarUrl) {}
-    record ApplyToClanDto(String userId, String clanId, String socialLink, String experienceText) {}
-    record ResolveAppDto(String moderatorId, boolean isApproved) {}
+    public record CreateClanDto(String leaderId, String name, String tag, String description, String requirements, String avatarUrl) {}
+    public record ApplyToClanDto(String userId, String clanId, String socialLink, String experienceText) {}
     public record ClanMemberDto(String id, String userId, String role) {}
     public record ClanDto(String id, String name, String tag, String avatarUrl, String description, String requirements, boolean isRecruiting,
             String status, int totalElo, int minElo, String createdAt, List<ClanMemberDto> members) {}
