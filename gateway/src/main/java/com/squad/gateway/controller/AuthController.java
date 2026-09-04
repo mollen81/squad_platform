@@ -1,7 +1,5 @@
 package com.squad.gateway.controller;
 
-import com.squad.gateway.record.AuthService.AuthResponse;
-import com.squad.gateway.record.AuthService.SteamLoginRequest;
 import com.squad.grpc.user.ResolveSteamAuthResponse;
 import com.squad.gateway.service.AuthGrpcClientService;
 import lombok.RequiredArgsConstructor;
@@ -39,3 +37,7 @@ public class AuthController {
         }
     }
 }
+
+record AuthResponse(String userId, String steamId, String token, boolean isNewUser) {}
+
+record SteamLoginRequest(String openIdParamsJson) {}
