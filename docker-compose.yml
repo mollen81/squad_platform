@@ -6,9 +6,8 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_PORT=${POSTGRES_PORT}
     ports:
-      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+      - "${POSTGRES_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -48,6 +47,12 @@ services:
       KAFKA_LOG_DIRS: /var/lib/kafka/data
     volumes:
       - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:29092 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
 
   kafka-ui:
@@ -131,6 +136,28 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=${SPRING_KAFKA_BOOTSTRAP_SERVERS}
       - SPRING_KAFKA_BOOTSTRAP_SERVERS_PORT=${SPRING_KAFKA_BOOTSTRAP_SERVERS_PORT}
 
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: /bin/sh
+    command: >
+      -c "
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic event-service --partitions 3 --replication-factor 1
+      "
+
+  migrate-event:
+    image: migrate/migrate
+    container_name: migrate-event
+    volumes:
+      - ./event-service/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable", "up"]
+    depends_on:
+      - postgres
+    restart: on-failure
+
   event-service:
     build:
       context: .
@@ -139,11 +166,20 @@ services:
     ports:
       - "${EVENT_SERVICE_GRPC_PORT}:${EVENT_SERVICE_GRPC_PORT}"
     depends_on:
-      - postgres
-      - kafka
+      postgres:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      migrate-event:
+        condition: service_completed_successfully
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     environment:
       - POSTGRES_HOST=postgres
-      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_PORT=5432
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}

@@ -20,7 +20,7 @@ func NewGRPCHandler(eventService service.EventService) *GRPCTransport {
 }
 
 func (t *GRPCTransport) CreateEvent(ctx context.Context, req *pb.CreateEventRequest) (*pb.CreateEventResponse, error) {
-	err := t.eventService.CreateEvent(ctx, req.GetUserCreateId(), req.GetEnemySideLeader(), req.GetEventName(), req.GetTimeStart().AsTime())
+	err := t.eventService.CreateEvent(ctx, req.GetUserCreatorId(), req.GetCreatorClanId(), req.GetEnemySideLeaderId(), req.GetEnemySideLeaderClanId(), req.GetEventName(), req.GetTimeStart().AsTime(), req.GetTargetGameCount())
 
 	return &pb.CreateEventResponse{
 		Error: errString(err),
@@ -75,7 +75,7 @@ func (t *GRPCTransport) DeleteEvent(ctx context.Context, req *pb.DeleteEventRequ
 }
 
 func (t *GRPCTransport) JoinToEvent(ctx context.Context, req *pb.JoinToEventRequest) (*pb.JoinToEventResponse, error) {
-	err := t.eventService.JoinToEvent(ctx, req.GetEventId(), req.GetUserId(), req.GetJoinTime().AsTime())
+	err := t.eventService.JoinToEvent(ctx, req.GetEventId(), req.GetUserId(), req.GetClanId(), req.GetEnemy())
 
 	return &pb.JoinToEventResponse{
 		Error: errString(err),
@@ -98,98 +98,11 @@ func (t *GRPCTransport) SetRole(ctx context.Context, req *pb.SetRoleRequest) (*p
 	}, nil
 }
 
-func (t *GRPCTransport) CreateTeamsForEvent(ctx context.Context, req *pb.CreateTeamsForEventRequest) (*pb.CreateTeamsForEventResponse, error) {
-	err := t.eventService.CreateTeamsForEvent(ctx, req.GetEventId())
-
-	return &pb.CreateTeamsForEventResponse{
-		Error: errString(err),
-	}, nil
-}
-
 func (t *GRPCTransport) GetTeamsByEventID(ctx context.Context, req *pb.GetTeamsByEventIDRequest) (*pb.GetTeamsByEventIDResponse, error) {
 	teams, err := t.eventService.GetTeamsByEventID(ctx, req.GetEventId())
 
 	return &pb.GetTeamsByEventIDResponse{
 		Teams: toProtoTeams(teams),
-		Error: errString(err),
-	}, nil
-}
-
-func (t *GRPCTransport) StartEvent(ctx context.Context, req *pb.StartEventRequest) (*pb.StartEventResponse, error) {
-	err := t.eventService.StartEvent(ctx, req.GetEventId(), req.GetSideLeaderId())
-
-	return &pb.StartEventResponse{
-		Error: errString(err),
-	}, nil
-}
-
-func (t *GRPCTransport) CreateGame(ctx context.Context, req *pb.CreateGameRequest) (*pb.CreateGameResponse, error) {
-	err := t.eventService.CreateGame(ctx, req.GetEventId(), req.GetMapName(), req.GetTimeStart().AsTime())
-
-	return &pb.CreateGameResponse{
-		Error: errString(err),
-	}, nil
-}
-
-func (t *GRPCTransport) GetGameByID(ctx context.Context, req *pb.GetGameByIDRequest) (*pb.GetGameByIDResponse, error) {
-	game, err := t.eventService.GetGameByID(ctx, req.GetGameId())
-
-	resp := &pb.GetGameByIDResponse{
-		Error: errString(err),
-	}
-	if err == nil {
-		resp.Game = toProtoGame(game)
-	}
-
-	return resp, nil
-}
-
-func (t *GRPCTransport) GetGamesByEventID(ctx context.Context, req *pb.GetGamesByEventIDRequest) (*pb.GetGamesByEventIDResponse, error) {
-	games, err := t.eventService.GetGamesByEventID(ctx, req.GetEventId())
-
-	return &pb.GetGamesByEventIDResponse{
-		Games: toProtoGames(games),
-		Error: errString(err),
-	}, nil
-}
-
-func (t *GRPCTransport) UpdateGameWinner(ctx context.Context, req *pb.UpdateGameWinnerRequest) (*pb.UpdateGameWinnerResponse, error) {
-	err := t.eventService.UpdateGameWinner(ctx, req.GetGameId(), req.GetWinnerTeamId())
-
-	return &pb.UpdateGameWinnerResponse{
-		Error: errString(err),
-	}, nil
-}
-
-func (t *GRPCTransport) UpdateGameLoser(ctx context.Context, req *pb.UpdateGameLoserRequest) (*pb.UpdateGameLoserResponse, error) {
-	err := t.eventService.UpdateGameLoser(ctx, req.GetGameId(), req.GetLoserTeamId())
-
-	return &pb.UpdateGameLoserResponse{
-		Error: errString(err),
-	}, nil
-}
-
-func (t *GRPCTransport) FinishGame(ctx context.Context, req *pb.FinishGameRequest) (*pb.FinishGameResponse, error) {
-	err := t.eventService.FinishGame(ctx, req.GetGameId(), req.GetTimeFinish().AsTime())
-
-	return &pb.FinishGameResponse{
-		Error: errString(err),
-	}, nil
-}
-
-func (t *GRPCTransport) AddUserStatsToGame(ctx context.Context, req *pb.AddUserStatsToGameRequest) (*pb.AddUserStatsToGameResponse, error) {
-	err := t.eventService.AddUserStatsToGame(ctx, req.GetGameId(), req.GetUserId(), req.GetKills(), req.GetDeaths(), req.GetPoints())
-
-	return &pb.AddUserStatsToGameResponse{
-		Error: errString(err),
-	}, nil
-}
-
-func (t *GRPCTransport) GetGameStats(ctx context.Context, req *pb.GetGameStatsRequest) (*pb.GetGameStatsResponse, error) {
-	stats, err := t.eventService.GetGameStats(ctx, req.GetGameId())
-
-	return &pb.GetGameStatsResponse{
-		Stats: toProtoGameUserStatsSlice(stats),
 		Error: errString(err),
 	}, nil
 }
@@ -208,7 +121,7 @@ func (t *GRPCTransport) GetTeamByID(ctx context.Context, req *pb.GetTeamByIDRequ
 }
 
 func (t *GRPCTransport) AddUserToTeam(ctx context.Context, req *pb.AddUserToTeamRequest) (*pb.AddUserToTeamResponse, error) {
-	err := t.eventService.AddUserToTeam(ctx, req.GetTeamId(), req.GetUserId(), req.GetClanId(), domain.Role(req.GetRole()))
+	err := t.eventService.AddUserToTeam(ctx, req.GetTeamId(), req.GetUserEventId(), domain.Role(req.GetRole()))
 
 	return &pb.AddUserToTeamResponse{
 		Error: errString(err),
@@ -216,12 +129,58 @@ func (t *GRPCTransport) AddUserToTeam(ctx context.Context, req *pb.AddUserToTeam
 }
 
 func (t *GRPCTransport) RemoveUserFromTeam(ctx context.Context, req *pb.RemoveUserFromTeamRequest) (*pb.RemoveUserFromTeamResponse, error) {
-	err := t.eventService.RemoveUserFromTeam(ctx, req.GetTeamId(), req.GetUserId())
+	err := t.eventService.RemoveUserFromTeam(ctx, req.GetTeamId(), req.GetUserEventId())
 
 	return &pb.RemoveUserFromTeamResponse{
 		Error: errString(err),
 	}, nil
 }
+
+func (t *GRPCTransport) StartTeamGame(ctx context.Context, req *pb.StartTeamGameRequest) (*pb.StartTeamGameResponse, error) {
+	err := t.eventService.StartTeamGame(ctx, req.GetTeamId())
+
+	return &pb.StartTeamGameResponse{
+		Error: errString(err),
+	}, nil
+}
+
+func (t *GRPCTransport) FinishTeamGame(ctx context.Context, req *pb.FinishTeamGameRequest) (*pb.FinishTeamGameResponse, error) {
+	err := t.eventService.FinishTeamGame(ctx, req.GetTeamId(), req.GetWinner(), req.GetKills(), req.GetDeaths(), req.GetRevival(), req.GetEquipmentDestroyed())
+
+	return &pb.FinishTeamGameResponse{
+		Error: errString(err),
+	}, nil
+}
+
+func (t *GRPCTransport) AddTeamMemberStats(ctx context.Context, req *pb.AddTeamMemberStatsRequest) (*pb.AddTeamMemberStatsResponse, error) {
+	err := t.eventService.AddTeamMemberStats(ctx, req.GetTeamId(), req.GetUserEventId(), req.GetKills(), req.GetDeaths(), req.GetPoints())
+
+	return &pb.AddTeamMemberStatsResponse{
+		Error: errString(err),
+	}, nil
+}
+
+func (t *GRPCTransport) GetTeamStats(ctx context.Context, req *pb.GetTeamStatsRequest) (*pb.GetTeamStatsResponse, error) {
+	stats, err := t.eventService.GetTeamStats(ctx, req.GetTeamId())
+
+	return &pb.GetTeamStatsResponse{
+		Stats: toProtoTeamMembers(stats),
+		Error: errString(err),
+	}, nil
+}
+
+func (t *GRPCTransport) GetEventMembersList(ctx context.Context, req *pb.GetEventMembersListRequest) (*pb.GetEventMembersListResponse, error) {
+	users, err := t.eventService.GetEventMembersList(ctx, req.GetEventId())
+
+	return &pb.GetEventMembersListResponse{
+		Users: toProtoUsersSlice(users),
+		Error: errString(err),
+	}, nil
+}
+
+// Публичного StartEvent RPC больше нет: старт ивента и первой игры происходит
+// автоматически по таймеру внутри eventService (controlEventTimerDenial →
+// confirmEvent80 → startEventAndGames), а не по вызову от клиента.
 
 func (t *GRPCTransport) GetUnfinishedEventsByUserID(ctx context.Context, req *pb.GetUnfinishedEventsByUserIDRequest) (*pb.GetUnfinishedEventsByUserIDResponse, error) {
 	events, err := t.eventService.GetUnfinishedEventsByUserID(ctx, req.GetUserCreateId())
@@ -239,44 +198,4 @@ func (t *GRPCTransport) GetUnfinishedEventsByEventName(ctx context.Context, req 
 		Events: toProtoEventsSlice(events),
 		Error:  errString(err),
 	}, nil
-}
-
-func (t *GRPCTransport) FinishEvent(ctx context.Context, req *pb.FinishEventRequest) (*pb.FinishEventResponse, error) {
-	err := t.eventService.FinishEvent(ctx, req.GetEventId(), req.GetUserCreateId())
-
-	return &pb.FinishEventResponse{
-		Error: errString(err),
-	}, nil
-}
-
-func toProtoTeam(team domain.Team) *pb.Team {
-	members := make([]*pb.User, 0)
-	for _, member := range team.Members {
-		if member.UserID != "" {
-			members = append(members, &pb.User{
-				UserEventId:     member.UserEventID,
-				UserId:          member.UserID,
-				ClanId:          member.ClanID,
-				TeamId:          member.TeamID,
-				Role:            string(member.Role),
-				SixClanMembers:  member.SixClanMembers,
-			})
-		}
-	}
-
-	return &pb.Team{
-		TeamId:       team.TeamID,
-		EventId:      team.EventID,
-		SideLeaderId: team.SideLeaderID,
-		IsConfirmed:  team.IsConfirmed,
-		Members:      members,
-	}
-}
-
-func toProtoTeams(teams []domain.Team) []*pb.Team {
-	result := make([]*pb.Team, 0, len(teams))
-	for _, team := range teams {
-		result = append(result, toProtoTeam(team))
-	}
-	return result
 }

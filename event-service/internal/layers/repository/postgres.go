@@ -23,11 +23,11 @@ func NewPostgresRepository(pool *pgxpool.Pool) service.EventRepository {
 
 func (r *postgresRepository) CreateEvent(ctx context.Context, event domain.Event) error {
 	query := `
-	INSERT INTO events (id, name, user_create_id, enemy_side_leader, time_start, time_finish, create_time, user_count, event_team_winner, event_team_loser, is_confirmed, is_started, is_finished)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+	INSERT INTO events (event_id, name, user_create_id, enemy_side_leader_id, time_start, time_finish, create_time, user_count, target_game_count, game_count, is_started, is_finished)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
 
-	_, err := r.pool.Exec(ctx, query, event.EventID, event.Name, event.UserCreateID, event.EnemySideLeader, event.TimeStart, event.TimeFinish, event.CreateTime, event.UserCount, event.Event_team_winner, event.Event_team_loser, event.IsConfirmed, event.IsStarted, event.IsFinished)
+	_, err := r.pool.Exec(ctx, query, event.EventID, event.Name, event.UserCreateID, event.EnemySideLeader, event.TimeStart, event.TimeFinish, event.CreateTime, event.UserCount, event.TargetGameCount, event.GameCount, event.IsStarted, event.IsFinished)
 	if err != nil {
 		return err
 	}
@@ -37,7 +37,7 @@ func (r *postgresRepository) CreateEvent(ctx context.Context, event domain.Event
 
 func (r *postgresRepository) GetEventsByCreatorId(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
 	query := `
-		SELECT id, name, user_create_id, enemy_side_leader, user_count, time_start, time_finish, create_time, event_team_winner, event_team_loser, is_confirmed, is_started, is_finished
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, is_started, is_finished, target_game_count, game_count
 		FROM events
 		WHERE user_create_id = $1
 	`
@@ -64,11 +64,11 @@ func (r *postgresRepository) GetEventsByCreatorId(ctx context.Context, userCreat
 			&evn.TimeStart,
 			&evn.TimeFinish,
 			&evn.CreateTime,
-			&evn.Event_team_winner,
-			&evn.Event_team_loser,
-			&evn.IsConfirmed,
+			&evn.WinnerSide,
 			&evn.IsStarted,
 			&evn.IsFinished,
+			&evn.TargetGameCount,
+			&evn.GameCount,
 		)
 		if err != nil {
 			return nil, err
@@ -81,7 +81,7 @@ func (r *postgresRepository) GetEventsByCreatorId(ctx context.Context, userCreat
 
 func (r *postgresRepository) GetLastEventByCreatorId(ctx context.Context, userCreateID string) (*domain.Event, error) {
 	query := `
-		SELECT id, name, user_create_id, enemy_side_leader, user_count, time_start, time_finish, create_time, event_team_winner, event_team_loser, is_confirmed, is_started, is_finished
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, is_started, is_finished, target_game_count, game_count
 		FROM events
 		WHERE user_create_id = $1
 		ORDER BY create_time DESC
@@ -98,11 +98,11 @@ func (r *postgresRepository) GetLastEventByCreatorId(ctx context.Context, userCr
 		&evn.TimeStart,
 		&evn.TimeFinish,
 		&evn.CreateTime,
-		&evn.Event_team_winner,
-		&evn.Event_team_loser,
-		&evn.IsConfirmed,
+		&evn.WinnerSide,
 		&evn.IsStarted,
 		&evn.IsFinished,
+		&evn.TargetGameCount,
+		&evn.GameCount,
 	)
 
 	if err == pgx.ErrNoRows {
@@ -118,9 +118,9 @@ func (r *postgresRepository) GetLastEventByCreatorId(ctx context.Context, userCr
 
 func (r *postgresRepository) GetEventByID(ctx context.Context, eventID string) (domain.Event, error) {
 	query := `
-		SELECT id, name, user_create_id, enemy_side_leader, user_count, time_start, time_finish, create_time, event_team_winner, event_team_loser, is_confirmed, is_started, is_finished
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, is_started, is_finished, target_game_count, game_count
 		FROM events
-		WHERE id = $1
+		WHERE event_id = $1
 	`
 	var event domain.Event
 	err := r.pool.QueryRow(ctx, query, eventID).Scan(
@@ -132,11 +132,11 @@ func (r *postgresRepository) GetEventByID(ctx context.Context, eventID string) (
 		&event.TimeStart,
 		&event.TimeFinish,
 		&event.CreateTime,
-		&event.Event_team_winner,
-		&event.Event_team_loser,
-		&event.IsConfirmed,
+		&event.WinnerSide,
 		&event.IsStarted,
 		&event.IsFinished,
+		&event.TargetGameCount,
+		&event.GameCount,
 	)
 
 	if err == pgx.ErrNoRows {
@@ -150,9 +150,48 @@ func (r *postgresRepository) GetEventByID(ctx context.Context, eventID string) (
 	return event, nil
 }
 
+func (r *postgresRepository) GetEventMembersList(ctx context.Context, eventID string) ([]domain.User, error) {
+	query := `
+		SELECT user_event_id, user_id, event_id, clan_id, enemy, role, six_clan_members, join_time
+		FROM users
+		WHERE event_id = $1
+	`
+
+	rows, err := r.pool.Query(ctx, query, eventID)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	users := make([]domain.User, 0)
+
+	for rows.Next() {
+		usr := domain.User{}
+		err := rows.Scan(
+			&usr.UserEventID,
+			&usr.UserID,
+			&usr.EventID,
+			&usr.ClanID,
+			&usr.Enemy,
+			&usr.Role,
+			&usr.SixClanMembers,
+			&usr.JoinTime,
+		)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, usr)
+	}
+
+	return users, rows.Err()
+}
+
 func (r *postgresRepository) GetEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error) {
 	query := `
-		SELECT id, name, user_create_id, enemy_side_leader, user_count, time_start, time_finish, create_time, event_team_winner, event_team_loser, is_confirmed, is_started, is_finished
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, is_started, is_finished, target_game_count, game_count
 		FROM events
 		WHERE name = $1
 	`
@@ -178,11 +217,11 @@ func (r *postgresRepository) GetEventsByEventName(ctx context.Context, eventName
 			&evn.TimeStart,
 			&evn.TimeFinish,
 			&evn.CreateTime,
-			&evn.Event_team_winner,
-			&evn.Event_team_loser,
-			&evn.IsConfirmed,
+			&evn.WinnerSide,
 			&evn.IsStarted,
 			&evn.IsFinished,
+			&evn.TargetGameCount,
+			&evn.GameCount,
 		)
 		if err != nil {
 			return nil, err
@@ -197,7 +236,7 @@ func (r *postgresRepository) UpdateTimeEvent(ctx context.Context, eventID string
 	query := `
 		UPDATE events
 		SET time_start = $1
-		WHERE id = $2
+		WHERE event_id = $2
 	`
 
 	_, err := r.pool.Exec(ctx, query, newTimeStart, eventID)
@@ -208,40 +247,23 @@ func (r *postgresRepository) UpdateTimeFinishEvent(ctx context.Context, eventID 
 	query := `
 		UPDATE events
 		SET time_finish = $1
-		WHERE id = $2
+		WHERE event_id = $2
 	`
 
 	_, err := r.pool.Exec(ctx, query, newTimeFinish, eventID)
 	return err
 }
 
-func (r *postgresRepository) UpdateEventWinner(ctx context.Context, eventID, winnerTeamID string) error {
-	query := `
-		UPDATE events
-		SET event_team_winner = $1
-		WHERE id = $2
-	`
-
-	_, err := r.pool.Exec(ctx, query, winnerTeamID, eventID)
-	return err
-}
-
-func (r *postgresRepository) UpdateEventLoser(ctx context.Context, eventID, loserTeamID string) error {
-	query := `
-		UPDATE events
-		SET event_team_loser = $1
-		WHERE id = $2
-	`
-
-	_, err := r.pool.Exec(ctx, query, loserTeamID, eventID)
-	return err
-}
+// UpdateEventWinner/UpdateEventLoser удалены: писали в event_team_winner/event_team_loser,
+// которых больше нет в схеме (заменены на events.winner_side). Не были нигде вызваны
+// из сервисного слоя — мёртвый код. Вернём в виде UpdateEventWinnerSide, когда будем
+// проектировать games/teams-флоу.
 
 func (r *postgresRepository) RenameEvent(ctx context.Context, eventID, oldName, newName string) error {
 	query := `
 		UPDATE events
 		SET name = $1
-		WHERE id = $2 AND name = $3
+		WHERE event_id = $2 AND name = $3
 	`
 
 	_, err := r.pool.Exec(ctx, query, newName, eventID, oldName)
@@ -250,20 +272,34 @@ func (r *postgresRepository) RenameEvent(ctx context.Context, eventID, oldName, 
 
 func (r *postgresRepository) DeleteEvent(ctx context.Context, eventID string) error {
 	query := `
-		DELETE FROM events WHERE id = $1
+		DELETE FROM events WHERE event_id = $1
 	`
 
 	_, err := r.pool.Exec(ctx, query, eventID)
 	return err
 }
 
-func (r *postgresRepository) JoinToEvent(ctx context.Context, userID, eventID string, joinTime time.Time) error {
+func (r *postgresRepository) IsUserInEvent(ctx context.Context, eventID, userID string) (bool, error) {
 	query := `
-		INSERT INTO users (id, user_id, event_id, join_time, role)
-		VALUES ($1, $2, $3, $4, $5)
+		SELECT EXISTS(SELECT 1 FROM users WHERE event_id = $1 AND user_id = $2)
 	`
 
-	_, err := r.pool.Exec(ctx, query, userID, userID, eventID, joinTime, domain.RolePlayer)
+	var exists bool
+	if err := r.pool.QueryRow(ctx, query, eventID, userID).Scan(&exists); err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}
+
+func (r *postgresRepository) JoinToEvent(ctx context.Context, userEventID, eventID, userID, clanID string, enemy bool, joinTime time.Time) error {
+	query := `
+		INSERT INTO users (user_event_id, user_id, event_id, clan_id, enemy, role, six_clan_members, join_time)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`
+
+	sixClanMembers := false
+	_, err := r.pool.Exec(ctx, query, userEventID, userID, eventID, clanID, enemy, domain.RolePlayer, sixClanMembers, joinTime)
 	if err != nil {
 		return err
 	}
@@ -271,7 +307,7 @@ func (r *postgresRepository) JoinToEvent(ctx context.Context, userID, eventID st
 	updateQuery := `
 		UPDATE events
 		SET user_count = user_count + 1
-		WHERE id = $1
+		WHERE event_id = $1
 	`
 
 	_, err = r.pool.Exec(ctx, updateQuery, eventID)
@@ -292,7 +328,7 @@ func (r *postgresRepository) LeaveEvent(ctx context.Context, userID, eventID str
 	updateQuery := `
 		UPDATE events
 		SET user_count = user_count - 1
-		WHERE id = $1
+		WHERE event_id = $1
 	`
 
 	_, err = r.pool.Exec(ctx, updateQuery, eventID)
@@ -310,137 +346,23 @@ func (r *postgresRepository) UpdateUserRole(ctx context.Context, userID, eventID
 	return err
 }
 
-func (r *postgresRepository) CreateGame(ctx context.Context, game domain.Game) error {
+func (r *postgresRepository) GetUserByID(ctx context.Context, eventID, userID string) (domain.User, error) {
 	query := `
-		INSERT INTO games (id, event_id, user_create_id, enemy_side_leader, team1_id, team2_id, map_name, game_team_winner_id, game_team_loser_id, time_start, time_finish)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-	`
-
-	_, err := r.pool.Exec(ctx, query, game.GameID, game.EventID, game.UserCreateID, game.EnemySideLeader, game.Team1ID, game.Team2ID, game.MapName, game.Game_team_winner_id, game.Game_team_loser_id, game.TimeStart, game.TimeFinish)
-	return err
-}
-
-func (r *postgresRepository) GetGameByID(ctx context.Context, gameID string) (domain.Game, error) {
-	query := `
-		SELECT id, event_id, user_create_id, enemy_side_leader, team1_id, team2_id, map_name, game_team_winner_id, game_team_loser_id, time_start, time_finish
-		FROM games
-		WHERE id = $1
-	`
-
-	var game domain.Game
-	err := r.pool.QueryRow(ctx, query, gameID).Scan(
-		&game.GameID,
-		&game.EventID,
-		&game.UserCreateID,
-		&game.EnemySideLeader,
-		&game.Team1ID,
-		&game.Team2ID,
-		&game.MapName,
-		&game.Game_team_winner_id,
-		&game.Game_team_loser_id,
-		&game.TimeStart,
-		&game.TimeFinish,
-	)
-
-	if err == pgx.ErrNoRows {
-		return domain.Game{}, nil
-	}
-
-	if err != nil {
-		return domain.Game{}, err
-	}
-
-	return game, nil
-}
-
-func (r *postgresRepository) GetGamesByEventID(ctx context.Context, eventID string) ([]domain.Game, error) {
-	query := `
-		SELECT id, event_id, user_create_id, enemy_side_leader, team1_id, team2_id, map_name, game_team_winner_id, game_team_loser_id, time_start, time_finish
-		FROM games
-		WHERE event_id = $1
-	`
-
-	rows, err := r.pool.Query(ctx, query, eventID)
-	if err == pgx.ErrNoRows {
-		return nil, nil
-	}
-
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	games := make([]domain.Game, 0)
-	for rows.Next() {
-		var game domain.Game
-		err := rows.Scan(
-			&game.GameID,
-			&game.EventID,
-			&game.UserCreateID,
-			&game.EnemySideLeader,
-			&game.Team1ID,
-			&game.Team2ID,
-			&game.MapName,
-			&game.Game_team_winner_id,
-			&game.Game_team_loser_id,
-			&game.TimeStart,
-			&game.TimeFinish,
-		)
-		if err != nil {
-			return nil, err
-		}
-		games = append(games, game)
-	}
-
-	return games, rows.Err()
-}
-
-func (r *postgresRepository) UpdateGameWinner(ctx context.Context, gameID, winnerTeamID string) error {
-	query := `
-		UPDATE games
-		SET game_team_winner_id = $1
-		WHERE id = $2
-	`
-
-	_, err := r.pool.Exec(ctx, query, winnerTeamID, gameID)
-	return err
-}
-
-func (r *postgresRepository) UpdateGameLoser(ctx context.Context, gameID, loserTeamID string) error {
-	query := `
-		UPDATE games
-		SET game_team_loser_id = $1
-		WHERE id = $2
-	`
-
-	_, err := r.pool.Exec(ctx, query, loserTeamID, gameID)
-	return err
-}
-
-func (r *postgresRepository) FinishGame(ctx context.Context, gameID string, timeFinish time.Time) error {
-	query := `
-		UPDATE games
-		SET time_finish = $1
-		WHERE id = $2
-	`
-
-	_, err := r.pool.Exec(ctx, query, timeFinish, gameID)
-	return err
-}
-
-func (r *postgresRepository) GetUserByID(ctx context.Context, userID string) (domain.User, error) {
-	query := `
-		SELECT id, clan_id, team_id, role
+		SELECT user_event_id, user_id, event_id, clan_id, enemy, role, six_clan_members, join_time
 		FROM users
-		WHERE id = $1
+		WHERE user_id = $1 AND event_id = $2
 	`
 
 	var user domain.User
-	err := r.pool.QueryRow(ctx, query, userID).Scan(
+	err := r.pool.QueryRow(ctx, query, userID, eventID).Scan(
+		&user.UserEventID,
 		&user.UserID,
+		&user.EventID,
 		&user.ClanID,
-		&user.TeamID,
+		&user.Enemy,
 		&user.Role,
+		&user.SixClanMembers,
+		&user.JoinTime,
 	)
 
 	if err == pgx.ErrNoRows {
@@ -452,189 +374,6 @@ func (r *postgresRepository) GetUserByID(ctx context.Context, userID string) (do
 	}
 
 	return user, nil
-}
-
-func (r *postgresRepository) AddUserStatsToGame(ctx context.Context, stats domain.GameUserStats) error {
-	query := `
-		INSERT INTO game_user_stats (id, game_id, user_id, clan_id, team_id, role, kills, deaths, points)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-	`
-
-	_, err := r.pool.Exec(ctx, query, stats.GameUserStatsID, stats.Game.GameID, stats.User.UserID, stats.User.ClanID, stats.User.TeamID, stats.User.Role, stats.Kills, stats.Deaths, stats.Points)
-	return err
-}
-
-func (r *postgresRepository) GetGameStats(ctx context.Context, gameID string) ([]domain.GameUserStats, error) {
-	query := `
-		SELECT id, user_id, clan_id, team_id, role, kills, deaths, points
-		FROM game_user_stats
-		WHERE game_id = $1
-	`
-
-	rows, err := r.pool.Query(ctx, query, gameID)
-	if err == pgx.ErrNoRows {
-		return nil, nil
-	}
-
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	stats := make([]domain.GameUserStats, 0)
-	for rows.Next() {
-		var stat domain.GameUserStats
-		err := rows.Scan(
-			&stat.GameUserStatsID,
-			&stat.User.UserID,
-			&stat.User.ClanID,
-			&stat.User.TeamID,
-			&stat.User.Role,
-			&stat.Kills,
-			&stat.Deaths,
-			&stat.Points,
-		)
-		if err != nil {
-			return nil, err
-		}
-		stats = append(stats, stat)
-	}
-
-	return stats, rows.Err()
-}
-
-func (r *postgresRepository) CreateTeam(ctx context.Context, team domain.Team) error {
-	query := `
-		INSERT INTO teams (id, event_id, side_leader_id, is_confirmed)
-		VALUES ($1, $2, $3, $4)
-	`
-
-	_, err := r.pool.Exec(ctx, query, team.TeamID, team.EventID, team.SideLeaderID, team.IsConfirmed)
-	return err
-}
-
-func (r *postgresRepository) GetTeamByID(ctx context.Context, teamID string) (domain.Team, error) {
-	query := `
-		SELECT id, event_id, side_leader_id, is_confirmed
-		FROM teams
-		WHERE id = $1
-	`
-
-	var team domain.Team
-	err := r.pool.QueryRow(ctx, query, teamID).Scan(
-		&team.TeamID,
-		&team.EventID,
-		&team.SideLeaderID,
-		&team.IsConfirmed,
-	)
-
-	if err == pgx.ErrNoRows {
-		return domain.Team{}, nil
-	}
-
-	if err != nil {
-		return domain.Team{}, err
-	}
-
-	membersQuery := `
-		SELECT user_id, clan_id, role, six_clan_members
-		FROM team_members
-		INNER JOIN users ON team_members.user_id = users.user_id
-		WHERE team_members.team_id = $1
-	`
-
-	rows, err := r.pool.Query(ctx, membersQuery, teamID)
-	if err != nil {
-		return team, nil
-	}
-	defer rows.Close()
-
-	members := make([]domain.User, 0)
-	for rows.Next() {
-		var user domain.User
-		err := rows.Scan(
-			&user.UserID,
-			&user.ClanID,
-			&user.Role,
-			&user.SixClanMembers,
-		)
-		if err != nil {
-			return team, err
-		}
-		members = append(members, user)
-	}
-
-	for i := 0; i < len(members) && i < 50; i++ {
-		team.Members[i] = members[i]
-	}
-
-	return team, nil
-}
-
-func (r *postgresRepository) AddUserToTeam(ctx context.Context, teamID, userID, clanID string, role domain.Role) error {
-	query := `
-		INSERT INTO team_members (team_id, user_id, clan_id, role)
-		VALUES ($1, $2, $3, $4)
-	`
-
-	_, err := r.pool.Exec(ctx, query, teamID, userID, clanID, string(role))
-	return err
-}
-
-func (r *postgresRepository) RemoveUserFromTeam(ctx context.Context, teamID, userID string) error {
-	query := `
-		DELETE FROM team_members
-		WHERE team_id = $1 AND user_id = $2
-	`
-
-	_, err := r.pool.Exec(ctx, query, teamID, userID)
-	return err
-}
-
-func (r *postgresRepository) GetTeamsByEventID(ctx context.Context, eventID string) ([]domain.Team, error) {
-	query := `
-		SELECT id, event_id, side_leader_id, is_confirmed
-		FROM teams
-		WHERE event_id = $1
-	`
-
-	rows, err := r.pool.Query(ctx, query, eventID)
-	if err == pgx.ErrNoRows {
-		return nil, nil
-	}
-
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	teams := make([]domain.Team, 0)
-	for rows.Next() {
-		var team domain.Team
-		err := rows.Scan(
-			&team.TeamID,
-			&team.EventID,
-			&team.SideLeaderID,
-			&team.IsConfirmed,
-		)
-		if err != nil {
-			return nil, err
-		}
-		teams = append(teams, team)
-	}
-
-	return teams, rows.Err()
-}
-
-func (r *postgresRepository) ConfirmTeam(ctx context.Context, teamID string) error {
-	query := `
-		UPDATE teams
-		SET is_confirmed = true
-		WHERE id = $1
-	`
-
-	_, err := r.pool.Exec(ctx, query, teamID)
-	return err
 }
 
 func (r *postgresRepository) CheckSixClanMembers(ctx context.Context, eventID, userID, clanID string) (bool, error) {
@@ -667,6 +406,29 @@ func (r *postgresRepository) UpdateUserSixClanMembers(ctx context.Context, userI
 	return err
 }
 
+func (r *postgresRepository) UpdateSixClanMembersForClan(ctx context.Context, eventID, clanID string, hasSixClanMembers bool) error {
+	query := `
+		UPDATE users
+		SET six_clan_members = $1
+		WHERE event_id = $2 AND clan_id = $3
+	`
+
+	_, err := r.pool.Exec(ctx, query, hasSixClanMembers, eventID, clanID)
+	return err
+}
+
+func (r *postgresRepository) CountClanMembersInEvent(ctx context.Context, eventID, clanID string) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM users
+		WHERE event_id = $1 AND clan_id = $2
+	`
+
+	var count int
+	err := r.pool.QueryRow(ctx, query, eventID, clanID).Scan(&count)
+	return count, err
+}
+
 func (r *postgresRepository) GetUserIDsByEventID(ctx context.Context, eventID string) ([]string, error) {
 	query := `
 		SELECT user_id
@@ -697,29 +459,14 @@ func (r *postgresRepository) GetUserIDsByEventID(ctx context.Context, eventID st
 	return userIDs, rows.Err()
 }
 
-func (r *postgresRepository) ConfirmEvent80(ctx context.Context, eventID string) {
-	query := `
-		UPDATE events
-		SET is_confirmed = true
-		WHERE id = $1
-	`
-
-	r.pool.Exec(ctx, query, eventID)
-}
-
-func (r *postgresRepository) DeclineEvent80(ctx context.Context, eventID string) {
-	query := `
-		UPDATE events
-		SET is_confirmed = false
-		WHERE id = $1
-	`
-
-	r.pool.Exec(ctx, query, eventID)
-}
+// events.is_confirmed убрана из схемы (её не было и на новой диаграмме) —
+// подтверждение/отклонение по достижению 80% теперь не персистится отдельным
+// флагом: отклонение = реальное DeleteEvent, подтверждение — просто Kafka-событие
+// из сервисного слоя.
 
 func (r *postgresRepository) GetUnfinishedEventsByUserID(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
 	query := `
-		SELECT id, name, user_create_id, enemy_side_leader, user_count, time_start, time_finish, create_time, event_team_winner, event_team_loser, is_confirmed, is_started, is_finished
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, is_started, is_finished, target_game_count, game_count
 		FROM events
 		WHERE user_create_id = $1 AND is_finished = false
 	`
@@ -746,11 +493,11 @@ func (r *postgresRepository) GetUnfinishedEventsByUserID(ctx context.Context, us
 			&evn.TimeStart,
 			&evn.TimeFinish,
 			&evn.CreateTime,
-			&evn.Event_team_winner,
-			&evn.Event_team_loser,
-			&evn.IsConfirmed,
+			&evn.WinnerSide,
 			&evn.IsStarted,
 			&evn.IsFinished,
+			&evn.TargetGameCount,
+			&evn.GameCount,
 		)
 		if err != nil {
 			return nil, err
@@ -763,7 +510,7 @@ func (r *postgresRepository) GetUnfinishedEventsByUserID(ctx context.Context, us
 
 func (r *postgresRepository) GetUnfinishedEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error) {
 	query := `
-		SELECT id, name, user_create_id, enemy_side_leader, user_count, time_start, time_finish, create_time, event_team_winner, event_team_loser, is_confirmed, is_started, is_finished
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, is_started, is_finished, target_game_count, game_count
 		FROM events
 		WHERE name = $1 AND is_finished = false
 	`
@@ -789,11 +536,11 @@ func (r *postgresRepository) GetUnfinishedEventsByEventName(ctx context.Context,
 			&evn.TimeStart,
 			&evn.TimeFinish,
 			&evn.CreateTime,
-			&evn.Event_team_winner,
-			&evn.Event_team_loser,
-			&evn.IsConfirmed,
+			&evn.WinnerSide,
 			&evn.IsStarted,
 			&evn.IsFinished,
+			&evn.TargetGameCount,
+			&evn.GameCount,
 		)
 		if err != nil {
 			return nil, err
@@ -808,20 +555,250 @@ func (r *postgresRepository) StartEventDB(ctx context.Context, eventID string) e
 	query := `
 		UPDATE events
 		SET is_started = true
-		WHERE id = $1
+		WHERE event_id = $1
 	`
 
 	_, err := r.pool.Exec(ctx, query, eventID)
 	return err
 }
 
-func (r *postgresRepository) FinishEventDB(ctx context.Context, eventID string) error {
+func (r *postgresRepository) IncrementEventGameCount(ctx context.Context, eventID string) error {
 	query := `
 		UPDATE events
-		SET is_finished = true, time_finish = $1
-		WHERE id = $2
+		SET game_count = game_count + 1
+		WHERE event_id = $1
 	`
 
-	_, err := r.pool.Exec(ctx, query, time.Now(), eventID)
+	_, err := r.pool.Exec(ctx, query, eventID)
 	return err
+}
+
+func (r *postgresRepository) FinishEventDB(ctx context.Context, eventID, winnerSide string) error {
+	query := `
+		UPDATE events
+		SET is_finished = true, time_finish = $1, winner_side = $2
+		WHERE event_id = $3
+	`
+
+	_, err := r.pool.Exec(ctx, query, time.Now(), winnerSide, eventID)
+	return err
+}
+
+func (r *postgresRepository) CreateTeam(ctx context.Context, team domain.Team) error {
+	query := `
+		INSERT INTO team (team_id, event_id, winner, side_leader_id, game_number, members_count, time_start, time_finish, kills, deaths, revival, equipment_destroyed)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+	`
+
+	// time_start/time_finish пишем как настоящий NULL, если ещё не заданы —
+	// именно на этом основана логика "пустой time_start = игра не началась".
+	var timeStart, timeFinish *time.Time
+	if !team.TimeStart.IsZero() {
+		timeStart = &team.TimeStart
+	}
+	if !team.TimeFinish.IsZero() {
+		timeFinish = &team.TimeFinish
+	}
+
+	_, err := r.pool.Exec(ctx, query, team.TeamID, team.EventID, team.Winner, team.SideLeaderID, team.GameNumber, team.MembersCount, timeStart, timeFinish, team.Kills, team.Deaths, team.Revival, team.EquipmentDestroyed)
+	return err
+}
+
+func (r *postgresRepository) GetTeamsByEventID(ctx context.Context, eventID string) ([]domain.Team, error) {
+	query := `
+		SELECT team_id, event_id, winner, side_leader_id, game_number, members_count, time_start, time_finish, kills, deaths, revival, equipment_destroyed
+		FROM team
+		WHERE event_id = $1
+		ORDER BY game_number ASC
+	`
+
+	rows, err := r.pool.Query(ctx, query, eventID)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	teams := make([]domain.Team, 0)
+	for rows.Next() {
+		var t domain.Team
+		var timeStart, timeFinish *time.Time
+		err := rows.Scan(
+			&t.TeamID,
+			&t.EventID,
+			&t.Winner,
+			&t.SideLeaderID,
+			&t.GameNumber,
+			&t.MembersCount,
+			&timeStart,
+			&timeFinish,
+			&t.Kills,
+			&t.Deaths,
+			&t.Revival,
+			&t.EquipmentDestroyed,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if timeStart != nil {
+			t.TimeStart = *timeStart
+		}
+		if timeFinish != nil {
+			t.TimeFinish = *timeFinish
+		}
+		teams = append(teams, t)
+	}
+
+	return teams, rows.Err()
+}
+
+func (r *postgresRepository) GetTeamByID(ctx context.Context, teamID string) (domain.Team, error) {
+	query := `
+		SELECT team_id, event_id, winner, side_leader_id, game_number, members_count, time_start, time_finish, kills, deaths, revival, equipment_destroyed
+		FROM team
+		WHERE team_id = $1
+	`
+
+	var t domain.Team
+	var timeStart, timeFinish *time.Time
+	err := r.pool.QueryRow(ctx, query, teamID).Scan(
+		&t.TeamID,
+		&t.EventID,
+		&t.Winner,
+		&t.SideLeaderID,
+		&t.GameNumber,
+		&t.MembersCount,
+		&timeStart,
+		&timeFinish,
+		&t.Kills,
+		&t.Deaths,
+		&t.Revival,
+		&t.EquipmentDestroyed,
+	)
+
+	if err == pgx.ErrNoRows {
+		return domain.Team{}, nil
+	}
+	if err != nil {
+		return domain.Team{}, err
+	}
+	if timeStart != nil {
+		t.TimeStart = *timeStart
+	}
+	if timeFinish != nil {
+		t.TimeFinish = *timeFinish
+	}
+
+	return t, nil
+}
+
+func (r *postgresRepository) AddUserToTeam(ctx context.Context, teamID, userEventID string, role domain.Role) error {
+	query := `
+		INSERT INTO team_members (team_id, user_event_id, role)
+		VALUES ($1, $2, $3)
+	`
+
+	if _, err := r.pool.Exec(ctx, query, teamID, userEventID, role); err != nil {
+		return err
+	}
+
+	updateQuery := `
+		UPDATE team
+		SET members_count = members_count + 1
+		WHERE team_id = $1
+	`
+
+	_, err := r.pool.Exec(ctx, updateQuery, teamID)
+	return err
+}
+
+func (r *postgresRepository) RemoveUserFromTeam(ctx context.Context, teamID, userEventID string) error {
+	query := `
+		DELETE FROM team_members
+		WHERE team_id = $1 AND user_event_id = $2
+	`
+
+	if _, err := r.pool.Exec(ctx, query, teamID, userEventID); err != nil {
+		return err
+	}
+
+	updateQuery := `
+		UPDATE team
+		SET members_count = members_count - 1
+		WHERE team_id = $1
+	`
+
+	_, err := r.pool.Exec(ctx, updateQuery, teamID)
+	return err
+}
+
+func (r *postgresRepository) StartTeamGame(ctx context.Context, teamID string, timeStart time.Time) error {
+	query := `
+		UPDATE team
+		SET time_start = $1
+		WHERE team_id = $2
+	`
+
+	_, err := r.pool.Exec(ctx, query, timeStart, teamID)
+	return err
+}
+
+func (r *postgresRepository) FinishTeamGame(ctx context.Context, teamID string, timeFinish time.Time, winner bool, kills, deaths, revival, equipmentDestroyed int64) error {
+	query := `
+		UPDATE team
+		SET time_finish = $1, winner = $2, kills = $3, deaths = $4, revival = $5, equipment_destroyed = $6
+		WHERE team_id = $7
+	`
+
+	_, err := r.pool.Exec(ctx, query, timeFinish, winner, kills, deaths, revival, equipmentDestroyed, teamID)
+	return err
+}
+
+func (r *postgresRepository) AddTeamMemberStats(ctx context.Context, teamID, userEventID string, kills, deaths, points int64) error {
+	query := `
+		UPDATE team_members
+		SET kills = $1, deaths = $2, points = $3
+		WHERE team_id = $4 AND user_event_id = $5
+	`
+
+	_, err := r.pool.Exec(ctx, query, kills, deaths, points, teamID, userEventID)
+	return err
+}
+
+func (r *postgresRepository) GetTeamStats(ctx context.Context, teamID string) ([]domain.TeamMember, error) {
+	query := `
+		SELECT team_id, user_event_id, role, kills, deaths, points
+		FROM team_members
+		WHERE team_id = $1
+	`
+
+	rows, err := r.pool.Query(ctx, query, teamID)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	stats := make([]domain.TeamMember, 0)
+	for rows.Next() {
+		var m domain.TeamMember
+		err := rows.Scan(
+			&m.TeamID,
+			&m.UserEventID,
+			&m.Role,
+			&m.Kills,
+			&m.Deaths,
+			&m.Points,
+		)
+		if err != nil {
+			return nil, err
+		}
+		stats = append(stats, m)
+	}
+
+	return stats, rows.Err()
 }

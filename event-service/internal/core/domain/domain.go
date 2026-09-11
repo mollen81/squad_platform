@@ -11,57 +11,52 @@ const (
 )
 
 type Event struct {
-	EventID string
-	Name string
-	UserCreateID string
+	EventID         string
+	Name            string
+	UserCreateID    string
 	EnemySideLeader string
-	UserCount int64
-	TimeStart time.Time
-	TimeFinish time.Time
-	CreateTime time.Time
-	Event_team_winner string
-	Event_team_loser string
-	IsConfirmed bool
-	IsStarted bool
-	IsFinished bool
+	TimeStart       time.Time
+	TimeFinish      time.Time
+	CreateTime      time.Time
+	UserCount       int64
+	TargetGameCount int64
+	GameCount       int64
+	IsStarted       bool
+	IsFinished      bool
+	WinnerSide string // "" (ещё не решено) | "ally" | "enemy" | "draw"
 }
 
 type User struct {
-	UserEventID string
-	UserID string
-	ClanID string
-	TeamID string
-	Role Role
+	UserEventID    string
+	UserID         string
+	EventID        string
+	ClanID         string
+	Enemy          bool
 	SixClanMembers bool
-}
-
-type Game struct {
-	GameID string
-	EventID string
-	UserCreateID string
-	EnemySideLeader string
-	Team1ID string
-	Team2ID string
-	MapName string
-	Game_team_winner_id string
-	Game_team_loser_id string
-	TimeStart time.Time
-	TimeFinish time.Time
-}
-
-type GameUserStats struct {
-	GameUserStatsID string
-	Game
-	User
-	Kills int64
-	Deaths int64
-	Points int64
+	Role           Role
+	JoinTime       time.Time
 }
 
 type Team struct {
-	TeamID string
-	EventID string
+	TeamID       string
+	EventID      string
+	Winner       bool
 	SideLeaderID string
-	IsConfirmed bool
-	Members [50]User
+	GameNumber   int64
+	MembersCount int64
+	TimeStart  time.Time
+	TimeFinish time.Time
+	Kills               int64
+	Deaths              int64
+	Revival             int64
+	EquipmentDestroyed  int64
+}
+
+type TeamMember struct {
+	TeamID        string
+	UserEventID   string
+	Role          Role
+	Kills         int64
+	Deaths        int64
+	Points        int64
 }

@@ -16,6 +16,7 @@ import (
 
 	pgxpool "github.com/jackc/pgx/v5/pgxpool"
 	grpc "google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 func main() {
@@ -86,6 +87,7 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 	pb.RegisterEventServiceServer(grpcServer, grpcHandler)
+	reflection.Register(grpcServer)
 
 	log.Printf("gRPC server listening on port %s", grpcPort)
 

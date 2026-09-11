@@ -27,22 +27,49 @@ func NewEventService(eventRepo EventRepository, producer *kafka.Producer) EventS
 	}
 }
 
-func (s *eventService) CreateEvent(ctx context.Context, userCreateID, enemySideLeader, eventName string, timeStart time.Time) error {
+func (s *eventService) CreateEvent(ctx context.Context, userCreatorID, creatorClanID, enemySideLeaderID, enemySideLeaderClanID, eventName string, timeStart time.Time, targetGameCount int64) error {
+	now := time.Now()
+	minTime := now.Add(45 * time.Minute)
+	maxTime := now.Add(45 * 24 * time.Hour)
+
+	if timeStart.Before(minTime) {
+		return errors.New("event start time must be at least 45 minutes from now")
+	}
+
+	if timeStart.After(maxTime) {
+		return errors.New("event start time must be within 45 days from now")
+	}
+
+	if targetGameCount <= 0 {
+		return errors.New("target game count must be positive")
+	}
+
 	event := domain.Event{
 		EventID: uuid.New().String(),
 		Name: eventName,
-		UserCreateID: userCreateID,
-		EnemySideLeader: enemySideLeader,
+		UserCreateID: userCreatorID,
+		EnemySideLeader: enemySideLeaderID,
 		UserCount: 0,
 		TimeStart: timeStart,
 		CreateTime: time.Now(),
+		TargetGameCount: targetGameCount,
+	}
+
+	controlTime := timeStart.Add(-30 * time.Minute)
+	if err := s.controlEventTimerDenial(event.EventID, controlTime); err != nil {
+		return err
 	}
 
 	if err := s.eventRepo.CreateEvent(ctx, event); err != nil {
 		return err
 	}
 
-	if err := s.eventRepo.JoinToEvent(ctx, userCreateID, event.EventID, time.Now()); err != nil {
+	enemy := false
+	if err := s.JoinToEvent(ctx, event.EventID, userCreatorID, creatorClanID, enemy); err != nil {
+		return err
+	}
+
+	if err := s.eventRepo.UpdateUserRole(ctx, userCreatorID, event.EventID, domain.RoleSquadLeader); err != nil {
 		return err
 	}
 
@@ -50,13 +77,49 @@ func (s *eventService) CreateEvent(ctx context.Context, userCreateID, enemySideL
 		return err
 	}
 
-	if err := s.producer.PublishUserJoinedEvent(ctx, event.EventID, userCreateID, time.Now()); err != nil {
+	enemy = true
+	if err := s.JoinToEvent(ctx, event.EventID, enemySideLeaderID, enemySideLeaderClanID, enemy); err != nil {
 		return err
 	}
 
-	controlTime := timeStart.Add(-30 * time.Minute)
-	if err := s.controlEventTimerDenial(event.EventID, controlTime); err != nil {
+	if err := s.eventRepo.UpdateUserRole(ctx, enemySideLeaderID, event.EventID, domain.RoleSquadLeader); err != nil {
 		return err
+	}
+
+	// Team.side_leader_id ссылается на users.user_event_id (внутренний id),
+	// а не на сырой внешний user_id — поэтому достаём уже присвоенные user_event_id
+	// обоих сайд-лидеров после того, как они реально заджойнились в ивент.
+	creatorUser, err := s.eventRepo.GetUserByID(ctx, event.EventID, userCreatorID)
+	if err != nil {
+		return err
+	}
+
+	enemyUser, err := s.eventRepo.GetUserByID(ctx, event.EventID, enemySideLeaderID)
+	if err != nil {
+		return err
+	}
+
+	for gameNumber := int64(1); gameNumber <= targetGameCount; gameNumber++ {
+		allyTeam := domain.Team{
+			TeamID:       uuid.New().String(),
+			EventID:      event.EventID,
+			SideLeaderID: creatorUser.UserEventID,
+			GameNumber:   gameNumber,
+		}
+		enemyTeam := domain.Team{
+			TeamID:       uuid.New().String(),
+			EventID:      event.EventID,
+			SideLeaderID: enemyUser.UserEventID,
+			GameNumber:   gameNumber,
+		}
+
+		if err := s.eventRepo.CreateTeam(ctx, allyTeam); err != nil {
+			return err
+		}
+
+		if err := s.eventRepo.CreateTeam(ctx, enemyTeam); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -87,6 +150,15 @@ func (s *eventService) GetEventsByEventName(ctx context.Context, eventName strin
 	}
 
 	return event, nil
+}
+
+func (s *eventService) GetEventMembersList(ctx context.Context, eventID string) ([]domain.User, error) {
+	events, err := s.eventRepo.GetEventMembersList(ctx, eventID)
+	if err != nil {
+		return []domain.User{}, err
+	}
+
+	return events, nil
 }
 
 func (s *eventService) UpdateTimeEvent(ctx context.Context, eventID, userCreateID string, newTimeStart time.Time) error {
@@ -136,7 +208,19 @@ func (s *eventService) DeleteEvent(ctx context.Context, eventID, userCreateID st
 	return nil
 }
 
-func (s *eventService) JoinToEvent(ctx context.Context, eventID, userID string, joinTime time.Time) error {
+func (s *eventService) JoinToEvent(ctx context.Context, eventID, userID, clanID string, enemy bool) error {
+	if eventID == "" {
+		return errors.New("must have event id")
+	}
+
+	if userID == "" {
+		return errors.New("must have user id")
+	}
+
+	if clanID == "" {
+		return errors.New("must have clanID")
+	}
+
 	event, err := s.eventRepo.GetEventByID(ctx, eventID)
 	if err != nil {
 		return err
@@ -146,11 +230,46 @@ func (s *eventService) JoinToEvent(ctx context.Context, eventID, userID string, 
 		return errors.New("event not found")
 	}
 
-	if err = s.eventRepo.JoinToEvent(ctx, userID, eventID, joinTime); err != nil {
+	alreadyJoined, err := s.eventRepo.IsUserInEvent(ctx, eventID, userID)
+	if err != nil {
 		return err
 	}
 
-	if err = s.producer.PublishUserJoinedEvent(ctx, eventID, userID, joinTime); err != nil {
+	if alreadyJoined {
+		return errors.New("user already joined this event")
+	}
+
+	userEventID := uuid.New().String()
+	joinTime := time.Now()
+
+	if err = s.eventRepo.JoinToEvent(ctx, userEventID, eventID, userID, clanID, enemy, joinTime); err != nil {
+		return err
+	}
+
+	// Раньше это проверялось батчем в StartEvent по всем team.Members разом;
+	// команды (Team) в новой схеме такого ростера не хранят, так что проверяем
+	// сразу на джойне. hasSixClanMembers считает "других" участников этого же
+	// клана в этом же ивенте (CheckSixClanMembers исключает самого себя) — если
+	// их уже 5 и больше, значит вместе с только что зашедшим — 6+.
+	hasSixClanMembers, err := s.eventRepo.CheckSixClanMembers(ctx, eventID, userID, clanID)
+	if err != nil {
+		return err
+	}
+
+	if hasSixClanMembers {
+		// Флаг относится ко всей группе из одного клана в этом ивенте, а не
+		// только к тому, кто зашёл последним и перевалил порог — иначе первые
+		// 5 человек так и останутся с six_clan_members=false навсегда.
+		if err := s.eventRepo.UpdateSixClanMembersForClan(ctx, eventID, clanID, true); err != nil {
+			return err
+		}
+	} else {
+		if err := s.eventRepo.UpdateUserSixClanMembers(ctx, userID, eventID, false); err != nil {
+			return err
+		}
+	}
+
+	if err = s.producer.PublishUserJoinedEvent(ctx, eventID, userID, clanID, enemy, joinTime); err != nil {
 		return err
 	}
 
@@ -171,8 +290,30 @@ func (s *eventService) LeaveEvent(ctx context.Context, userID, eventID string) e
 		return errors.New("admin cannot leave event, use DeleteEvent instead")
 	}
 
+	leavingUser, err := s.eventRepo.GetUserByID(ctx, eventID, userID)
+	if err != nil {
+		return err
+	}
+
 	if err = s.eventRepo.LeaveEvent(ctx, userID, eventID); err != nil {
 		return err
+	}
+
+	// Симметрично JoinToEvent: после выхода из клана в этом ивенте может стать
+	// меньше 6 человек — если так, снимаем six_clan_members у оставшихся,
+	// иначе флаг так и останется true уже после того, как условие перестало
+	// выполняться.
+	if leavingUser.ClanID != "" {
+		clanMembersLeft, err := s.eventRepo.CountClanMembersInEvent(ctx, eventID, leavingUser.ClanID)
+		if err != nil {
+			return err
+		}
+
+		if clanMembersLeft < 6 {
+			if err := s.eventRepo.UpdateSixClanMembersForClan(ctx, eventID, leavingUser.ClanID, false); err != nil {
+				return err
+			}
+		}
 	}
 
 	if err = s.producer.PublishUserLeftEvent(ctx, eventID, userID); err != nil {
@@ -182,7 +323,7 @@ func (s *eventService) LeaveEvent(ctx context.Context, userID, eventID string) e
 	return nil
 }
 
-func (s *eventService) SetRole(ctx context.Context, eventID, sideLeaderID, userID string, role domain.Role) error {
+func (s *eventService) SetRole(ctx context.Context, eventID, yourID, userID string, role domain.Role) error {
 	event, err := s.eventRepo.GetEventByID(ctx, eventID)
 	if err != nil {
 		return err
@@ -192,11 +333,19 @@ func (s *eventService) SetRole(ctx context.Context, eventID, sideLeaderID, userI
 		return errors.New("event not found")
 	}
 
-	if event.UserCreateID != sideLeaderID && event.EnemySideLeader != sideLeaderID {
+	if event.UserCreateID != yourID && event.EnemySideLeader != yourID {
 		return errors.New("only side leaders can set roles")
 	}
 
-	user, err := s.eventRepo.GetUserByID(ctx, userID)
+	if role == domain.RoleSquadLeader {
+		return errors.New("squad_leader role cannot be assigned via SetRole")
+	}
+
+	if role != domain.RoleSideLeader && role != domain.RolePlayer {
+		return errors.New("invalid role: only side_leader or player can be set via SetRole")
+	}
+
+	user, err := s.eventRepo.GetUserByID(ctx, eventID, userID)
 	if err != nil {
 		return err
 	}
@@ -216,7 +365,12 @@ func (s *eventService) SetRole(ctx context.Context, eventID, sideLeaderID, userI
 	return nil
 }
 
-func (s *eventService) CreateTeamsForEvent(ctx context.Context, eventID string) error {
+// startEventAndGames запускается только изнутри controlEventTimerDenial/confirmEvent80
+// (по таймеру, в момент event.TimeStart), а не по ручке — публичного StartEvent
+// RPC больше нет. Помечает ивент начатым и стартует первую по счёту игру
+// (game_number = 1) сразу для обеих сторон; остальные игры стартуют по мере
+// того, как заканчиваются предыдущие (через StartTeamGame по каждой team отдельно).
+func (s *eventService) startEventAndGames(ctx context.Context, eventID string) error {
 	event, err := s.eventRepo.GetEventByID(ctx, eventID)
 	if err != nil {
 		return err
@@ -226,56 +380,12 @@ func (s *eventService) CreateTeamsForEvent(ctx context.Context, eventID string) 
 		return errors.New("event not found")
 	}
 
-	team1 := domain.Team{
-		TeamID:       uuid.New().String(),
-		EventID:      eventID,
-		SideLeaderID: event.UserCreateID,
-		IsConfirmed:  false,
-	}
-
-	team2 := domain.Team{
-		TeamID:       uuid.New().String(),
-		EventID:      eventID,
-		SideLeaderID: event.EnemySideLeader,
-		IsConfirmed:  false,
-	}
-
-	if err := s.eventRepo.CreateTeam(ctx, team1); err != nil {
+	if err := s.eventRepo.StartEventDB(ctx, eventID); err != nil {
 		return err
 	}
 
-	if err := s.eventRepo.CreateTeam(ctx, team2); err != nil {
+	if err := s.producer.PublishEventStarted(ctx, eventID, event.TimeStart); err != nil {
 		return err
-	}
-
-	if err := s.producer.PublishTeamsCreated(ctx, eventID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *eventService) GetTeamsByEventID(ctx context.Context, eventID string) ([]domain.Team, error) {
-	teams, err := s.eventRepo.GetTeamsByEventID(ctx, eventID)
-	if err != nil {
-		return nil, err
-	}
-
-	return teams, nil
-}
-
-func (s *eventService) StartEvent(ctx context.Context, eventID, sideLeaderID string) error {
-	event, err := s.eventRepo.GetEventByID(ctx, eventID)
-	if err != nil {
-		return err
-	}
-
-	if event.EventID == "" {
-		return errors.New("event not found")
-	}
-
-	if event.UserCreateID != sideLeaderID && event.EnemySideLeader != sideLeaderID {
-		return errors.New("only side leaders can start event")
 	}
 
 	teams, err := s.eventRepo.GetTeamsByEventID(ctx, eventID)
@@ -283,309 +393,19 @@ func (s *eventService) StartEvent(ctx context.Context, eventID, sideLeaderID str
 		return err
 	}
 
-	if len(teams) != 2 {
-		return errors.New("event must have exactly 2 teams")
-	}
-
-	var teamToConfirm *domain.Team
-	for i := range teams {
-		if teams[i].SideLeaderID == sideLeaderID {
-			teamToConfirm = &teams[i]
-			break
-		}
-	}
-
-	if teamToConfirm == nil {
-		return errors.New("side leader team not found")
-	}
-
-	team, err := s.eventRepo.GetTeamByID(ctx, teamToConfirm.TeamID)
-	if err != nil {
-		return err
-	}
-
-	for _, member := range team.Members {
-		if member.UserID == "" {
-			break
+	now := time.Now()
+	for _, team := range teams {
+		if team.GameNumber != 1 {
+			continue
 		}
 
-		if member.ClanID != "" {
-			hasSixClanMembers, err := s.eventRepo.CheckSixClanMembers(ctx, eventID, member.UserID, member.ClanID)
-			if err != nil {
-				return err
-			}
-
-			if err := s.eventRepo.UpdateUserSixClanMembers(ctx, member.UserID, eventID, hasSixClanMembers); err != nil {
-				return err
-			}
-		} else {
-			if err := s.eventRepo.UpdateUserSixClanMembers(ctx, member.UserID, eventID, false); err != nil {
-				return err
-			}
-		}
-	}
-
-	if err := s.eventRepo.ConfirmTeam(ctx, teamToConfirm.TeamID); err != nil {
-		return err
-	}
-
-	if err := s.producer.PublishTeamConfirmed(ctx, eventID, teamToConfirm.TeamID); err != nil {
-		return err
-	}
-
-	allTeamsConfirmed := true
-	for _, t := range teams {
-		if !t.IsConfirmed && t.TeamID != teamToConfirm.TeamID {
-			allTeamsConfirmed = false
-			break
-		}
-	}
-
-	if allTeamsConfirmed {
-		if err := s.eventRepo.StartEventDB(ctx, eventID); err != nil {
+		if err := s.eventRepo.StartTeamGame(ctx, team.TeamID, now); err != nil {
 			return err
 		}
 
-		if err := s.producer.PublishEventStarted(ctx, eventID, event.TimeStart); err != nil {
+		if err := s.producer.PublishTeamGameStarted(ctx, team.TeamID, team.GameNumber, now); err != nil {
 			return err
 		}
-	}
-
-	return nil
-}
-
-func (s *eventService) CreateGame(ctx context.Context, eventID, mapName string, timeStart time.Time) error {
-	event, err := s.eventRepo.GetEventByID(ctx, eventID)
-	if err != nil {
-		return err
-	}
-
-	if event.EventID == "" {
-		return errors.New("event not found")
-	}
-
-	teams, err := s.eventRepo.GetTeamsByEventID(ctx, eventID)
-	if err != nil {
-		return err
-	}
-
-	if len(teams) != 2 {
-		return errors.New("event must have exactly 2 teams")
-	}
-
-	if !teams[0].IsConfirmed || !teams[1].IsConfirmed {
-		return errors.New("both teams must be confirmed before creating a game")
-	}
-
-	game := domain.Game{
-		GameID:              uuid.New().String(),
-		EventID:             eventID,
-		UserCreateID:        event.UserCreateID,
-		EnemySideLeader:     event.EnemySideLeader,
-		Team1ID:             teams[0].TeamID,
-		Team2ID:             teams[1].TeamID,
-		MapName:             mapName,
-		Game_team_winner_id: "",
-		Game_team_loser_id:  "",
-		TimeStart:           timeStart,
-		TimeFinish:          time.Time{},
-	}
-
-	if err := s.eventRepo.CreateGame(ctx, game); err != nil {
-		return err
-	}
-
-	if err := s.producer.PublishGameCreated(ctx, game); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *eventService) GetGameByID(ctx context.Context, gameID string) (domain.Game, error) {
-	game, err := s.eventRepo.GetGameByID(ctx, gameID)
-	if err != nil {
-		return domain.Game{}, err
-	}
-
-	if game.GameID == "" {
-		return domain.Game{}, errors.New("game not found")
-	}
-
-	return game, nil
-}
-
-func (s *eventService) GetGamesByEventID(ctx context.Context, eventID string) ([]domain.Game, error) {
-	games, err := s.eventRepo.GetGamesByEventID(ctx, eventID)
-	if err != nil {
-		return nil, err
-	}
-
-	return games, nil
-}
-
-func (s *eventService) UpdateGameWinner(ctx context.Context, gameID, winnerTeamID string) error {
-	game, err := s.eventRepo.GetGameByID(ctx, gameID)
-	if err != nil {
-		return err
-	}
-
-	if game.GameID == "" {
-		return errors.New("game not found")
-	}
-
-	if err = s.eventRepo.UpdateGameWinner(ctx, gameID, winnerTeamID); err != nil {
-		return err
-	}
-
-	if err = s.producer.PublishGameWinnerUpdated(ctx, gameID, winnerTeamID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *eventService) UpdateGameLoser(ctx context.Context, gameID, loserTeamID string) error {
-	game, err := s.eventRepo.GetGameByID(ctx, gameID)
-	if err != nil {
-		return err
-	}
-
-	if game.GameID == "" {
-		return errors.New("game not found")
-	}
-
-	if err = s.eventRepo.UpdateGameLoser(ctx, gameID, loserTeamID); err != nil {
-		return err
-	}
-
-	if err = s.producer.PublishGameLoserUpdated(ctx, gameID, loserTeamID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *eventService) FinishGame(ctx context.Context, gameID string, timeFinish time.Time) error {
-	game, err := s.eventRepo.GetGameByID(ctx, gameID)
-	if err != nil {
-		return err
-	}
-
-	if game.GameID == "" {
-		return errors.New("game not found")
-	}
-
-	if err = s.eventRepo.FinishGame(ctx, gameID, timeFinish); err != nil {
-		return err
-	}
-
-	if err = s.producer.PublishGameFinished(ctx, gameID, timeFinish); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *eventService) AddUserStatsToGame(ctx context.Context, gameID, userID string, kills, deaths, points int64) error {
-	game, err := s.eventRepo.GetGameByID(ctx, gameID)
-	if err != nil {
-		return err
-	}
-
-	if game.GameID == "" {
-		return errors.New("game not found")
-	}
-
-	user, err := s.eventRepo.GetUserByID(ctx, userID)
-	if err != nil {
-		return err
-	}
-
-	if user.UserID == "" {
-		return errors.New("user not found")
-	}
-
-	stats := domain.GameUserStats{
-		GameUserStatsID: uuid.New().String(),
-		Game:   game,
-		User:   user,
-		Kills:  kills,
-		Deaths: deaths,
-		Points: points,
-	}
-
-	if err := s.eventRepo.AddUserStatsToGame(ctx, stats); err != nil {
-		return err
-	}
-
-	if err := s.producer.PublishUserStatsAdded(ctx, stats); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *eventService) GetGameStats(ctx context.Context, gameID string) ([]domain.GameUserStats, error) {
-	game, err := s.eventRepo.GetGameByID(ctx, gameID)
-	if err != nil {
-		return nil, err
-	}
-
-	if game.GameID == "" {
-		return nil, errors.New("game not found")
-	}
-
-	stats, err := s.eventRepo.GetGameStats(ctx, gameID)
-	if err != nil {
-		return nil, err
-	}
-
-	return stats, nil
-}
-
-func (s *eventService) GetTeamByID(ctx context.Context, teamID string) (domain.Team, error) {
-	team, err := s.eventRepo.GetTeamByID(ctx, teamID)
-	if err != nil {
-		return domain.Team{}, err
-	}
-
-	if team.TeamID == "" {
-		return domain.Team{}, errors.New("team not found")
-	}
-
-	return team, nil
-}
-
-func (s *eventService) AddUserToTeam(ctx context.Context, teamID, userID, clanID string, role domain.Role) error {
-	team, err := s.eventRepo.GetTeamByID(ctx, teamID)
-	if err != nil {
-		return err
-	}
-
-	if team.TeamID == "" {
-		return errors.New("team not found")
-	}
-
-	if err := s.eventRepo.AddUserToTeam(ctx, teamID, userID, clanID, role); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *eventService) RemoveUserFromTeam(ctx context.Context, teamID, userID string) error {
-	team, err := s.eventRepo.GetTeamByID(ctx, teamID)
-	if err != nil {
-		return err
-	}
-
-	if team.TeamID == "" {
-		return errors.New("team not found")
-	}
-
-	if err := s.eventRepo.RemoveUserFromTeam(ctx, teamID, userID); err != nil {
-		return err
 	}
 
 	return nil
@@ -593,9 +413,6 @@ func (s *eventService) RemoveUserFromTeam(ctx context.Context, teamID, userID st
 
 func (s *eventService) controlEventTimerDenial(eventID string, controlTime time.Time) error {
 	duration := time.Until(controlTime)
-	if duration <= 0 {
-		return errors.New("control time must be in the future")
-	}
 
 	s.timersMutex.Lock()
 	if cancelFunc, exists := s.eventTimers[eventID]; exists {
@@ -641,8 +458,6 @@ func (s *eventService) confirmEvent80(ctx context.Context, eventID string) error
 		return errors.New("event not found")
 	}
 
-	s.eventRepo.ConfirmEvent80(ctx, eventID)
-
 	if err := s.producer.PublishEventConfirmed(ctx, eventID); err != nil {
 		return err
 	}
@@ -667,7 +482,7 @@ func (s *eventService) confirmEvent80(ctx context.Context, eventID string) error
 	if duration > 0 {
 		go func() {
 			time.Sleep(duration)
-			s.StartEvent(context.Background(), eventID, event.UserCreateID)
+			s.startEventAndGames(context.Background(), eventID)
 		}()
 	}
 
@@ -684,7 +499,11 @@ func (s *eventService) declineEvent80(ctx context.Context, eventID string) error
 		return errors.New("event not found")
 	}
 
-	s.eventRepo.DeclineEvent80(ctx, eventID)
+	// Не набрали 80 человек к контрольному времени — ивент реально отменяется
+	// (удаляется), а не просто помечается флагом.
+	if err := s.eventRepo.DeleteEvent(ctx, eventID); err != nil {
+		return err
+	}
 
 	if err := s.producer.PublishEventDeclined(ctx, eventID); err != nil {
 		return err
@@ -711,27 +530,197 @@ func (s *eventService) GetUnfinishedEventsByEventName(ctx context.Context, event
 	return events, nil
 }
 
-func (s *eventService) FinishEvent(ctx context.Context, eventID, userCreateID string) error {
-	event, err := s.eventRepo.GetEventByID(ctx, eventID)
+// FinishEvent как отдельный метод убран: ивент теперь завершается автоматически
+// внутри FinishTeamGame, когда game_count после этой игры достигает target_game_count.
+
+func (s *eventService) GetTeamsByEventID(ctx context.Context, eventID string) ([]domain.Team, error) {
+	return s.eventRepo.GetTeamsByEventID(ctx, eventID)
+}
+
+func (s *eventService) GetTeamByID(ctx context.Context, teamID string) (domain.Team, error) {
+	team, err := s.eventRepo.GetTeamByID(ctx, teamID)
+	if err != nil {
+		return domain.Team{}, err
+	}
+
+	if team.TeamID == "" {
+		return domain.Team{}, errors.New("team not found")
+	}
+
+	return team, nil
+}
+
+func (s *eventService) AddUserToTeam(ctx context.Context, teamID, userEventID string, role domain.Role) error {
+	team, err := s.eventRepo.GetTeamByID(ctx, teamID)
 	if err != nil {
 		return err
 	}
 
-	if event.EventID == "" {
-		return errors.New("event not found")
+	if team.TeamID == "" {
+		return errors.New("team not found")
 	}
 
-	if event.UserCreateID != userCreateID {
-		return errors.New("you are not admin")
-	}
+	return s.eventRepo.AddUserToTeam(ctx, teamID, userEventID, role)
+}
 
-	if err := s.eventRepo.FinishEventDB(ctx, eventID); err != nil {
+func (s *eventService) RemoveUserFromTeam(ctx context.Context, teamID, userEventID string) error {
+	team, err := s.eventRepo.GetTeamByID(ctx, teamID)
+	if err != nil {
 		return err
 	}
 
-	if err := s.producer.PublishEventFinished(ctx, eventID, time.Now()); err != nil {
+	if team.TeamID == "" {
+		return errors.New("team not found")
+	}
+
+	return s.eventRepo.RemoveUserFromTeam(ctx, teamID, userEventID)
+}
+
+func (s *eventService) StartTeamGame(ctx context.Context, teamID string) error {
+	team, err := s.eventRepo.GetTeamByID(ctx, teamID)
+	if err != nil {
+		return err
+	}
+
+	if team.TeamID == "" {
+		return errors.New("team not found")
+	}
+
+	if !team.TimeStart.IsZero() {
+		return errors.New("game already started")
+	}
+
+	now := time.Now()
+	if err := s.eventRepo.StartTeamGame(ctx, teamID, now); err != nil {
+		return err
+	}
+
+	return s.producer.PublishTeamGameStarted(ctx, teamID, team.GameNumber, now)
+}
+
+// FinishTeamGame закрывает игру для одной стороны (team_id — это одна из двух
+// команд, играющих под одним team.game_number). Когда закрыты обе стороны этой
+// игры, засчитывается game_count ивента; когда game_count доходит до
+// target_game_count — ивент считается завершённым (это заменяет старый
+// отдельный FinishEvent RPC).
+func (s *eventService) FinishTeamGame(ctx context.Context, teamID string, winner bool, kills, deaths, revival, equipmentDestroyed int64) error {
+	team, err := s.eventRepo.GetTeamByID(ctx, teamID)
+	if err != nil {
+		return err
+	}
+
+	if team.TeamID == "" {
+		return errors.New("team not found")
+	}
+
+	if !team.TimeFinish.IsZero() {
+		return errors.New("game already finished")
+	}
+
+	if err := s.eventRepo.FinishTeamGame(ctx, teamID, time.Now(), winner, kills, deaths, revival, equipmentDestroyed); err != nil {
+		return err
+	}
+
+	if err := s.producer.PublishTeamGameFinished(ctx, teamID, winner, time.Now()); err != nil {
+		return err
+	}
+
+	event, err := s.eventRepo.GetEventByID(ctx, team.EventID)
+	if err != nil {
+		return err
+	}
+
+	teams, err := s.eventRepo.GetTeamsByEventID(ctx, team.EventID)
+	if err != nil {
+		return err
+	}
+
+	// ищем "второй" team этой же игры (тот же game_number, другой team_id)
+	var sibling *domain.Team
+	for i := range teams {
+		if teams[i].GameNumber == team.GameNumber && teams[i].TeamID != teamID {
+			sibling = &teams[i]
+			break
+		}
+	}
+
+	siblingFinished := sibling != nil && !sibling.TimeFinish.IsZero()
+	if !siblingFinished {
+		// вторая сторона ещё не закрыла игру — ждём её, засчитывать game_count рано
+		return nil
+	}
+
+	if err := s.eventRepo.IncrementEventGameCount(ctx, team.EventID); err != nil {
+		return err
+	}
+
+	newGameCount := event.GameCount + 1
+	if newGameCount < event.TargetGameCount {
+		return nil
+	}
+
+	// это была последняя запланированная игра — считаем итог по всем играм
+	// и завершаем ивент целиком. team.side_leader_id — это users.user_event_id,
+	// а не сырой event.user_create_id/enemy_side_leader_id, поэтому сначала
+	// достаём internal id обоих сайд-лидеров, чтобы было с чем сравнивать team.Winner.
+	creatorUser, err := s.eventRepo.GetUserByID(ctx, event.EventID, event.UserCreateID)
+	if err != nil {
+		return err
+	}
+
+	enemyUser, err := s.eventRepo.GetUserByID(ctx, event.EventID, event.EnemySideLeader)
+	if err != nil {
+		return err
+	}
+
+	allyWins, enemyWins := 0, 0
+	for _, t := range teams {
+		if !t.Winner {
+			continue
+		}
+		switch t.SideLeaderID {
+		case creatorUser.UserEventID:
+			allyWins++
+		case enemyUser.UserEventID:
+			enemyWins++
+		}
+	}
+
+	winnerSide := ""
+	if allyWins > enemyWins {
+		winnerSide = "ally"
+	} else if enemyWins > allyWins {
+		winnerSide = "enemy"
+	}
+
+	if err := s.eventRepo.FinishEventDB(ctx, team.EventID, winnerSide); err != nil {
+		return err
+	}
+
+	if err := s.producer.PublishEventFinished(ctx, team.EventID, winnerSide, time.Now()); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (s *eventService) AddTeamMemberStats(ctx context.Context, teamID, userEventID string, kills, deaths, points int64) error {
+	team, err := s.eventRepo.GetTeamByID(ctx, teamID)
+	if err != nil {
+		return err
+	}
+
+	if team.TeamID == "" {
+		return errors.New("team not found")
+	}
+
+	if err := s.eventRepo.AddTeamMemberStats(ctx, teamID, userEventID, kills, deaths, points); err != nil {
+		return err
+	}
+
+	return s.producer.PublishTeamMemberStatsAdded(ctx, teamID, userEventID, kills, deaths, points)
+}
+
+func (s *eventService) GetTeamStats(ctx context.Context, teamID string) ([]domain.TeamMember, error) {
+	return s.eventRepo.GetTeamStats(ctx, teamID)
 }

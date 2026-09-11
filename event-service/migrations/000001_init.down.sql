@@ -1,4 +1,4 @@
 DROP TABLE IF EXISTS events;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS games;
-DROP TABLE IF EXISTS game_user_stats;
+DROP TABLE IF EXISTS team_members;

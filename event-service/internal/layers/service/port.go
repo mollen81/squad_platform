@@ -7,7 +7,7 @@ import (
 )
 
 type EventService interface {
-	CreateEvent(ctx context.Context, userCreateID, enemySideLeader, eventName string, timeStart time.Time) error
+	CreateEvent(ctx context.Context, userCreatorID, creatorClanID, enemySideLeaderID, enemySideLeaderClanID, eventName string, timeStart time.Time, targetGameCount int64) error
 	GetEventsByCreatorId(ctx context.Context, userCreateID string) ([]*domain.Event, error)
 	GetLastEventByCreatorId(ctx context.Context, userCreateID string) (*domain.Event, error)
 	GetEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error)
@@ -15,24 +15,19 @@ type EventService interface {
 	GetUnfinishedEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error)
 	UpdateTimeEvent(ctx context.Context, eventID, userCreateID string, newTimeStart time.Time) error
 	DeleteEvent(ctx context.Context, eventID, userCreateID string) error
-	JoinToEvent(ctx context.Context, eventID, userID string, joinTime time.Time) error
+	JoinToEvent(ctx context.Context, eventID, userID, clanID string, enemy bool) error
+	GetEventMembersList(ctx context.Context, eventID string) ([]domain.User, error)
 	LeaveEvent(ctx context.Context, userID, eventID string) error
-	SetRole(ctx context.Context, eventID, sideLeaderID, userID string, role domain.Role) error
-	CreateTeamsForEvent(ctx context.Context, eventID string) error
+	SetRole(ctx context.Context, eventID, yourID, userID string, role domain.Role) error
+
 	GetTeamsByEventID(ctx context.Context, eventID string) ([]domain.Team, error)
-	StartEvent(ctx context.Context, eventID, sideLeaderID string) error
-	FinishEvent(ctx context.Context, eventID, userCreateID string) error
-	CreateGame(ctx context.Context, eventID, mapName string, timeStart time.Time) error
-	GetGameByID(ctx context.Context, gameID string) (domain.Game, error)
-	GetGamesByEventID(ctx context.Context, eventID string) ([]domain.Game, error)
-	UpdateGameWinner(ctx context.Context, gameID, winnerTeamID string) error
-	UpdateGameLoser(ctx context.Context, gameID, loserTeamID string) error
-	FinishGame(ctx context.Context, gameID string, timeFinish time.Time) error
-	AddUserStatsToGame(ctx context.Context, gameID, userID string, kills, deaths, points int64) error
-	GetGameStats(ctx context.Context, gameID string) ([]domain.GameUserStats, error)
 	GetTeamByID(ctx context.Context, teamID string) (domain.Team, error)
-	AddUserToTeam(ctx context.Context, teamID, userID, clanID string, role domain.Role) error
-	RemoveUserFromTeam(ctx context.Context, teamID, userID string) error
+	AddUserToTeam(ctx context.Context, teamID, userEventID string, role domain.Role) error
+	RemoveUserFromTeam(ctx context.Context, teamID, userEventID string) error
+	StartTeamGame(ctx context.Context, teamID string) error
+	FinishTeamGame(ctx context.Context, teamID string, winner bool, kills, deaths, revival, equipmentDestroyed int64) error
+	AddTeamMemberStats(ctx context.Context, teamID, userEventID string, kills, deaths, points int64) error
+	GetTeamStats(ctx context.Context, teamID string) ([]domain.TeamMember, error)
 }
 
 type EventRepository interface {
@@ -45,33 +40,30 @@ type EventRepository interface {
 	GetEventByID(ctx context.Context, eventID string) (domain.Event, error)
 	UpdateTimeEvent(ctx context.Context, eventID string, newTimeStart time.Time) error
 	UpdateTimeFinishEvent(ctx context.Context, eventID string, newTimeFinish time.Time) error
-	UpdateEventWinner(ctx context.Context, eventID, winnerTeamID string) error
-	UpdateEventLoser(ctx context.Context, eventID, loserTeamID string) error
 	RenameEvent(ctx context.Context, eventID, oldName, newName string) error
 	DeleteEvent(ctx context.Context, eventID string) error
-	JoinToEvent(ctx context.Context, userID, eventID string, joinTime time.Time) error
+	JoinToEvent(ctx context.Context, userEventID, eventID, userID, clanID string, enemy bool, joinTime time.Time) error
+	IsUserInEvent(ctx context.Context, eventID, userID string) (bool, error)
+	GetEventMembersList(ctx context.Context, eventID string) ([]domain.User, error)
 	LeaveEvent(ctx context.Context, userID, eventID string) error
 	UpdateUserRole(ctx context.Context, userID, eventID string, role domain.Role) error
-	CreateGame(ctx context.Context, game domain.Game) error
-	GetGameByID(ctx context.Context, gameID string) (domain.Game, error)
-	GetGamesByEventID(ctx context.Context, eventID string) ([]domain.Game, error)
-	UpdateGameWinner(ctx context.Context, gameID, winnerTeamID string) error
-	UpdateGameLoser(ctx context.Context, gameID, loserTeamID string) error
-	FinishGame(ctx context.Context, gameID string, timeFinish time.Time) error
-	GetUserByID(ctx context.Context, userID string) (domain.User, error)
-	AddUserStatsToGame(ctx context.Context, stats domain.GameUserStats) error
-	GetGameStats(ctx context.Context, gameID string) ([]domain.GameUserStats, error)
-	CreateTeam(ctx context.Context, team domain.Team) error
-	GetTeamByID(ctx context.Context, teamID string) (domain.Team, error)
-	GetTeamsByEventID(ctx context.Context, eventID string) ([]domain.Team, error)
-	ConfirmTeam(ctx context.Context, teamID string) error
+	GetUserByID(ctx context.Context, eventID, userID string) (domain.User, error)
 	CheckSixClanMembers(ctx context.Context, eventID, userID, clanID string) (bool, error)
 	UpdateUserSixClanMembers(ctx context.Context, userID, eventID string, hasSixClanMembers bool) error
-	AddUserToTeam(ctx context.Context, teamID, userID, clanID string, role domain.Role) error
-	RemoveUserFromTeam(ctx context.Context, teamID, userID string) error
+	UpdateSixClanMembersForClan(ctx context.Context, eventID, clanID string, hasSixClanMembers bool) error
+	CountClanMembersInEvent(ctx context.Context, eventID, clanID string) (int, error)
 	GetUserIDsByEventID(ctx context.Context, eventID string) ([]string, error)
-	ConfirmEvent80(ctx context.Context, eventID string)
-	DeclineEvent80(ctx context.Context, eventID string)
 	StartEventDB(ctx context.Context, eventID string) error
-	FinishEventDB(ctx context.Context, eventID string) error
+	IncrementEventGameCount(ctx context.Context, eventID string) error
+	FinishEventDB(ctx context.Context, eventID, winnerSide string) error
+
+	CreateTeam(ctx context.Context, team domain.Team) error
+	GetTeamsByEventID(ctx context.Context, eventID string) ([]domain.Team, error)
+	GetTeamByID(ctx context.Context, teamID string) (domain.Team, error)
+	AddUserToTeam(ctx context.Context, teamID, userEventID string, role domain.Role) error
+	RemoveUserFromTeam(ctx context.Context, teamID, userEventID string) error
+	StartTeamGame(ctx context.Context, teamID string, timeStart time.Time) error
+	FinishTeamGame(ctx context.Context, teamID string, timeFinish time.Time, winner bool, kills, deaths, revival, equipmentDestroyed int64) error
+	AddTeamMemberStats(ctx context.Context, teamID, userEventID string, kills, deaths, points int64) error
+	GetTeamStats(ctx context.Context, teamID string) ([]domain.TeamMember, error)
 }

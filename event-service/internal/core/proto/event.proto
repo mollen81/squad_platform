@@ -18,84 +18,101 @@ service EventService {
     rpc JoinToEvent(JoinToEventRequest) returns (JoinToEventResponse);
     rpc LeaveEvent(LeaveEventRequest) returns (LeaveEventResponse);
     rpc SetRole(SetRoleRequest) returns (SetRoleResponse);
-    rpc CreateTeamsForEvent(CreateTeamsForEventRequest) returns (CreateTeamsForEventResponse);
+    rpc GetEventMembersList(GetEventMembersListRequest) returns (GetEventMembersListResponse);
     rpc GetTeamsByEventID(GetTeamsByEventIDRequest) returns (GetTeamsByEventIDResponse);
-    rpc StartEvent(StartEventRequest) returns (StartEventResponse);
-    rpc FinishEvent(FinishEventRequest) returns (FinishEventResponse);
-    rpc CreateGame(CreateGameRequest) returns (CreateGameResponse);
-    rpc GetGameByID(GetGameByIDRequest) returns (GetGameByIDResponse);
-    rpc GetGamesByEventID(GetGamesByEventIDRequest) returns (GetGamesByEventIDResponse);
-    rpc UpdateGameWinner(UpdateGameWinnerRequest) returns (UpdateGameWinnerResponse);
-    rpc UpdateGameLoser(UpdateGameLoserRequest) returns (UpdateGameLoserResponse);
-    rpc FinishGame(FinishGameRequest) returns (FinishGameResponse);
-    rpc AddUserStatsToGame(AddUserStatsToGameRequest) returns (AddUserStatsToGameResponse);
-    rpc GetGameStats(GetGameStatsRequest) returns (GetGameStatsResponse);
+    rpc StartTeamGame(StartTeamGameRequest) returns (StartTeamGameResponse);
+    rpc FinishTeamGame(FinishTeamGameRequest) returns (FinishTeamGameResponse);
+    rpc AddTeamMemberStats(AddTeamMemberStatsRequest) returns (AddTeamMemberStatsResponse);
+    rpc GetTeamStats(GetTeamStatsRequest) returns (GetTeamStatsResponse);
     rpc GetTeamByID(GetTeamByIDRequest) returns (GetTeamByIDResponse);
     rpc AddUserToTeam(AddUserToTeamRequest) returns (AddUserToTeamResponse);
     rpc RemoveUserFromTeam(RemoveUserFromTeamRequest) returns (RemoveUserFromTeamResponse);
+
+    // Удалены: CreateTeamsForEvent, StartEvent, CreateGame, GetGameByID,
+    // GetGamesByEventID, UpdateGameWinner, UpdateGameLoser, FinishGame, FinishEvent.
+    // FinishEvent больше не нужен отдельным RPC: ивент считается завершённым, когда
+    // завершается (FinishTeamGame) последняя по счёту игра — event.game_count
+    // достигает event.target_game_count, это выставляется на сервере внутри
+    // FinishTeamGame, а не отдельным вызовом.
+    // Сущности Game/GameUserStats больше нет — её обязанности берёт на себя Team
+    // (одна Team = одна конкретная игра внутри ивента) и TeamMember (участник +
+    // его личная статистика). Команды под все запланированные игры создаются
+    // сразу внутри CreateEvent (цикл на target_game_count). Начало игры —
+    // StartTeamGame (проставляет team.time_start); пустой time_start = игра ещё
+    // не началась, пустой time_finish = ещё не окончена. Завершение игры/результат
+    // команды — FinishTeamGame (проставляет и time_finish, и итог).
 }
 
 message Event {
     string event_id = 1;
-    string name = 2;
+    string event_name = 2;
     string user_create_id = 3;
-    string enemy_side_leader = 4;
+    string enemy_side_leader_id = 4;
     int64 user_count = 5;
     google.protobuf.Timestamp time_start = 6;
     google.protobuf.Timestamp time_finish = 7;
     google.protobuf.Timestamp create_time = 8;
-    string event_team_winner = 9;
-    string event_team_loser = 10;
-    bool is_confirmed = 11;
-    bool is_started = 12;
-    bool is_finished = 13;
+    // "" | "ally" | "enemy" — заменяет старые event_team_winner/event_team_loser
+    string winner_side = 9;
+    bool is_started = 10;
+    bool is_finished = 11;
+    int64 target_game_count = 12;
+    int64 game_count = 13;
 }
 
 message User {
     string user_event_id = 1;
     string user_id = 2;
-    string clan_id = 3;
-    string team_id = 4;
-    string role = 5;
-    bool six_clan_members = 6;
-}
-
-message Game {
-    string game_id = 1;
-    string event_id = 2;
-    string user_create_id = 3;
-    string enemy_side_leader = 4;
-    string team1_id = 5;
-    string team2_id = 6;
-    string map_name = 7;
-    string game_team_winner_id = 8;
-    string game_team_loser_id = 9;
-    google.protobuf.Timestamp time_start = 10;
-    google.protobuf.Timestamp time_finish = 11;
+    string event_id = 3;
+    string clan_id = 4;
+    bool enemy = 5;
+    string role = 6;
+    bool six_clan_members = 7;
+    google.protobuf.Timestamp join_time = 8;
 }
 
 message Team {
     string team_id = 1;
     string event_id = 2;
     string side_leader_id = 3;
-    bool is_confirmed = 4;
-    repeated User members = 5;
+    int64 game_number = 4;
+    int64 members_count = 5;
+    bool winner = 6;
+    int64 kills = 7;
+    int64 deaths = 8;
+    int64 revival = 9;
+    int64 equipment_destroyed = 10;
+    // Пустой time_start => игра ещё не началась. Пустой time_finish => игра ещё не окончена.
+    google.protobuf.Timestamp time_start = 11;
+    google.protobuf.Timestamp time_finish = 12;
 }
 
-message GameUserStats {
-    string game_user_stats_id = 1;
-    Game game = 2;
-    User user = 3;
+message TeamMember {
+    string team_id = 1;
+    string user_event_id = 2;
+    string role = 3;
     int64 kills = 4;
     int64 deaths = 5;
     int64 points = 6;
 }
 
+message GetEventMembersListRequest {
+    string event_id = 1;
+}
+
+message GetEventMembersListResponse {
+    repeated User users = 1;
+    string error = 2;
+}
+
 message CreateEventRequest {
-    string user_create_id = 1;
-    string enemy_side_leader = 2;
-    string event_name = 3;
-    google.protobuf.Timestamp time_start = 4;
+    string user_creator_id = 1;
+    string creator_clan_id = 2;
+    string enemy_side_leader_id = 3;
+    string enemy_side_leader_clan_id = 4;
+    string event_name = 5;
+    google.protobuf.Timestamp time_start = 6;
+    int64 target_game_count = 7;
 }
 
 message CreateEventResponse {
@@ -151,7 +168,8 @@ message DeleteEventResponse {
 message JoinToEventRequest {
     string event_id = 1;
     string user_id = 2;
-    google.protobuf.Timestamp join_time = 3;
+    string clan_id = 3;
+    bool enemy = 4;
 }
 
 message JoinToEventResponse {
@@ -178,14 +196,6 @@ message SetRoleResponse {
     string error = 1;
 }
 
-message CreateTeamsForEventRequest {
-    string event_id = 1;
-}
-
-message CreateTeamsForEventResponse {
-    string error = 1;
-}
-
 message GetTeamsByEventIDRequest {
     string event_id = 1;
 }
@@ -195,88 +205,45 @@ message GetTeamsByEventIDResponse {
     string error = 2;
 }
 
-message StartEventRequest {
-    string event_id = 1;
-    string side_leader_id = 2;
+message StartTeamGameRequest {
+    string team_id = 1;
 }
 
-message StartEventResponse {
+message StartTeamGameResponse {
     string error = 1;
 }
 
-message CreateGameRequest {
-    string event_id = 1;
-    string map_name = 2;
-    google.protobuf.Timestamp time_start = 3;
+message FinishTeamGameRequest {
+    string team_id = 1;
+    bool winner = 2;
+    int64 kills = 3;
+    int64 deaths = 4;
+    int64 revival = 5;
+    int64 equipment_destroyed = 6;
 }
 
-message CreateGameResponse {
+message FinishTeamGameResponse {
     string error = 1;
 }
 
-message GetGameByIDRequest {
-    string game_id = 1;
-}
-
-message GetGameByIDResponse {
-    Game game = 1;
-    string error = 2;
-}
-
-message GetGamesByEventIDRequest {
-    string event_id = 1;
-}
-
-message GetGamesByEventIDResponse {
-    repeated Game games = 1;
-    string error = 2;
-}
-
-message UpdateGameWinnerRequest {
-    string game_id = 1;
-    string winner_team_id = 2;
-}
-
-message UpdateGameWinnerResponse {
-    string error = 1;
-}
-
-message UpdateGameLoserRequest {
-    string game_id = 1;
-    string loser_team_id = 2;
-}
-
-message UpdateGameLoserResponse {
-    string error = 1;
-}
-
-message FinishGameRequest {
-    string game_id = 1;
-    google.protobuf.Timestamp time_finish = 2;
-}
-
-message FinishGameResponse {
-    string error = 1;
-}
-
-message AddUserStatsToGameRequest {
-    string game_id = 1;
-    string user_id = 2;
+message AddTeamMemberStatsRequest {
+    string team_id = 1;
+    string user_event_id = 2;
     int64 kills = 3;
     int64 deaths = 4;
     int64 points = 5;
 }
 
-message AddUserStatsToGameResponse {
+message AddTeamMemberStatsResponse {
     string error = 1;
 }
 
-message GetGameStatsRequest {
-    string game_id = 1;
+message GetTeamStatsRequest {
+    string team_id = 1;
 }
 
-message GetGameStatsResponse {
-    repeated GameUserStats stats = 1;
+message GetTeamStatsResponse {
+    repeated TeamMember stats = 1;
     string error = 2;
 }
 
@@ -291,9 +258,8 @@ message GetTeamByIDResponse {
 
 message AddUserToTeamRequest {
     string team_id = 1;
-    string user_id = 2;
-    string clan_id = 3;
-    string role = 4;
+    string user_event_id = 2;
+    string role = 3;
 }
 
 message AddUserToTeamResponse {
@@ -302,7 +268,7 @@ message AddUserToTeamResponse {
 
 message RemoveUserFromTeamRequest {
     string team_id = 1;
-    string user_id = 2;
+    string user_event_id = 2;
 }
 
 message RemoveUserFromTeamResponse {
@@ -325,13 +291,4 @@ message GetUnfinishedEventsByEventNameRequest {
 message GetUnfinishedEventsByEventNameResponse {
     repeated Event events = 1;
     string error = 2;
-}
-
-message FinishEventRequest {
-    string event_id = 1;
-    string user_create_id = 2;
-}
-
-message FinishEventResponse {
-    string error = 1;
 }

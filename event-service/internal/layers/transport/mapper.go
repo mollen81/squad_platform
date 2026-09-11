@@ -9,19 +9,19 @@ import (
 
 func toProtoEvent(e domain.Event) *pb.Event {
 	return &pb.Event{
-		EventId:         e.EventID,
-		Name:            e.Name,
-		UserCreateId:    e.UserCreateID,
-		EnemySideLeader: e.EnemySideLeader,
-		UserCount:       e.UserCount,
-		TimeStart:       timestamppb.New(e.TimeStart),
-		TimeFinish:      timestamppb.New(e.TimeFinish),
-		CreateTime:      timestamppb.New(e.CreateTime),
-		EventTeamWinner: e.Event_team_winner,
-		EventTeamLoser:  e.Event_team_loser,
-		IsConfirmed:     e.IsConfirmed,
-		IsStarted:       e.IsStarted,
-		IsFinished:      e.IsFinished,
+		EventId:           e.EventID,
+		EventName:         e.Name,
+		UserCreateId:      e.UserCreateID,
+		EnemySideLeaderId: e.EnemySideLeader,
+		UserCount:         e.UserCount,
+		TimeStart:         timestamppb.New(e.TimeStart),
+		TimeFinish:        timestamppb.New(e.TimeFinish),
+		CreateTime:        timestamppb.New(e.CreateTime),
+		WinnerSide:        e.WinnerSide,
+		IsStarted:         e.IsStarted,
+		IsFinished:        e.IsFinished,
+		TargetGameCount:   e.TargetGameCount,
+		GameCount:         e.GameCount,
 	}
 }
 
@@ -46,49 +46,74 @@ func toProtoEventsSlice(events []domain.Event) []*pb.Event {
 
 func toProtoUser(u domain.User) *pb.User {
 	return &pb.User{
-		UserEventId: u.UserEventID,
-		UserId:      u.UserID,
-		ClanId:      u.ClanID,
-		TeamId:      u.TeamID,
-		Role:        string(u.Role),
+		UserEventId:    u.UserEventID,
+		UserId:         u.UserID,
+		EventId:        u.EventID,
+		ClanId:         u.ClanID,
+		Enemy:          u.Enemy,
+		Role:           string(u.Role),
+		SixClanMembers: u.SixClanMembers,
+		JoinTime:       timestamppb.New(u.JoinTime),
 	}
 }
 
-func toProtoGame(g domain.Game) *pb.Game {
-	return &pb.Game{
-		GameId:           g.GameID,
-		EventId:          g.EventID,
-		MapName:            g.MapName,
-		GameTeamWinnerId: g.Game_team_winner_id,
-		GameTeamLoserId:  g.Game_team_loser_id,
-		TimeStart:        timestamppb.New(g.TimeStart),
-		TimeFinish:       timestamppb.New(g.TimeFinish),
-	}
-}
-
-func toProtoGames(games []domain.Game) []*pb.Game {
-	result := make([]*pb.Game, 0, len(games))
-	for _, g := range games {
-		result = append(result, toProtoGame(g))
+func toProtoUsersSlice(users []domain.User) []*pb.User {
+	result := make([]*pb.User, 0, len(users))
+	for _, e := range users {
+		result = append(result, toProtoUser(e))
 	}
 	return result
 }
 
-func toProtoGameUserStats(s domain.GameUserStats) *pb.GameUserStats {
-	return &pb.GameUserStats{
-		GameUserStatsId: s.GameUserStatsID,
-		Game:            toProtoGame(s.Game),
-		User:            toProtoUser(s.User),
-		Kills:           s.Kills,
-		Deaths:          s.Deaths,
-		Points:          s.Points,
+func toProtoTeam(t domain.Team) *pb.Team {
+	team := &pb.Team{
+		TeamId:             t.TeamID,
+		EventId:            t.EventID,
+		SideLeaderId:       t.SideLeaderID,
+		GameNumber:         t.GameNumber,
+		MembersCount:       t.MembersCount,
+		Winner:             t.Winner,
+		Kills:              t.Kills,
+		Deaths:             t.Deaths,
+		Revival:            t.Revival,
+		EquipmentDestroyed: t.EquipmentDestroyed,
+	}
+
+	// пустой (zero-value) time.Time -> оставляем поле в proto как nil,
+	// а не как timestamp "0001-01-01" — чтобы клиент мог проверить "игра не началась/не окончена" по наличию поля
+	if !t.TimeStart.IsZero() {
+		team.TimeStart = timestamppb.New(t.TimeStart)
+	}
+	if !t.TimeFinish.IsZero() {
+		team.TimeFinish = timestamppb.New(t.TimeFinish)
+	}
+
+	return team
+}
+
+func toProtoTeams(teams []domain.Team) []*pb.Team {
+	result := make([]*pb.Team, 0, len(teams))
+	for _, t := range teams {
+		result = append(result, toProtoTeam(t))
+	}
+	return result
+}
+
+func toProtoTeamMember(m domain.TeamMember) *pb.TeamMember {
+	return &pb.TeamMember{
+		TeamId:      m.TeamID,
+		UserEventId: m.UserEventID,
+		Role:        string(m.Role),
+		Kills:       m.Kills,
+		Deaths:      m.Deaths,
+		Points:      m.Points,
 	}
 }
 
-func toProtoGameUserStatsSlice(stats []domain.GameUserStats) []*pb.GameUserStats {
-	result := make([]*pb.GameUserStats, 0, len(stats))
-	for _, s := range stats {
-		result = append(result, toProtoGameUserStats(s))
+func toProtoTeamMembers(members []domain.TeamMember) []*pb.TeamMember {
+	result := make([]*pb.TeamMember, 0, len(members))
+	for _, m := range members {
+		result = append(result, toProtoTeamMember(m))
 	}
 	return result
 }
