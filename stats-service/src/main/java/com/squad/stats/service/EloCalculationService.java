@@ -59,16 +59,16 @@ public class EloCalculationService {
 
             // Трубам важнее уничтожать технику, чем пехоту
             case "Light Anti-Tank" ->
-                    kdDiff * 1.0 + destroyedVehicles * 5.5;
+                    kdDiff * 1.0 + destroyedVehicles * 2.5;
 
             case "Heavy Anti-Tank" ->
-                    kdDiff * 0.8 + destroyedVehicles * 9.0;
+                    kdDiff * 0.8 + destroyedVehicles * 3.25;
 
             case "Combat Engineer", "Sapper", "Saboteur" ->
-                    kdDiff * 0.65 + destroyedVehicles * 6.5;
+                    kdDiff * 1.15 + destroyedVehicles * 2.0;
 
             case "Infiltrator" ->
-                    kdDiff * 1.1 + destroyedVehicles * 2.5;
+                    kdDiff * 1.3 + destroyedVehicles * 1.5;
 
             default ->
                     kdDiff * 1.0 + revives * 0.1;
