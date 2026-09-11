@@ -1,5 +1,4 @@
 rootProject.name = 'squad_platform'
 include 'user-service'
 include 'gateway'
-include 'battlemetrics-service'
 include 'stats-service'
