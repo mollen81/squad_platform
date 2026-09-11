@@ -27,20 +27,6 @@ service EventService {
     rpc GetTeamByID(GetTeamByIDRequest) returns (GetTeamByIDResponse);
     rpc AddUserToTeam(AddUserToTeamRequest) returns (AddUserToTeamResponse);
     rpc RemoveUserFromTeam(RemoveUserFromTeamRequest) returns (RemoveUserFromTeamResponse);
-
-    // Удалены: CreateTeamsForEvent, StartEvent, CreateGame, GetGameByID,
-    // GetGamesByEventID, UpdateGameWinner, UpdateGameLoser, FinishGame, FinishEvent.
-    // FinishEvent больше не нужен отдельным RPC: ивент считается завершённым, когда
-    // завершается (FinishTeamGame) последняя по счёту игра — event.game_count
-    // достигает event.target_game_count, это выставляется на сервере внутри
-    // FinishTeamGame, а не отдельным вызовом.
-    // Сущности Game/GameUserStats больше нет — её обязанности берёт на себя Team
-    // (одна Team = одна конкретная игра внутри ивента) и TeamMember (участник +
-    // его личная статистика). Команды под все запланированные игры создаются
-    // сразу внутри CreateEvent (цикл на target_game_count). Начало игры —
-    // StartTeamGame (проставляет team.time_start); пустой time_start = игра ещё
-    // не началась, пустой time_finish = ещё не окончена. Завершение игры/результат
-    // команды — FinishTeamGame (проставляет и time_finish, и итог).
 }
 
 message Event {
@@ -90,10 +76,11 @@ message Team {
 message TeamMember {
     string team_id = 1;
     string user_event_id = 2;
-    string role = 3;
-    int64 kills = 4;
-    int64 deaths = 5;
-    int64 points = 6;
+    string user_id = 3;
+    string role = 4;
+    int64 kills = 5;
+    int64 deaths = 6;
+    int64 points = 7;
 }
 
 message GetEventMembersListRequest {

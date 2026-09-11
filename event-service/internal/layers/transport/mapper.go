@@ -103,6 +103,7 @@ func toProtoTeamMember(m domain.TeamMember) *pb.TeamMember {
 	return &pb.TeamMember{
 		TeamId:      m.TeamID,
 		UserEventId: m.UserEventID,
+		UserId:      m.UserID,
 		Role:        string(m.Role),
 		Kills:       m.Kills,
 		Deaths:      m.Deaths,

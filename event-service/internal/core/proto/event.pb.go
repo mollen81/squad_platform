@@ -400,10 +400,11 @@ type TeamMember struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TeamId        string                 `protobuf:"bytes,1,opt,name=team_id,json=teamId,proto3" json:"team_id,omitempty"`
 	UserEventId   string                 `protobuf:"bytes,2,opt,name=user_event_id,json=userEventId,proto3" json:"user_event_id,omitempty"`
-	Role          string                 `protobuf:"bytes,3,opt,name=role,proto3" json:"role,omitempty"`
-	Kills         int64                  `protobuf:"varint,4,opt,name=kills,proto3" json:"kills,omitempty"`
-	Deaths        int64                  `protobuf:"varint,5,opt,name=deaths,proto3" json:"deaths,omitempty"`
-	Points        int64                  `protobuf:"varint,6,opt,name=points,proto3" json:"points,omitempty"`
+	UserId        string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	Kills         int64                  `protobuf:"varint,5,opt,name=kills,proto3" json:"kills,omitempty"`
+	Deaths        int64                  `protobuf:"varint,6,opt,name=deaths,proto3" json:"deaths,omitempty"`
+	Points        int64                  `protobuf:"varint,7,opt,name=points,proto3" json:"points,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -448,6 +449,13 @@ func (x *TeamMember) GetTeamId() string {
 func (x *TeamMember) GetUserEventId() string {
 	if x != nil {
 		return x.UserEventId
+	}
+	return ""
+}
+
+func (x *TeamMember) GetUserId() string {
+	if x != nil {
+		return x.UserId
 	}
 	return ""
 }
@@ -2590,15 +2598,16 @@ const file_event_proto_rawDesc = "" +
 	"\n" +
 	"time_start\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\ttimeStart\x12;\n" +
 	"\vtime_finish\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"timeFinish\"\xa3\x01\n" +
+	"timeFinish\"\xbc\x01\n" +
 	"\n" +
 	"TeamMember\x12\x17\n" +
 	"\ateam_id\x18\x01 \x01(\tR\x06teamId\x12\"\n" +
-	"\ruser_event_id\x18\x02 \x01(\tR\vuserEventId\x12\x12\n" +
-	"\x04role\x18\x03 \x01(\tR\x04role\x12\x14\n" +
-	"\x05kills\x18\x04 \x01(\x03R\x05kills\x12\x16\n" +
-	"\x06deaths\x18\x05 \x01(\x03R\x06deaths\x12\x16\n" +
-	"\x06points\x18\x06 \x01(\x03R\x06points\"7\n" +
+	"\ruser_event_id\x18\x02 \x01(\tR\vuserEventId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\x12\x12\n" +
+	"\x04role\x18\x04 \x01(\tR\x04role\x12\x14\n" +
+	"\x05kills\x18\x05 \x01(\x03R\x05kills\x12\x16\n" +
+	"\x06deaths\x18\x06 \x01(\x03R\x06deaths\x12\x16\n" +
+	"\x06points\x18\a \x01(\x03R\x06points\"7\n" +
 	"\x1aGetEventMembersListRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\"V\n" +
 	"\x1bGetEventMembersListResponse\x12!\n" +

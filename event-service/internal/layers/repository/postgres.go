@@ -769,9 +769,10 @@ func (r *postgresRepository) AddTeamMemberStats(ctx context.Context, teamID, use
 
 func (r *postgresRepository) GetTeamStats(ctx context.Context, teamID string) ([]domain.TeamMember, error) {
 	query := `
-		SELECT team_id, user_event_id, role, kills, deaths, points
-		FROM team_members
-		WHERE team_id = $1
+		SELECT tm.team_id, tm.user_event_id, u.user_id, tm.role, tm.kills, tm.deaths, tm.points
+		FROM team_members tm
+		JOIN users u ON tm.user_event_id = u.user_event_id
+		WHERE tm.team_id = $1
 	`
 
 	rows, err := r.pool.Query(ctx, query, teamID)
@@ -789,6 +790,7 @@ func (r *postgresRepository) GetTeamStats(ctx context.Context, teamID string) ([
 		err := rows.Scan(
 			&m.TeamID,
 			&m.UserEventID,
+			&m.UserID,
 			&m.Role,
 			&m.Kills,
 			&m.Deaths,
