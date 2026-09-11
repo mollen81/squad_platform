@@ -41,7 +41,7 @@ public class StatsGrpcService extends StatsServiceGrpc.StatsServiceImplBase {
 
             GetPlayerStatsResponse response = GetPlayerStatsResponse.newBuilder()
                     .setEloRating(userStats.getEloRating())
-                    .setFavoriteRole(userStats.getFavoriteRole())
+                    .setFavouriteRole(userStats.getFavoriteRole())
                     .setKills(userStats.getKills())
                     .setDeaths(userStats.getKills())
                     .setRevives(userStats.getRevives())

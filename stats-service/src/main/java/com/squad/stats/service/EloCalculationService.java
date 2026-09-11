@@ -1,113 +1,85 @@
 package com.squad.stats.service;
 
-import com.squad.stats.dto.PlayerStatsFetchedEvent;
-import com.squad.stats.dto.UserStats;
-import com.squad.stats.repository.UserStatsRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.util.Optional;
-
 @Service
-@Slf4j
-@RequiredArgsConstructor
 public class EloCalculationService {
-    private final UserStatsRepository userStatsRepository;
 
-    public void processAndSaveStats(PlayerStatsFetchedEvent event) {
-        log.info("Starting the ELO calculation for the user {}", event.getSteamId());
+    private static final int MIN_ELO = 100;
 
-        Optional<UserStats> existingStatsOpt = userStatsRepository.findBySteamId(event.getSteamId());
-
-        UserStats stats;
-        int newElo = 0;
-
-        if(existingStatsOpt.isEmpty()) {
-            log.info("New player. Launching the primary ELO calibration algorithm.");
-            newElo = calculateInitialElo(event);
-
-            stats = UserStats.builder()
-                    .userId(event.getId())
-                    .steamId(event.getSteamId())
-                    .build();
-
-        }
-        else {
-            // after match elo update
-            stats = existingStatsOpt.get();
-        }
-
-        // data update
-        stats.setEloRating(newElo);
-        stats.setTotalPlaytimeHours(event.getTotalPlaytimeHours());
-        stats.setKills(event.getKills());
-        stats.setDeaths(event.getKills());
-        stats.setRevives(event.getRevives());
-        stats.setFavoriteRole(event.getFavouriteRole());
-        stats.setLastUpdatedAt(LocalDateTime.now());
-
-        userStatsRepository.save(stats);
-        log.info("The calculation is completed! SteamID: {}. The final ELO: {}", stats.getSteamId(), stats.getEloRating());
+    // Elo calculation in registration moment
+    public int calculateInitialElo(int playtimeHours) {
+        if (playtimeHours < 50) return 900;
+        if (playtimeHours < 300) return 1000;
+        if (playtimeHours < 800) return 1150;
+        if (playtimeHours < 1500) return 1300;
+        return 1450;
     }
 
-    private int calculateInitialElo(PlayerStatsFetchedEvent event) {
-        int baseElo = (int) (1000.0 + event.getTotalPlaytimeHours() * 0.1);
+    // Elo calculation after match
+    public int calculateMatchElo(int currentElo, boolean isWin, String role,
+                                 int kills, int deaths, int revives, int destroyedVehicles) {
 
-        double kdRatio = event.getDeaths() > 0
-                ? (double) event.getKills() / event.getDeaths()
-                : event.getKills();
+        // 1. Базовые очки за исход матча
+        int baseDelta = isWin ? 25 : -25;
 
-        int kdDiff = event.getKills() - event.getDeaths();
+        // 2. Личные показатели
+        int kdDiff = kills - deaths;
+        double kdRatio = deaths > 0 ? (double) kills / deaths : kills;
 
-        String role = event.getFavouriteRole() != null
-                ? event.getFavouriteRole()
-                : "Rifleman";
+        String safeRole = role != null ? role : "Rifleman";
 
-        return switch (role) {
+        // 3. Расчет личного модификатора в зависимости от роли (балансировка вашей формулы под рамки одного матча)
+        double performanceDelta = switch (safeRole) {
 
+            // Пехоте важны фраги и немного поднятия
             case "Rifleman", "Ambusher", "Raider", "Automatic Rifleman", "Machine Gunner" ->
-                (int) (baseElo + kdDiff * 0.13 + 0.2 * event.getRevives());
+                    kdDiff * 1.3 + revives * 0.2;
 
+            // Медику фраги почти не дают бонуса, главный упор на поднятия
             case "Medic" ->
-                    (int) (baseElo + kdDiff * 0.035 + 0.65 * event.getRevives());
+                    kdDiff * 0.35 + revives * 1.5;
 
+            // Снайпер наказывается за K/D ниже 1.0 и получает сильный буст за высокий K/D
             case "Sniper", "Marksman" ->
-                   (int) (kdRatio / 2 * (baseElo + kdDiff * 0.8));
+                    (kdRatio - 1.0) * 5.0 + kdDiff * 0.8;
 
             case "Grenadier", "Scout" ->
-                (int) (kdRatio * (baseElo + kdDiff * 0.2) + 0.1 * event.getRevives());
+                    (kdRatio - 1.0) * 2.0 + kdDiff * 0.5 + revives * 0.1;
 
+            // Командирам даем фиксированный бонус за организацию (компенсирует просадки по K/D)
             case "Squad Leader" ->
-                    (int) (baseElo + event.getTotalPlaytimeHours() * 0.05 + kdDiff * 0.1);
+                    5.0 + kdDiff * 1.0;
 
             case "Lead Crewman", "Crewman" ->
-                    (int) (baseElo + kdDiff * 0.4);
+                    kdDiff * 1.5;
 
             case "Lead Pilot" ->
-                    (int) (baseElo + event.getTotalPlaytimeHours() * 0.075);
+                    4.0; // Пилоту сложно считать K/D, даем статический плюс
 
+            // Трубам важнее уничтожать технику, чем пехоту
             case "Light Anti-Tank" ->
-                    (int) (baseElo + kdDiff * 0.1 + event.getDestroyedVehicles() * 0.55);
+                    kdDiff * 1.0 + destroyedVehicles * 5.5;
 
             case "Heavy Anti-Tank" ->
-                    (int) (baseElo + kdDiff * 0.08 + event.getDestroyedVehicles() * 0.9);
+                    kdDiff * 0.8 + destroyedVehicles * 9.0;
 
             case "Combat Engineer", "Sapper", "Saboteur" ->
-                    (int) (baseElo + kdDiff * 0.065 + event.getDestroyedVehicles() * 0.65);
+                    kdDiff * 0.65 + destroyedVehicles * 6.5;
 
             case "Infiltrator" ->
-                    (int) (baseElo + kdDiff * 0.11 + event.getDestroyedVehicles() * 0.25);
+                    kdDiff * 1.1 + destroyedVehicles * 2.5;
 
-            default -> (int) (baseElo + kdDiff * 0.1 + 0.1 * event.getRevives());
+            default ->
+                    kdDiff * 1.0 + revives * 0.1;
         };
-    }
 
-    // after mvp
-    private int calculateMatchElo(PlayerStatsFetchedEvent event) {
-        int eloDelta = 0;
+        // 4. Суммируем базовую дельту и личный перфоманс
+        int finalDelta = baseDelta + (int) Math.round(performanceDelta);
 
-        return eloDelta;
+        // 5. Жесткие лимиты: чтобы за один матч нельзя было получить +200 или -200 ELO (кап +/- 50)
+        finalDelta = Math.max(-50, Math.min(50, finalDelta));
+
+        return Math.max(MIN_ELO, currentElo + finalDelta);
     }
 }
