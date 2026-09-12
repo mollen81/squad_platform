@@ -5,9 +5,9 @@ import com.squad.stats.service.EventResultsProcessingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-@Service
+@Component
 @Slf4j
 @RequiredArgsConstructor
 public class EventEndedListener {
