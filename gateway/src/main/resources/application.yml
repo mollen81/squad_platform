@@ -17,3 +17,6 @@ grpc:
     stats-service:
       address: ${STATS_SERVICE_GRPC_HOST}:${STATS_SERVICE_GRPC_PORT}
       negotiation-type: plaintext
+    clan-service:
+      address: ${CLAN_SERVICE_GRPC_HOST}:${CLAN_SERVICE_GRPC_PORT}
+      negotiation-type: plaintext

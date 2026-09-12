@@ -1,10 +1,6 @@
 package com.squad.gateway.service;
 
 import com.squad.clan.grpc.*;
-import com.squad.gateway.record.ClanService.*;
-import com.squad.gateway.record.ClanService.ApplyToClanResponse;
-import com.squad.gateway.record.ClanService.CreateClanResponse;
-import com.squad.gateway.record.ClanService.ProcessAcceptanceResponse;
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Service;
 
@@ -14,82 +10,63 @@ public class ClanGrpcClientService {
     @GrpcClient("clan-service")
     private ClanServiceGrpc.ClanServiceBlockingStub clanStub;
 
-    public CreateClanResponse createClan(
-            String name,
-            String tag,
-            String leaderId,
-            String description,
-            String requirements,
-            String avatarUrl) {
-        CreateClanRequest request = CreateClanRequest.newBuilder()
-                .setName(name)
-                .setTag(tag)
-                .setLeaderId(leaderId)
-                .setDescription(description)
-                .setRequirements(requirements)
-                .setAvatarUrl(avatarUrl)
-                .build();
-
-        var response = clanStub.createClan(request);
-
-        return new CreateClanResponse(
-                response.getClanId(),
-                response.getMessage()
-        );
+    public CreateClanResponse createClan(String name, String tag, String leaderId, String description,
+            String requirements, String avatarUrl) {
+        try {
+            CreateClanRequest request = CreateClanRequest.newBuilder()
+                    .setName(name)
+                    .setTag(tag)
+                    .setLeaderId(leaderId)
+                    .setDescription(description)
+                    .setRequirements(requirements)
+                    .setAvatarUrl(avatarUrl != null ? avatarUrl : "")
+                    .build();
+            return clanStub.createClan(request);
+        }
+        catch (Exception e) {
+            throw new RuntimeException("Create clan request could not be processed: " + e.getMessage(), e);
+        }
     }
 
-    public Clan getClanWithMembers(String clanId) {
-        GetClanRequest request = GetClanRequest.newBuilder()
-                .setClanId(clanId)
-                .build();
-        GetClanResponse response = clanStub.getClanWithMembers(request);
-
-        return new Clan(
-                response.getId(),
-                response.getName(),
-                response.getTag(),
-                response.getAvatarUrl(),
-                response.getDescription(),
-                response.getRequirements(),
-                response.getIsRecruiting(),
-                response.getStatus(),
-                response.getTotalElo(),
-                response.getMinElo(),
-                response.getCreatedAt(),
-                response.getMembersList().stream()
-                        .map(memeber -> new ClanMember(memeber.getId(), memeber.getUserId(), memeber.getRole()))
-                        .toList()
-        );
+    public GetClanResponse getClanWithMembers(String clanId) {
+        try {
+            GetClanRequest request = GetClanRequest.newBuilder()
+                    .setClanId(clanId)
+                    .build();
+            return clanStub.getClanWithMembers(request);
+        }
+        catch (Exception e) {
+            throw new RuntimeException("Get clan request could not be processed: " + e.getMessage(), e);
+        }
     }
 
     public ApplyToClanResponse applyToClan(String userId, String clanId, String socialLink, String experienceText) {
-        ApplyToClanRequest request = ApplyToClanRequest.newBuilder()
-                .setUserId(userId)
-                .setClanId(clanId)
-                .setSocialLink(socialLink)
-                .setExperienceText(experienceText)
-                .build();
+        try {
+            ApplyToClanRequest request = ApplyToClanRequest.newBuilder()
+                    .setUserId(userId)
+                    .setClanId(clanId)
+                    .setSocialLink(socialLink)
+                    .setExperienceText(experienceText)
+                    .build();
 
-        com.squad.clan.grpc.ApplyToClanResponse response = clanStub.applyToClan(request);
-
-        return new ApplyToClanResponse(response.getApplicationId(), response.getMessage());
+            return clanStub.applyToClan(request);
+        }
+        catch (Exception e) {
+            throw new RuntimeException("Apply to clan request could not be processed: " + e.getMessage(), e);
+        }
     }
 
     public ProcessAcceptanceResponse processAcceptance(String applicationId, String acceptorId) {
-        ProcessAcceptanceRequest request = ProcessAcceptanceRequest.newBuilder()
-                .setApplicationId(applicationId)
-                .setAcceptorId(acceptorId)
-                .build();
+        try {
+            ProcessAcceptanceRequest request = ProcessAcceptanceRequest.newBuilder()
+                    .setApplicationId(applicationId)
+                    .setAcceptorId(acceptorId)
+                    .build();
 
-        com.squad.clan.grpc.ProcessAcceptanceResponse response = clanStub.processAcceptance(request);
-
-        ClanMember clanMember = response.hasNewMember() ?
-                new ClanMember(
-                        response.getNewMember().getId(),
-                        response.getNewMember().getUserId(),
-                        response.getNewMember().getRole()
-                ) : null;
-
-        return new ProcessAcceptanceResponse(clanMember, response.getMessage());
+            return clanStub.processAcceptance(request);
+        }
+        catch (Exception e) {
+            throw new RuntimeException("Process acceptance request could not be processed: " + e.getMessage(), e);
+        }
     }
 }

@@ -17,6 +17,7 @@ spring:
 
   flyway:
     enabled: true
+    locations: classpath:db/migrations
     table: flyway_schema_history_clans
     baseline-on-migrate: true
     baseline-version: '0'
@@ -32,7 +33,7 @@ spring:
 
 grpc:
   server:
-    port: 9094
+    port: ${CLAN_SERVICE_GRPC_PORT}
   client:
     stats-service:
       address: ${STATS_SERVICE_GRPC_HOST}:${STATS_SERVICE_GRPC_PORT}

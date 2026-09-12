@@ -15,8 +15,8 @@ public interface ClanRepository extends JpaRepository<Clan, UUID> {
 
     boolean existsByName(String name);
 
-    @Query("SELECT c FROM Clan c LEFT JOIN FETCH c.members WHERE c.id = :clanId")
-    Optional<Clan> findByIdWithAllMembers(@Param("clanId") UUID clanId);
+    @Query("SELECT c FROM Clan c LEFT JOIN FETCH c.members WHERE c.id = :clan_id")
+    Optional<Clan> findByIdWithAllMembers(@Param("clan_id") UUID clanId);
 
     @EntityGraph(attributePaths = {"members"})
     Optional<Clan> findWithMembersById(UUID id);
