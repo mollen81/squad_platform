@@ -27,7 +27,7 @@ public class UserRegistrationStatsListener {
     @KafkaListener(topics = "user.registered", groupId = "stats-service-group")
     public void onUserRegistered(UserRegisteredEvent event) {
         if(statsRepository.existsById(event.getUserId())) {
-            log.warn("Stats for user {} is already exists. Skipping.", event.getUserId());
+            log.info("Stats for user {} is already exists. Skipping.", event.getUserId());
             return;
         }
 
@@ -47,11 +47,5 @@ public class UserRegistrationStatsListener {
                 .matchesPlayed(0)
                 .lastUpdatedAt(LocalDateTime.now())
                 .build();
-    }
-
-    @Transactional
-    @KafkaListener(topics = "event.ended", groupId = "stats-service-group")
-    public void onEventEnd(EventEndedEvent event) {
-
     }
 }
