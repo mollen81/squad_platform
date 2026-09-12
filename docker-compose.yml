@@ -106,17 +106,6 @@ services:
         - STATS_SERVICE_GRPC_HOST=${STATS_SERVICE_GRPC_HOST}
         - STATS_SERVICE_GRPC_PORT=${STATS_SERVICE_GRPC_PORT}
 
-  battlemetrics-service:
-    build:
-      context: .
-      dockerfile: battlemetrics-service/Dockerfile
-    container_name: battlemetrics-service
-    ports:
-      - "8082:8082"
-    environment:
-      - SPRING_KAFKA_BOOTSTRAP_SERVERS=${SPRING_KAFKA_BOOTSTRAP_SERVERS}
-      - SPRING_KAFKA_BOOTSTRAP_SERVERS_PORT=${SPRING_KAFKA_BOOTSTRAP_SERVERS_PORT}
-
   stats-service:
     build:
       context: .

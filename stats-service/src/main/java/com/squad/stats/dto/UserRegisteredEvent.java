@@ -1,4 +1,4 @@
-package com.squad.battlemetrics.dto;
+package com.squad.stats.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -8,9 +8,9 @@ import lombok.NoArgsConstructor;
 import java.util.UUID;
 
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class UserRegisteredEvent {
     private UUID userId;
     private String steamId;

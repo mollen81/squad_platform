@@ -5,6 +5,8 @@ package com.squad.stats.grpc;
 option java_multiple_files = true;
 option java_package = "com.squad.stats.grpc";
 
+import "google/protobuf/timestamp.proto";
+
 
 service StatsService {
   rpc GetPlayerStats (GetPlayerStatsByInternalIdRequest) returns (GetPlayerStatsResponse);
@@ -21,5 +23,50 @@ message GetPlayerStatsResponse {
   int32 vehicles_destroyed = 4;
   int32 deaths = 5;
   int32 revives = 6;
-  string favourite_role = 7;
+  string favorite_role = 7;
+}
+
+
+service EventService {
+  rpc GetTeamsByEventID(GetTeamsByEventIDRequest) returns (GetTeamsByEventIDResponse);
+  rpc GetTeamStats(GetTeamStatsRequest) returns (GetTeamStatsResponse);
+}
+
+// GetTeamsByEventID
+message GetTeamsByEventIDRequest {
+  string event_id = 1;
+}
+
+message GetTeamsByEventIDResponse {
+  repeated Team teams = 1;
+  string error = 2;
+}
+
+message Team {
+  string team_id = 1;
+  string event_id = 2;
+  string side_leader_id = 3;
+  bool winner = 6;
+}
+
+// GetTeamStats
+message GetTeamStatsRequest {
+  string team_id = 1;
+}
+
+message GetTeamStatsResponse {
+  repeated TeamMember stats = 1;
+  string error = 2;
+}
+
+message TeamMember {
+  string team_id = 1;
+  string user_event_id = 2;
+  string user_id = 3;
+  string role = 4;
+  int32 kills = 5;
+  int32 deaths = 6;
+  int32 points = 7;
+  int32 revives = 8;
+  int32 destroyed_vehicles = 9;
 }
