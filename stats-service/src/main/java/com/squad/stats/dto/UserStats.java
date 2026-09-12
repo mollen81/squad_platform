@@ -31,7 +31,7 @@ public class UserStats {
     @Column(name = "matches_played")
     private Integer matchesPlayed;
 
-    @Column(name = "total_playtime_hours")
+    @Column(name = "total_playtime_hours") // init field
     private Integer totalPlaytimeHours;
 
     @Column(name = "kills")
