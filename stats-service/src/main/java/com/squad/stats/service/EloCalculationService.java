@@ -78,7 +78,7 @@ public class EloCalculationService {
         int finalDelta = baseDelta + (int) Math.round(performanceDelta);
 
         // 5. Жесткие лимиты: чтобы за один матч нельзя было получить +200 или -200 ELO (кап +/- 50)
-        finalDelta = Math.max(-50, Math.min(50, finalDelta));
+        finalDelta = Math.clamp(finalDelta, -50, 50);
 
         return Math.max(MIN_ELO, currentElo + finalDelta);
     }

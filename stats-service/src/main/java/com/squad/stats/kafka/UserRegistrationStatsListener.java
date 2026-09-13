@@ -40,10 +40,10 @@ public class UserRegistrationStatsListener {
                 .totalPlaytimeHours(hours)
                 .kills(0)
                 .deaths(0)
-                .destroyedVehicles(0)
+                .vehiclesDestroyed(0)
                 .revives(0)
                 .eloRating(startingElo)
-                .favoriteRole("Rifleman")
+                .favouriteRole("Rifleman")
                 .matchesPlayed(0)
                 .lastUpdatedAt(LocalDateTime.now())
                 .build();

@@ -56,7 +56,7 @@ public class EventResultsProcessingService {
             userStats.get().setKills((int) (userStats.get().getKills() + member.getKills()));
             userStats.get().setDeaths((int) (userStats.get().getDeaths() + member.getDeaths()));
             userStats.get().setRevives((int) (userStats.get().getRevives() + member.getRevives()));
-            userStats.get().setDestroyedVehicles((int) (userStats.get().getDestroyedVehicles() + member.getDestroyedVehicles()));
+            userStats.get().setVehiclesDestroyed((int) (userStats.get().getVehiclesDestroyed() + member.getDestroyedVehicles()));
             userStats.get().setMatchesPlayed(userStats.get().getMatchesPlayed() + 1);
             userStats.get().setLastUpdatedAt(LocalDateTime.now());
 
