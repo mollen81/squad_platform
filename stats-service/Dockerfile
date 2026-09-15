@@ -1,25 +1,33 @@
-FROM eclipse-temurin:21 AS builder
+# Этап 1: Сборка и распаковка слоев
+FROM eclipse-temurin:21-jdk-alpine AS builder
+WORKDIR /build
+
+# Копируем только файлы конфигурации Gradle для кэширования зависимостей
+COPY build.gradle settings.gradle gradlew ./
+COPY gradle ./gradle
+RUN ./gradlew dependencies --no-daemon || true
+
+# Копируем исходный код и собираем проект
+COPY src ./src
+RUN ./gradlew clean build -x test --no-daemon
+
+# Извлекаем слои из собранного fat-jar
+RUN java -Djarmode=layertools -jar build/libs/*.jar extract
+
+# Этап 2: Легковесный Runtime
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-COPY gradlew .
-COPY gradle gradle
-COPY build.gradle .
-COPY settings.gradle .
+# Создаем пользователя без root-прав для безопасности
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring:spring
 
-COPY stats-service stats-service
+# Копируем слои в порядке частоты их изменения
+COPY --from=builder /build/dependencies/ ./
+COPY --from=builder /build/spring-boot-loader/ ./
+COPY --from=builder /build/snapshot-dependencies/ ./
+COPY --from=builder /build/application/ ./
 
-RUN chmod +x ./gradlew
-RUN ./gradlew :stats-service:bootJar --no-daemon
+EXPOSE 8080
 
-FROM eclipse-temurin:21
-WORKDIR /app
-
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
-USER appuser
-
-COPY --from=builder /app/stats-service/build/libs/*.jar app.jar
-
-EXPOSE 8081
-EXPOSE 9091
-
-ENTRYPOINT ["java", "-XX:+UseG1GC", "-XX:MaxRAMPercentage=55.0", "-jar", "app.jar"]
+ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
