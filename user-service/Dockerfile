@@ -1,29 +1,37 @@
+# Этап 1: Сборка и распаковка слоев
 FROM eclipse-temurin:21-jdk AS builder
-WORKDIR /app
+WORKDIR /build
 
+# 1. Копируем общие файлы сборщика из корня
 COPY gradlew .
-COPY gradle gradle
-COPY build.gradle .
+COPY gradle ./gradle
 COPY settings.gradle .
-COPY user-service/build.gradle user-service/
+COPY build.gradle .
 
-RUN chmod +x ./gradlew
+# 2. Копируем конфигурацию и исходный код именно user-service
+COPY user-service/build.gradle ./user-service/
+COPY user-service/src ./user-service/src
 
-RUN ./gradlew :user-service:dependencies --no-daemon || true
+# 3. Собираем только user-service
+RUN ./gradlew :user-service:clean :user-service:build -x test --no-daemon
 
-COPY user-service/src user-service/src
+# 4. Распаковываем JAR на слои через layertools
+WORKDIR /build/user-service/build/libs
+RUN java -Djarmode=layertools -jar *[!plain].jar extract
 
-RUN ./gradlew :user-service:bootJar --no-daemon -x test
-
-FROM eclipse-temurin:21-jre
+# Этап 2: Финальный легковесный Runtime
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
-COPY --from=builder --chown=appuser:appgroup /app/user-service/build/libs/*-ALPHA.jar app.jar
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring:spring
 
-USER appuser
+COPY --from=builder /build/user-service/build/libs/dependencies/ ./
+COPY --from=builder /build/user-service/build/libs/spring-boot-loader/ ./
+COPY --from=builder /build/user-service/build/libs/snapshot-dependencies/ ./
+COPY --from=builder /build/user-service/build/libs/application/ ./
 
 EXPOSE 8081
 EXPOSE 9091
 
-ENTRYPOINT ["java", "-XX:+UseG1GC", "-XX:MaxRAMPercentage=55.0", "-jar", "app.jar"]
+ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
