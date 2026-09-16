@@ -1,18 +1,22 @@
 # Этап 1: Сборка и распаковка слоев
-FROM eclipse-temurin:21-jdk-alpine AS builder
+FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /build
 
 # Копируем только файлы конфигурации Gradle для кэширования зависимостей
-COPY build.gradle settings.gradle gradlew ./
+COPY gradlew .
 COPY gradle ./gradle
-RUN ./gradlew dependencies --no-daemon || true
+COPY settings.gradle .
+COPY build.gradle .
 
 # Копируем исходный код и собираем проект
-COPY src ./src
-RUN ./gradlew clean build -x test --no-daemon
+COPY stats-service/build.gradle ./stats-service/
+COPY stats-service/src ./stats-service/src
 
-# Извлекаем слои из собранного fat-jar
-RUN java -Djarmode=layertools -jar build/libs/*.jar extract
+RUN ./gradlew :stats-service:clean :stats-service:build -x test --no-daemon
+
+# 4. Переходим в папку с собранным артефактом и распаковываем JAR на слои
+WORKDIR /build/stats-service/build/libs
+RUN java -Djarmode=layertools -jar *.jar extract
 
 # Этап 2: Легковесный Runtime
 FROM eclipse-temurin:21-jre-alpine
@@ -22,11 +26,11 @@ WORKDIR /app
 RUN addgroup -S spring && adduser -S spring -G spring
 USER spring:spring
 
-# Копируем слои в порядке частоты их изменения
-COPY --from=builder /build/dependencies/ ./
-COPY --from=builder /build/spring-boot-loader/ ./
-COPY --from=builder /build/snapshot-dependencies/ ./
-COPY --from=builder /build/application/ ./
+# Копируем слои из папки сборки конкретного модуля
+COPY --from=builder /build/stats-service/build/libs/dependencies/ ./
+COPY --from=builder /build/stats-service/build/libs/spring-boot-loader/ ./
+COPY --from=builder /build/stats-service/build/libs/snapshot-dependencies/ ./
+COPY --from=builder /build/stats-service/build/libs/application/ ./
 
 EXPOSE 8080
 
