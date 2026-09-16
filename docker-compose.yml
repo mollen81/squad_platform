@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: squad_postgres
+    container_name: postgres
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -15,7 +15,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: squad_redis
+    container_name: redis
     ports:
       - "6379:6379"
     volumes:
@@ -24,7 +24,7 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
-    container_name: squad_kafka
+    container_name: kafka
     ports:
       - "${KAFKA_PORT}:${KAFKA_PORT}"
     environment:
@@ -52,7 +52,7 @@ services:
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
-    container_name: squad_kafka_ui
+    container_name: kafka-ui
     ports:
       - "8090:8080"
     environment:
@@ -127,6 +127,7 @@ services:
       - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=${SPRING_KAFKA_BOOTSTRAP_SERVERS}
       - SPRING_KAFKA_BOOTSTRAP_SERVERS_PORT=${SPRING_KAFKA_BOOTSTRAP_SERVERS_PORT}
+      - STEAM_API_KEY=${STEAM_API_KEY}
 
   frontend:
     build:

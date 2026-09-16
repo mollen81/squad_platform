@@ -1,25 +1,37 @@
-FROM eclipse-temurin:21 AS builder
-WORKDIR /app
+# Этап 1: Сборка и распаковка слоев
+FROM eclipse-temurin:21-jdk AS builder
+WORKDIR /build
 
+# Копируем только файлы конфигурации Gradle для кэширования зависимостей
 COPY gradlew .
-COPY gradle gradle
-COPY build.gradle .
+COPY gradle ./gradle
 COPY settings.gradle .
+COPY build.gradle .
 
-COPY stats-service stats-service
+# Копируем исходный код и собираем проект
+COPY stats-service/build.gradle ./stats-service/
+COPY stats-service/src ./stats-service/src
 
-RUN chmod +x ./gradlew
-RUN ./gradlew :stats-service:bootJar --no-daemon
+RUN ./gradlew :stats-service:clean :stats-service:build -x test --no-daemon
 
-FROM eclipse-temurin:21
+# 4. Переходим в папку с собранным артефактом и распаковываем JAR на слои
+WORKDIR /build/stats-service/build/libs
+RUN java -Djarmode=layertools -jar *.jar extract
+
+# Этап 2: Легковесный Runtime
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
-USER appuser
+# Создаем пользователя без root-прав для безопасности
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring:spring
 
-COPY --from=builder /app/stats-service/build/libs/*-ALPHA.jar app.jar
+# Копируем слои из папки сборки конкретного модуля
+COPY --from=builder /build/stats-service/build/libs/dependencies/ ./
+COPY --from=builder /build/stats-service/build/libs/spring-boot-loader/ ./
+COPY --from=builder /build/stats-service/build/libs/snapshot-dependencies/ ./
+COPY --from=builder /build/stats-service/build/libs/application/ ./
 
-EXPOSE 8083
-EXPOSE 9093
+EXPOSE 8080
 
-ENTRYPOINT ["java", "-XX:+UseG1GC", "-XX:MaxRAMPercentage=55.0", "-jar", "app.jar"]
+ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
