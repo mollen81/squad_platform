@@ -1,27 +1,46 @@
+# Этап 1: Сборка и распаковка слоев
 FROM eclipse-temurin:21-jdk AS builder
-WORKDIR /app
+WORKDIR /build
 
+# Копируем только файлы конфигурации Gradle для кэширования зависимостей
 COPY gradlew .
-COPY gradle gradle
-COPY build.gradle .
+COPY gradle ./gradle
 COPY settings.gradle .
+COPY build.gradle .
 
-COPY user-service user-service
-COPY stats-service stats-service
-COPY gateway gateway
-COPY clan-service clan-service
+# Копируем исходный код и собираем проект
+COPY gateway/build.gradle ./gateway/
+COPY gateway/src ./gateway/src
 
-RUN chmod +x ./gradlew
-RUN ./gradlew :gateway:bootJar --no-daemon
+COPY user-service/build.gradle ./user-service/
+COPY user-service/src ./user-service/src
 
-FROM eclipse-temurin:21
+COPY stats-service/build.gradle ./stats-service/
+COPY stats-service/src ./stats-service/src
+
+COPY clan-service/build.gradle ./clan-service/
+COPY clan-service/src ./clan-service/src
+
+RUN ./gradlew :gateway:clean :gateway:build -x test --no-daemon
+
+# 4. Переходим в папку с собранным артефактом и распаковываем JAR на слои
+WORKDIR /build/gateway/build/libs
+RUN java -Djarmode=layertools -jar *.jar extract
+
+# Этап 2: Легковесный Runtime
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
-USER appuser
+# Создаем пользователя без root-прав для безопасности
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring:spring
 
-COPY --from=builder /app/gateway/build/libs/*-ALPHA.jar app.jar
+# Копируем слои из папки сборки конкретного модуля
+COPY --from=builder /build/gateway/build/libs/dependencies/ ./
+COPY --from=builder /build/gateway/build/libs/spring-boot-loader/ ./
+COPY --from=builder /build/gateway/build/libs/snapshot-dependencies/ ./
+COPY --from=builder /build/gateway/build/libs/application/ ./
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-XX:+UseG1GC", "-XX:MaxRAMPercentage=55.0", "-jar", "app.jar"]
+ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
