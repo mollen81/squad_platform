@@ -32,6 +32,7 @@ COPY --from=builder /build/stats-service/build/libs/spring-boot-loader/ ./
 COPY --from=builder /build/stats-service/build/libs/snapshot-dependencies/ ./
 COPY --from=builder /build/stats-service/build/libs/application/ ./
 
-EXPOSE 8080
+EXPOSE 8083
+EXPOSE 9093
 
 ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
