@@ -1,26 +1,40 @@
-FROM public.ecr.aws/docker/library/eclipse-temurin:21 AS builder
-WORKDIR /app
+# Этап 1: Сборка и распаковка слоев
+FROM eclipse-temurin:21-jdk AS builder
+WORKDIR /build
 
+# 1. Копируем общие файлы сборщика из корня
 COPY gradlew .
-COPY gradle gradle
-COPY build.gradle .
+COPY gradle ./gradle
 COPY settings.gradle .
+COPY build.gradle .
 
-COPY clan-service clan-service
-COPY stats-service stats-service
+# 2. Копируем конфигурацию и исходный код именно clan-service
+COPY clan-service/build.gradle ./clan-service/
+COPY clan-service/src ./clan-service/src
 
-RUN chmod +x ./gradlew
-RUN ./gradlew :clan-service:bootJar --no-daemon
+COPY stats-service/build.gradle ./stats-service/
+COPY stats-service/src ./stats-service/src
 
-FROM eclipse-temurin:21
+# 3. Собираем только user-service
+RUN ./gradlew :clan-service:clean :clan-service:build -x test --no-daemon
+
+# 4. Распаковываем JAR на слои через layertools
+WORKDIR /build/clan-service/build/libs
+RUN java -Djarmode=layertools -jar *[!plain].jar extract
+
+# Этап 2: Финальный легковесный Runtime
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
-USER appuser
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring:spring
 
-COPY --from=builder /app/clan-service/build/libs/*-ALPHA.jar app.jar
+COPY --from=builder /build/clan-service/build/libs/dependencies/ ./
+COPY --from=builder /build/clan-service/build/libs/spring-boot-loader/ ./
+COPY --from=builder /build/clan-service/build/libs/snapshot-dependencies/ ./
+COPY --from=builder /build/clan-service/build/libs/application/ ./
 
 EXPOSE 8084
 EXPOSE 9094
 
-ENTRYPOINT ["java", "-XX:+UseG1GC", "-XX:MaxRAMPercentage=65.0", "-jar", "app.jar"]
+ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
