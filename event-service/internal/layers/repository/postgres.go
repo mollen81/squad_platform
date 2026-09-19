@@ -406,14 +406,8 @@ func (r *postgresRepository) GetUserByID(ctx context.Context, eventID, userID st
 // ивенту, не по команде), поэтому JOIN. Считается на уровне команды, а не
 // всего ивента: другой микросервис перед стартом конкретной игры смотрит на
 // team_members.six_clan_members у каждого участника и решает, приглашать его
-// или нет.
-//
-// ВРЕМЕННО ДЛЯ ТЕСТА: боевой порог — не менее 5 ДРУГИХ однокланников в
-// команде (итого 6 вместе с самим игроком). Сейчас занижен до 1 (итого 2),
-// чтобы фичу было легко проверить руками, не собирая 6 человек одного клана.
-// Перед проверкой на бою вернуть "count >= 5" (и парой строк ниже, в
-// RemoveUserFromTeam-логике сервисного слоя, порог "clanMembersLeft < 2"
-// обратно на "< 6").
+// или нет. Порог: не менее 5 ДРУГИХ однокланников в команде (итого 6 вместе
+// с самим игроком).
 func (r *postgresRepository) CheckSixClanMembers(ctx context.Context, teamID, userEventID, clanID string) (bool, error) {
 	query := `
 		SELECT COUNT(*)
@@ -430,7 +424,7 @@ func (r *postgresRepository) CheckSixClanMembers(ctx context.Context, teamID, us
 		return false, err
 	}
 
-	return count >= 1, nil // боевое значение: count >= 5
+	return count >= 5, nil
 }
 
 func (r *postgresRepository) UpdateTeamMemberSixClanMembers(ctx context.Context, teamID, userEventID string, hasSixClanMembers bool) error {

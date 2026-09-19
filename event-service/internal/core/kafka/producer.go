@@ -232,6 +232,39 @@ func (p *Producer) PublishEventStarted(ctx context.Context, eventID string, time
 	})
 }
 
+func (p *Producer) PublishUserJoinedTeam(ctx context.Context, teamID, userID, userEventID string, role domain.Role) error {
+	data, err := json.Marshal(map[string]interface{}{
+		"type":          "user.joined_team",
+		"team_id":       teamID,
+		"user_id":       userID,
+		"user_event_id": userEventID,
+		"role":          string(role),
+	})
+	if err != nil {
+		return err
+	}
+	return p.writer.WriteMessages(ctx, kafka.Message{
+		Key:   []byte(teamID),
+		Value: data,
+	})
+}
+
+func (p *Producer) PublishUserLeftTeam(ctx context.Context, teamID, userID, userEventID string) error {
+	data, err := json.Marshal(map[string]interface{}{
+		"type":          "user.left_team",
+		"team_id":       teamID,
+		"user_id":       userID,
+		"user_event_id": userEventID,
+	})
+	if err != nil {
+		return err
+	}
+	return p.writer.WriteMessages(ctx, kafka.Message{
+		Key:   []byte(teamID),
+		Value: data,
+	})
+}
+
 func (p *Producer) PublishUserRoleChanged(ctx context.Context, eventID, userID string, role domain.Role) error {
 	data, err := json.Marshal(map[string]interface{}{
 		"type":     "user.role_changed",

@@ -16,13 +16,11 @@ import (
 
 const (
 	// Минимальное количество игроков для подтверждения ивента
-	MinPlayersRequired = 4
+	MinPlayersRequired = 80
 	// За сколько до старта проверяется количество игроков
-	// TODO: вернуть 2 * time.Minute после тестов
-	CheckTimeBeforeStart = 5 * time.Second
+	CheckTimeBeforeStart = 30 * time.Minute
 	// За сколько до старта отправляется сообщение об аренде сервера
-	// TODO: вернуть 1 * time.Minute после тестов
-	RentServerTimeBeforeStart = 3 * time.Second
+	RentServerTimeBeforeStart = 15 * time.Minute
 )
 
 type eventService struct {
@@ -42,11 +40,11 @@ func NewEventService(eventRepo EventRepository, producer *kafka.Producer) EventS
 
 func (s *eventService) CreateEvent(ctx context.Context, userCreatorID, creatorClanID, enemySideLeaderID, enemySideLeaderClanID, eventName string, timeStart time.Time, targetGameCount int64) error {
 	now := time.Now()
-	minTime := now.Add(15 * time.Second) // TODO: вернуть 5 * time.Minute после тестов
+	minTime := now.Add(45 * time.Minute)
 	maxTime := now.Add(45 * 24 * time.Hour)
 
 	if timeStart.Before(minTime) {
-		return errors.New("event start time must be at least 5 minutes from now")
+		return errors.New("event start time must be at least 45 minutes from now")
 	}
 
 	if timeStart.After(maxTime) {
@@ -195,11 +193,11 @@ func (s *eventService) UpdateTimeEvent(ctx context.Context, eventID, userCreateI
 	}
 
 	now := time.Now()
-	minTime := now.Add(15 * time.Second) // TODO: вернуть 5 * time.Minute после тестов
+	minTime := now.Add(45 * time.Minute)
 	maxTime := now.Add(45 * 24 * time.Hour)
 
 	if newTimeStart.Before(minTime) {
-		return errors.New("event start time must be at least 5 minutes from now")
+		return errors.New("event start time must be at least 45 minutes from now")
 	}
 
 	if newTimeStart.After(maxTime) {
@@ -744,6 +742,10 @@ func (s *eventService) JoinUserToTeam(ctx context.Context, teamID, userID string
 		}
 	}
 
+	if err := s.producer.PublishUserJoinedTeam(ctx, teamID, userID, user.UserEventID, role); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -785,14 +787,15 @@ func (s *eventService) RemoveUserFromTeam(ctx context.Context, teamID, userID st
 			return err
 		}
 
-		// ВРЕМЕННО ДЛЯ ТЕСТА: тот же заниженный порог, что и в
-		// CheckSixClanMembers (там >=1 "других" вместо боевых >=5, здесь,
-		// соответственно, "меньше 2 всего" вместо боевых "меньше 6 всего").
-		if clanMembersLeft < 2 { // боевое значение: < 6
+		if clanMembersLeft < 6 {
 			if err := s.eventRepo.UpdateSixClanMembersForClanInTeam(ctx, teamID, user.ClanID, false); err != nil {
 				return err
 			}
 		}
+	}
+
+	if err := s.producer.PublishUserLeftTeam(ctx, teamID, userID, user.UserEventID); err != nil {
+		return err
 	}
 
 	return nil
