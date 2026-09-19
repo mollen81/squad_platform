@@ -7,11 +7,10 @@ CREATE TABLE IF NOT EXISTS events (
     time_finish             TIMESTAMP,
     create_time             TIMESTAMP NOT NULL DEFAULT now(),
     user_count              INT NOT NULL DEFAULT 0,
-    target_game_count       INT NOT NULL,
+    target_game_count       INT NOT NULL CHECK (target_game_count BETWEEN 1 AND 3),
     game_count              INT NOT NULL DEFAULT 0,
-    is_started              BOOLEAN NOT NULL DEFAULT false,
-    is_finished             BOOLEAN NOT NULL DEFAULT false,
-    winner_side             TEXT NOT NULL DEFAULT '' CHECK (winner_side IN ('', 'ally', 'enemy'))
+    status                  TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'in_progress', 'finished', 'declined', 'canceled')),
+    winner_side             TEXT NOT NULL DEFAULT '' CHECK (winner_side IN ('', 'ally', 'enemy', 'draw'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_time_start ON events(time_start);
@@ -22,7 +21,6 @@ CREATE TABLE IF NOT EXISTS users (
     event_id             UUID NOT NULL REFERENCES events(event_id),
     clan_id              UUID NOT NULL,
     enemy                BOOLEAN NOT NULL,
-    six_clan_members     BOOLEAN NOT NULL DEFAULT false,
     role                 TEXT NOT NULL DEFAULT 'player' CHECK (role IN ('player', 'squad_leader', 'side_leader')),
     join_time            TIMESTAMP NOT NULL DEFAULT now(),
 
@@ -49,11 +47,13 @@ CREATE TABLE IF NOT EXISTS team (
     time_start              TIMESTAMP,
     time_finish             TIMESTAMP,
 
-    -- суммарная командная статистика за эту игру
-    kills                 BIGINT NOT NULL DEFAULT 0,
-    deaths                BIGINT NOT NULL DEFAULT 0,
-    revival               BIGINT NOT NULL DEFAULT 0,
-    equipment_destroyed   BIGINT NOT NULL DEFAULT 0,
+    -- суммарная командная статистика за эту игру (складывается автоматически
+    -- из team_members при FinishTeamGame, см. SumTeamMemberStats)
+    total_kills                BIGINT NOT NULL DEFAULT 0,
+    total_deaths               BIGINT NOT NULL DEFAULT 0,
+    total_points               BIGINT NOT NULL DEFAULT 0,
+    total_revival              BIGINT NOT NULL DEFAULT 0,
+    total_destroyed_vehicles   BIGINT NOT NULL DEFAULT 0,
 
     -- (event_id, game_number) встречается дважды — по одному team на сторону,
     -- поэтому уникальность считается по тройке вместе с side_leader_id
@@ -69,6 +69,15 @@ CREATE TABLE IF NOT EXISTS team_members (
     kills           BIGINT NOT NULL DEFAULT 0,
     deaths          BIGINT NOT NULL DEFAULT 0,
     points          BIGINT NOT NULL DEFAULT 0,
+    revival             BIGINT NOT NULL DEFAULT 0,
+    destroyed_vehicles  BIGINT NOT NULL DEFAULT 0,
+
+    -- Привязан к команде (team_members), а не к ивенту (users): другой
+    -- микросервис перед стартом конкретной игры смотрит именно на этот флаг
+    -- у участника команды и решает, звать его в игру или нет (true — зовёт,
+    -- false — игнорирует). Это не блокирует что-либо в event-service —
+    -- такие игроки спокойно существуют в team_members, просто с флагом false.
+    six_clan_members    BOOLEAN NOT NULL DEFAULT false,
 
     PRIMARY KEY (team_id, user_event_id)
 );

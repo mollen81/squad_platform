@@ -26,7 +26,7 @@ const (
 	EventService_GetUnfinishedEventsByUserID_FullMethodName    = "/event.EventService/GetUnfinishedEventsByUserID"
 	EventService_GetUnfinishedEventsByEventName_FullMethodName = "/event.EventService/GetUnfinishedEventsByEventName"
 	EventService_UpdateTimeEvent_FullMethodName                = "/event.EventService/UpdateTimeEvent"
-	EventService_DeleteEvent_FullMethodName                    = "/event.EventService/DeleteEvent"
+	EventService_CancelEvent_FullMethodName                    = "/event.EventService/CancelEvent"
 	EventService_JoinToEvent_FullMethodName                    = "/event.EventService/JoinToEvent"
 	EventService_LeaveEvent_FullMethodName                     = "/event.EventService/LeaveEvent"
 	EventService_SetRole_FullMethodName                        = "/event.EventService/SetRole"
@@ -37,7 +37,7 @@ const (
 	EventService_AddTeamMemberStats_FullMethodName             = "/event.EventService/AddTeamMemberStats"
 	EventService_GetTeamStats_FullMethodName                   = "/event.EventService/GetTeamStats"
 	EventService_GetTeamByID_FullMethodName                    = "/event.EventService/GetTeamByID"
-	EventService_AddUserToTeam_FullMethodName                  = "/event.EventService/AddUserToTeam"
+	EventService_JoinUserToTeam_FullMethodName                 = "/event.EventService/JoinUserToTeam"
 	EventService_RemoveUserFromTeam_FullMethodName             = "/event.EventService/RemoveUserFromTeam"
 )
 
@@ -52,7 +52,7 @@ type EventServiceClient interface {
 	GetUnfinishedEventsByUserID(ctx context.Context, in *GetUnfinishedEventsByUserIDRequest, opts ...grpc.CallOption) (*GetUnfinishedEventsByUserIDResponse, error)
 	GetUnfinishedEventsByEventName(ctx context.Context, in *GetUnfinishedEventsByEventNameRequest, opts ...grpc.CallOption) (*GetUnfinishedEventsByEventNameResponse, error)
 	UpdateTimeEvent(ctx context.Context, in *UpdateTimeEventRequest, opts ...grpc.CallOption) (*UpdateTimeEventResponse, error)
-	DeleteEvent(ctx context.Context, in *DeleteEventRequest, opts ...grpc.CallOption) (*DeleteEventResponse, error)
+	CancelEvent(ctx context.Context, in *CancelEventRequest, opts ...grpc.CallOption) (*CancelEventResponse, error)
 	JoinToEvent(ctx context.Context, in *JoinToEventRequest, opts ...grpc.CallOption) (*JoinToEventResponse, error)
 	LeaveEvent(ctx context.Context, in *LeaveEventRequest, opts ...grpc.CallOption) (*LeaveEventResponse, error)
 	SetRole(ctx context.Context, in *SetRoleRequest, opts ...grpc.CallOption) (*SetRoleResponse, error)
@@ -63,7 +63,7 @@ type EventServiceClient interface {
 	AddTeamMemberStats(ctx context.Context, in *AddTeamMemberStatsRequest, opts ...grpc.CallOption) (*AddTeamMemberStatsResponse, error)
 	GetTeamStats(ctx context.Context, in *GetTeamStatsRequest, opts ...grpc.CallOption) (*GetTeamStatsResponse, error)
 	GetTeamByID(ctx context.Context, in *GetTeamByIDRequest, opts ...grpc.CallOption) (*GetTeamByIDResponse, error)
-	AddUserToTeam(ctx context.Context, in *AddUserToTeamRequest, opts ...grpc.CallOption) (*AddUserToTeamResponse, error)
+	JoinUserToTeam(ctx context.Context, in *JoinUserToTeamRequest, opts ...grpc.CallOption) (*JoinUserToTeamResponse, error)
 	RemoveUserFromTeam(ctx context.Context, in *RemoveUserFromTeamRequest, opts ...grpc.CallOption) (*RemoveUserFromTeamResponse, error)
 }
 
@@ -145,10 +145,10 @@ func (c *eventServiceClient) UpdateTimeEvent(ctx context.Context, in *UpdateTime
 	return out, nil
 }
 
-func (c *eventServiceClient) DeleteEvent(ctx context.Context, in *DeleteEventRequest, opts ...grpc.CallOption) (*DeleteEventResponse, error) {
+func (c *eventServiceClient) CancelEvent(ctx context.Context, in *CancelEventRequest, opts ...grpc.CallOption) (*CancelEventResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(DeleteEventResponse)
-	err := c.cc.Invoke(ctx, EventService_DeleteEvent_FullMethodName, in, out, cOpts...)
+	out := new(CancelEventResponse)
+	err := c.cc.Invoke(ctx, EventService_CancelEvent_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -255,10 +255,10 @@ func (c *eventServiceClient) GetTeamByID(ctx context.Context, in *GetTeamByIDReq
 	return out, nil
 }
 
-func (c *eventServiceClient) AddUserToTeam(ctx context.Context, in *AddUserToTeamRequest, opts ...grpc.CallOption) (*AddUserToTeamResponse, error) {
+func (c *eventServiceClient) JoinUserToTeam(ctx context.Context, in *JoinUserToTeamRequest, opts ...grpc.CallOption) (*JoinUserToTeamResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(AddUserToTeamResponse)
-	err := c.cc.Invoke(ctx, EventService_AddUserToTeam_FullMethodName, in, out, cOpts...)
+	out := new(JoinUserToTeamResponse)
+	err := c.cc.Invoke(ctx, EventService_JoinUserToTeam_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -286,7 +286,7 @@ type EventServiceServer interface {
 	GetUnfinishedEventsByUserID(context.Context, *GetUnfinishedEventsByUserIDRequest) (*GetUnfinishedEventsByUserIDResponse, error)
 	GetUnfinishedEventsByEventName(context.Context, *GetUnfinishedEventsByEventNameRequest) (*GetUnfinishedEventsByEventNameResponse, error)
 	UpdateTimeEvent(context.Context, *UpdateTimeEventRequest) (*UpdateTimeEventResponse, error)
-	DeleteEvent(context.Context, *DeleteEventRequest) (*DeleteEventResponse, error)
+	CancelEvent(context.Context, *CancelEventRequest) (*CancelEventResponse, error)
 	JoinToEvent(context.Context, *JoinToEventRequest) (*JoinToEventResponse, error)
 	LeaveEvent(context.Context, *LeaveEventRequest) (*LeaveEventResponse, error)
 	SetRole(context.Context, *SetRoleRequest) (*SetRoleResponse, error)
@@ -297,7 +297,7 @@ type EventServiceServer interface {
 	AddTeamMemberStats(context.Context, *AddTeamMemberStatsRequest) (*AddTeamMemberStatsResponse, error)
 	GetTeamStats(context.Context, *GetTeamStatsRequest) (*GetTeamStatsResponse, error)
 	GetTeamByID(context.Context, *GetTeamByIDRequest) (*GetTeamByIDResponse, error)
-	AddUserToTeam(context.Context, *AddUserToTeamRequest) (*AddUserToTeamResponse, error)
+	JoinUserToTeam(context.Context, *JoinUserToTeamRequest) (*JoinUserToTeamResponse, error)
 	RemoveUserFromTeam(context.Context, *RemoveUserFromTeamRequest) (*RemoveUserFromTeamResponse, error)
 	mustEmbedUnimplementedEventServiceServer()
 }
@@ -330,8 +330,8 @@ func (UnimplementedEventServiceServer) GetUnfinishedEventsByEventName(context.Co
 func (UnimplementedEventServiceServer) UpdateTimeEvent(context.Context, *UpdateTimeEventRequest) (*UpdateTimeEventResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateTimeEvent not implemented")
 }
-func (UnimplementedEventServiceServer) DeleteEvent(context.Context, *DeleteEventRequest) (*DeleteEventResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method DeleteEvent not implemented")
+func (UnimplementedEventServiceServer) CancelEvent(context.Context, *CancelEventRequest) (*CancelEventResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CancelEvent not implemented")
 }
 func (UnimplementedEventServiceServer) JoinToEvent(context.Context, *JoinToEventRequest) (*JoinToEventResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method JoinToEvent not implemented")
@@ -363,8 +363,8 @@ func (UnimplementedEventServiceServer) GetTeamStats(context.Context, *GetTeamSta
 func (UnimplementedEventServiceServer) GetTeamByID(context.Context, *GetTeamByIDRequest) (*GetTeamByIDResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetTeamByID not implemented")
 }
-func (UnimplementedEventServiceServer) AddUserToTeam(context.Context, *AddUserToTeamRequest) (*AddUserToTeamResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method AddUserToTeam not implemented")
+func (UnimplementedEventServiceServer) JoinUserToTeam(context.Context, *JoinUserToTeamRequest) (*JoinUserToTeamResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method JoinUserToTeam not implemented")
 }
 func (UnimplementedEventServiceServer) RemoveUserFromTeam(context.Context, *RemoveUserFromTeamRequest) (*RemoveUserFromTeamResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RemoveUserFromTeam not implemented")
@@ -516,20 +516,20 @@ func _EventService_UpdateTimeEvent_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventService_DeleteEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteEventRequest)
+func _EventService_CancelEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CancelEventRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventServiceServer).DeleteEvent(ctx, in)
+		return srv.(EventServiceServer).CancelEvent(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: EventService_DeleteEvent_FullMethodName,
+		FullMethod: EventService_CancelEvent_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventServiceServer).DeleteEvent(ctx, req.(*DeleteEventRequest))
+		return srv.(EventServiceServer).CancelEvent(ctx, req.(*CancelEventRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -714,20 +714,20 @@ func _EventService_GetTeamByID_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventService_AddUserToTeam_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AddUserToTeamRequest)
+func _EventService_JoinUserToTeam_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(JoinUserToTeamRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventServiceServer).AddUserToTeam(ctx, in)
+		return srv.(EventServiceServer).JoinUserToTeam(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: EventService_AddUserToTeam_FullMethodName,
+		FullMethod: EventService_JoinUserToTeam_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventServiceServer).AddUserToTeam(ctx, req.(*AddUserToTeamRequest))
+		return srv.(EventServiceServer).JoinUserToTeam(ctx, req.(*JoinUserToTeamRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -786,8 +786,8 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _EventService_UpdateTimeEvent_Handler,
 		},
 		{
-			MethodName: "DeleteEvent",
-			Handler:    _EventService_DeleteEvent_Handler,
+			MethodName: "CancelEvent",
+			Handler:    _EventService_CancelEvent_Handler,
 		},
 		{
 			MethodName: "JoinToEvent",
@@ -830,8 +830,8 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _EventService_GetTeamByID_Handler,
 		},
 		{
-			MethodName: "AddUserToTeam",
-			Handler:    _EventService_AddUserToTeam_Handler,
+			MethodName: "JoinUserToTeam",
+			Handler:    _EventService_JoinUserToTeam_Handler,
 		},
 		{
 			MethodName: "RemoveUserFromTeam",

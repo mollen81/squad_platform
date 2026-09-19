@@ -8,8 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	pb "event-service/internal/core/proto"
 	kafka "event-service/internal/core/kafka"
+	pb "event-service/internal/core/proto"
 	repository "event-service/internal/layers/repository"
 	service "event-service/internal/layers/service"
 	transport "event-service/internal/layers/transport"
@@ -74,6 +74,14 @@ func main() {
 	eventRepo := repository.NewPostgresRepository(pool)
 	eventService := service.NewEventService(eventRepo, producer)
 	grpcHandler := transport.NewGRPCHandler(eventService)
+
+	// eventTimers (controlEventTimerDenial/confirmEvent) живёт только в памяти
+	// процесса, поэтому после каждого рестарта его нужно расставлять заново по
+	// ещё не завершённым ивентам — иначе часть из них зависает навсегда без
+	// проверки на минимум игроков и без старта.
+	if err := eventService.RecoverPendingEvents(context.Background()); err != nil {
+		log.Printf("RecoverPendingEvents: %v", err)
+	}
 
 	grpcPort := os.Getenv("EVENT_SERVICE_GRPC_PORT")
 	if grpcPort == "" {

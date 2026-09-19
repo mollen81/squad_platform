@@ -18,8 +18,7 @@ func toProtoEvent(e domain.Event) *pb.Event {
 		TimeFinish:        timestamppb.New(e.TimeFinish),
 		CreateTime:        timestamppb.New(e.CreateTime),
 		WinnerSide:        e.WinnerSide,
-		IsStarted:         e.IsStarted,
-		IsFinished:        e.IsFinished,
+		Status:            string(e.Status),
 		TargetGameCount:   e.TargetGameCount,
 		GameCount:         e.GameCount,
 	}
@@ -46,14 +45,13 @@ func toProtoEventsSlice(events []domain.Event) []*pb.Event {
 
 func toProtoUser(u domain.User) *pb.User {
 	return &pb.User{
-		UserEventId:    u.UserEventID,
-		UserId:         u.UserID,
-		EventId:        u.EventID,
-		ClanId:         u.ClanID,
-		Enemy:          u.Enemy,
-		Role:           string(u.Role),
-		SixClanMembers: u.SixClanMembers,
-		JoinTime:       timestamppb.New(u.JoinTime),
+		UserEventId: u.UserEventID,
+		UserId:      u.UserID,
+		EventId:     u.EventID,
+		ClanId:      u.ClanID,
+		Enemy:       u.Enemy,
+		Role:        string(u.Role),
+		JoinTime:    timestamppb.New(u.JoinTime),
 	}
 }
 
@@ -67,16 +65,17 @@ func toProtoUsersSlice(users []domain.User) []*pb.User {
 
 func toProtoTeam(t domain.Team) *pb.Team {
 	team := &pb.Team{
-		TeamId:             t.TeamID,
-		EventId:            t.EventID,
-		SideLeaderId:       t.SideLeaderID,
-		GameNumber:         t.GameNumber,
-		MembersCount:       t.MembersCount,
-		Winner:             t.Winner,
-		Kills:              t.Kills,
-		Deaths:             t.Deaths,
-		Revival:            t.Revival,
-		EquipmentDestroyed: t.EquipmentDestroyed,
+		TeamId:                 t.TeamID,
+		EventId:                t.EventID,
+		SideLeaderId:           t.SideLeaderID,
+		GameNumber:             t.GameNumber,
+		MembersCount:           t.MembersCount,
+		Winner:                 t.Winner,
+		TotalKills:             t.TotalKills,
+		TotalDeaths:            t.TotalDeaths,
+		TotalPoints:            t.TotalPoints,
+		TotalRevival:           t.TotalRevival,
+		TotalDestroyedVehicles: t.TotalDestroyedVehicles,
 	}
 
 	// пустой (zero-value) time.Time -> оставляем поле в proto как nil,
@@ -101,13 +100,16 @@ func toProtoTeams(teams []domain.Team) []*pb.Team {
 
 func toProtoTeamMember(m domain.TeamMember) *pb.TeamMember {
 	return &pb.TeamMember{
-		TeamId:      m.TeamID,
-		UserEventId: m.UserEventID,
-		UserId:      m.UserID,
-		Role:        string(m.Role),
-		Kills:       m.Kills,
-		Deaths:      m.Deaths,
-		Points:      m.Points,
+		TeamId:            m.TeamID,
+		UserEventId:       m.UserEventID,
+		UserId:            m.UserID,
+		Role:              string(m.Role),
+		Kills:             m.Kills,
+		Deaths:            m.Deaths,
+		Points:            m.Points,
+		Revival:           m.Revival,
+		DestroyedVehicles: m.DestroyedVehicles,
+		SixClanMembers:    m.SixClanMembers,
 	}
 }
 

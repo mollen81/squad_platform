@@ -34,7 +34,7 @@ func NewProducer(brokers []string, topic string) *Producer {
 
 func (p *Producer) PublishEventCreated(ctx context.Context, event domain.Event) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type":            "event_created",
+		"type":            "event.created",
 		"event_id":        event.EventID,
 		"name":            event.Name,
 		"user_create_id":  event.UserCreateID,
@@ -50,9 +50,9 @@ func (p *Producer) PublishEventCreated(ctx context.Context, event domain.Event) 
 	})
 }
 
-func (p *Producer) PublishEventDeleted(ctx context.Context, eventID, userCreateID string) error {
+func (p *Producer) PublishEventCanceled(ctx context.Context, eventID, userCreateID string) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type":           "event_deleted",
+		"type":           "event.canceled",
 		"event_id":       eventID,
 		"user_create_id": userCreateID,
 	})
@@ -67,7 +67,7 @@ func (p *Producer) PublishEventDeleted(ctx context.Context, eventID, userCreateI
 
 func (p *Producer) PublishEventTimeUpdated(ctx context.Context, eventID, userCreateID string, newTimeStart time.Time) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type":           "event_time_updated",
+		"type":           "event.time_updated",
 		"event_id":       eventID,
 		"user_create_id": userCreateID,
 		"new_time_start": newTimeStart,
@@ -83,7 +83,7 @@ func (p *Producer) PublishEventTimeUpdated(ctx context.Context, eventID, userCre
 
 func (p *Producer) PublishUserJoinedEvent(ctx context.Context, eventID, userID, clanID string, enemy bool, joinTime time.Time) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type":      "user_joined_event",
+		"type":      "user.joined_event",
 		"event_id":  eventID,
 		"user_id":   userID,
 		"clan_id":   clanID,
@@ -101,7 +101,7 @@ func (p *Producer) PublishUserJoinedEvent(ctx context.Context, eventID, userID, 
 
 func (p *Producer) PublishUserLeftEvent(ctx context.Context, eventID, userID string) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type":     "user_left_event",
+		"type":     "user.left_event",
 		"event_id": eventID,
 		"user_id":  userID,
 	})
@@ -120,7 +120,7 @@ func (p *Producer) PublishUserLeftEvent(ctx context.Context, eventID, userID str
 
 func (p *Producer) PublishTeamGameStarted(ctx context.Context, teamID string, gameNumber int64, timeStart time.Time) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type":        "team_game_started",
+		"type":        "team_game.started",
 		"team_id":     teamID,
 		"game_number": gameNumber,
 		"time_start":  timeStart,
@@ -136,7 +136,7 @@ func (p *Producer) PublishTeamGameStarted(ctx context.Context, teamID string, ga
 
 func (p *Producer) PublishTeamGameFinished(ctx context.Context, teamID string, winner bool, timeFinish time.Time) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type":        "team_game_finished",
+		"type":        "team_game.finished",
 		"team_id":     teamID,
 		"winner":      winner,
 		"time_finish": timeFinish,
@@ -152,7 +152,7 @@ func (p *Producer) PublishTeamGameFinished(ctx context.Context, teamID string, w
 
 func (p *Producer) PublishEventFinished(ctx context.Context, eventID string, winnerSide string, timeFinish time.Time) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type": "event_finished",
+		"type": "event.finished",
 		"event_id": eventID,
 		"winner_side": winnerSide,
 		"time_finish": timeFinish,
@@ -169,14 +169,16 @@ func (p *Producer) PublishEventFinished(ctx context.Context, eventID string, win
 // PublishUserStatsAdded удалён: принимал domain.GameUserStats, которого больше нет
 // (таблица game_user_stats убрана из схемы, статистика теперь в team_members).
 
-func (p *Producer) PublishTeamMemberStatsAdded(ctx context.Context, teamID, userEventID string, kills, deaths, points int64) error {
+func (p *Producer) PublishTeamMemberStatsAdded(ctx context.Context, teamID, userEventID string, kills, deaths, points, revival, destroyedVehicles int64) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type":          "team_member_stats_added",
-		"team_id":       teamID,
-		"user_event_id": userEventID,
-		"kills":         kills,
-		"deaths":        deaths,
-		"points":        points,
+		"type":               "team_member.stats_added",
+		"team_id":            teamID,
+		"user_event_id":      userEventID,
+		"kills":              kills,
+		"deaths":             deaths,
+		"points":             points,
+		"revival":            revival,
+		"destroyed_vehicles": destroyedVehicles,
 	})
 	if err != nil {
 		return err
@@ -189,7 +191,7 @@ func (p *Producer) PublishTeamMemberStatsAdded(ctx context.Context, teamID, user
 
 func (p *Producer) PublishEventConfirmed(ctx context.Context, eventID string) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type":     "event_confirmed",
+		"type":     "event.confirmed",
 		"event_id": eventID,
 	})
 	if err != nil {
@@ -203,7 +205,7 @@ func (p *Producer) PublishEventConfirmed(ctx context.Context, eventID string) er
 
 func (p *Producer) PublishEventDeclined(ctx context.Context, eventID string) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type":     "event_declined",
+		"type":     "event.declined",
 		"event_id": eventID,
 	})
 	if err != nil {
@@ -217,7 +219,7 @@ func (p *Producer) PublishEventDeclined(ctx context.Context, eventID string) err
 
 func (p *Producer) PublishEventStarted(ctx context.Context, eventID string, timeStart time.Time) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type":       "event_started",
+		"type":       "event.started",
 		"event_id":   eventID,
 		"time_start": timeStart,
 	})
@@ -232,7 +234,7 @@ func (p *Producer) PublishEventStarted(ctx context.Context, eventID string, time
 
 func (p *Producer) PublishUserRoleChanged(ctx context.Context, eventID, userID string, role domain.Role) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type":     "user_role_changed",
+		"type":     "user.role_changed",
 		"event_id": eventID,
 		"user_id":  userID,
 		"role":     string(role),
@@ -252,7 +254,7 @@ func (p *Producer) PublishUserRoleChanged(ctx context.Context, eventID, userID s
 
 func (p *Producer) PublishRentServer(ctx context.Context, eventID string, playersList []string, timeStart time.Time) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type":         "rent_server",
+		"type":         "rent.server",
 		"event_id":     eventID,
 		"players_list": playersList,
 		"time_start":   timeStart,

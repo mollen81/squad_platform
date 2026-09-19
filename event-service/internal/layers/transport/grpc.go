@@ -66,10 +66,10 @@ func (t *GRPCTransport) UpdateTimeEvent(ctx context.Context, req *pb.UpdateTimeE
 	}, nil
 }
 
-func (t *GRPCTransport) DeleteEvent(ctx context.Context, req *pb.DeleteEventRequest) (*pb.DeleteEventResponse, error) {
-	err := t.eventService.DeleteEvent(ctx, req.GetEventId(), req.GetUserCreateId())
+func (t *GRPCTransport) CancelEvent(ctx context.Context, req *pb.CancelEventRequest) (*pb.CancelEventResponse, error) {
+	err := t.eventService.CancelEvent(ctx, req.GetEventId(), req.GetUserCreateId())
 
-	return &pb.DeleteEventResponse{
+	return &pb.CancelEventResponse{
 		Error: errString(err),
 	}, nil
 }
@@ -120,16 +120,16 @@ func (t *GRPCTransport) GetTeamByID(ctx context.Context, req *pb.GetTeamByIDRequ
 	return resp, nil
 }
 
-func (t *GRPCTransport) AddUserToTeam(ctx context.Context, req *pb.AddUserToTeamRequest) (*pb.AddUserToTeamResponse, error) {
-	err := t.eventService.AddUserToTeam(ctx, req.GetTeamId(), req.GetUserEventId(), domain.Role(req.GetRole()))
+func (t *GRPCTransport) JoinUserToTeam(ctx context.Context, req *pb.JoinUserToTeamRequest) (*pb.JoinUserToTeamResponse, error) {
+	err := t.eventService.JoinUserToTeam(ctx, req.GetTeamId(), req.GetUserId(), domain.Role(req.GetRole()))
 
-	return &pb.AddUserToTeamResponse{
+	return &pb.JoinUserToTeamResponse{
 		Error: errString(err),
 	}, nil
 }
 
 func (t *GRPCTransport) RemoveUserFromTeam(ctx context.Context, req *pb.RemoveUserFromTeamRequest) (*pb.RemoveUserFromTeamResponse, error) {
-	err := t.eventService.RemoveUserFromTeam(ctx, req.GetTeamId(), req.GetUserEventId())
+	err := t.eventService.RemoveUserFromTeam(ctx, req.GetTeamId(), req.GetUserId())
 
 	return &pb.RemoveUserFromTeamResponse{
 		Error: errString(err),
@@ -137,7 +137,7 @@ func (t *GRPCTransport) RemoveUserFromTeam(ctx context.Context, req *pb.RemoveUs
 }
 
 func (t *GRPCTransport) StartTeamGame(ctx context.Context, req *pb.StartTeamGameRequest) (*pb.StartTeamGameResponse, error) {
-	err := t.eventService.StartTeamGame(ctx, req.GetTeamId())
+	err := t.eventService.StartTeamGame(ctx, req.GetTeam1Id(), req.GetTeam2Id())
 
 	return &pb.StartTeamGameResponse{
 		Error: errString(err),
@@ -145,7 +145,7 @@ func (t *GRPCTransport) StartTeamGame(ctx context.Context, req *pb.StartTeamGame
 }
 
 func (t *GRPCTransport) FinishTeamGame(ctx context.Context, req *pb.FinishTeamGameRequest) (*pb.FinishTeamGameResponse, error) {
-	err := t.eventService.FinishTeamGame(ctx, req.GetTeamId(), req.GetWinner(), req.GetKills(), req.GetDeaths(), req.GetRevival(), req.GetEquipmentDestroyed())
+	err := t.eventService.FinishTeamGame(ctx, req.GetTeam1Id(), req.GetTeam2Id(), req.GetTeamWinnerId())
 
 	return &pb.FinishTeamGameResponse{
 		Error: errString(err),
@@ -153,7 +153,7 @@ func (t *GRPCTransport) FinishTeamGame(ctx context.Context, req *pb.FinishTeamGa
 }
 
 func (t *GRPCTransport) AddTeamMemberStats(ctx context.Context, req *pb.AddTeamMemberStatsRequest) (*pb.AddTeamMemberStatsResponse, error) {
-	err := t.eventService.AddTeamMemberStats(ctx, req.GetTeamId(), req.GetUserEventId(), req.GetKills(), req.GetDeaths(), req.GetPoints())
+	err := t.eventService.AddTeamMemberStats(ctx, req.GetTeamId(), req.GetUserId(), req.GetKills(), req.GetDeaths(), req.GetPoints(), req.GetRevival(), req.GetDestroyedVehicles())
 
 	return &pb.AddTeamMemberStatsResponse{
 		Error: errString(err),
@@ -161,11 +161,16 @@ func (t *GRPCTransport) AddTeamMemberStats(ctx context.Context, req *pb.AddTeamM
 }
 
 func (t *GRPCTransport) GetTeamStats(ctx context.Context, req *pb.GetTeamStatsRequest) (*pb.GetTeamStatsResponse, error) {
-	stats, err := t.eventService.GetTeamStats(ctx, req.GetTeamId())
+	team, stats, err := t.eventService.GetTeamStats(ctx, req.GetTeamId())
 
 	return &pb.GetTeamStatsResponse{
-		Stats: toProtoTeamMembers(stats),
-		Error: errString(err),
+		Stats:                  toProtoTeamMembers(stats),
+		TotalKills:             team.TotalKills,
+		TotalDeaths:            team.TotalDeaths,
+		TotalPoints:            team.TotalPoints,
+		TotalRevival:           team.TotalRevival,
+		TotalDestroyedVehicles: team.TotalDestroyedVehicles,
+		Error:                  errString(err),
 	}, nil
 }
 

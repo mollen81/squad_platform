@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"event-service/internal/core/domain"
@@ -23,11 +24,11 @@ func NewPostgresRepository(pool *pgxpool.Pool) service.EventRepository {
 
 func (r *postgresRepository) CreateEvent(ctx context.Context, event domain.Event) error {
 	query := `
-	INSERT INTO events (event_id, name, user_create_id, enemy_side_leader_id, time_start, time_finish, create_time, user_count, target_game_count, game_count, is_started, is_finished)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+	INSERT INTO events (event_id, name, user_create_id, enemy_side_leader_id, time_start, time_finish, create_time, user_count, target_game_count, game_count, status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 
-	_, err := r.pool.Exec(ctx, query, event.EventID, event.Name, event.UserCreateID, event.EnemySideLeader, event.TimeStart, event.TimeFinish, event.CreateTime, event.UserCount, event.TargetGameCount, event.GameCount, event.IsStarted, event.IsFinished)
+	_, err := r.pool.Exec(ctx, query, event.EventID, event.Name, event.UserCreateID, event.EnemySideLeader, event.TimeStart, event.TimeFinish, event.CreateTime, event.UserCount, event.TargetGameCount, event.GameCount, event.Status)
 	if err != nil {
 		return err
 	}
@@ -37,7 +38,7 @@ func (r *postgresRepository) CreateEvent(ctx context.Context, event domain.Event
 
 func (r *postgresRepository) GetEventsByCreatorId(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, is_started, is_finished, target_game_count, game_count
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status
 		FROM events
 		WHERE user_create_id = $1
 	`
@@ -65,10 +66,9 @@ func (r *postgresRepository) GetEventsByCreatorId(ctx context.Context, userCreat
 			&evn.TimeFinish,
 			&evn.CreateTime,
 			&evn.WinnerSide,
-			&evn.IsStarted,
-			&evn.IsFinished,
 			&evn.TargetGameCount,
 			&evn.GameCount,
+			&evn.Status,
 		)
 		if err != nil {
 			return nil, err
@@ -81,7 +81,7 @@ func (r *postgresRepository) GetEventsByCreatorId(ctx context.Context, userCreat
 
 func (r *postgresRepository) GetLastEventByCreatorId(ctx context.Context, userCreateID string) (*domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, is_started, is_finished, target_game_count, game_count
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status
 		FROM events
 		WHERE user_create_id = $1
 		ORDER BY create_time DESC
@@ -99,10 +99,9 @@ func (r *postgresRepository) GetLastEventByCreatorId(ctx context.Context, userCr
 		&evn.TimeFinish,
 		&evn.CreateTime,
 		&evn.WinnerSide,
-		&evn.IsStarted,
-		&evn.IsFinished,
 		&evn.TargetGameCount,
 		&evn.GameCount,
+		&evn.Status,
 	)
 
 	if err == pgx.ErrNoRows {
@@ -118,7 +117,7 @@ func (r *postgresRepository) GetLastEventByCreatorId(ctx context.Context, userCr
 
 func (r *postgresRepository) GetEventByID(ctx context.Context, eventID string) (domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, is_started, is_finished, target_game_count, game_count
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status
 		FROM events
 		WHERE event_id = $1
 	`
@@ -133,10 +132,9 @@ func (r *postgresRepository) GetEventByID(ctx context.Context, eventID string) (
 		&event.TimeFinish,
 		&event.CreateTime,
 		&event.WinnerSide,
-		&event.IsStarted,
-		&event.IsFinished,
 		&event.TargetGameCount,
 		&event.GameCount,
+		&event.Status,
 	)
 
 	if err == pgx.ErrNoRows {
@@ -152,7 +150,7 @@ func (r *postgresRepository) GetEventByID(ctx context.Context, eventID string) (
 
 func (r *postgresRepository) GetEventMembersList(ctx context.Context, eventID string) ([]domain.User, error) {
 	query := `
-		SELECT user_event_id, user_id, event_id, clan_id, enemy, role, six_clan_members, join_time
+		SELECT user_event_id, user_id, event_id, clan_id, enemy, role, join_time
 		FROM users
 		WHERE event_id = $1
 	`
@@ -177,7 +175,6 @@ func (r *postgresRepository) GetEventMembersList(ctx context.Context, eventID st
 			&usr.ClanID,
 			&usr.Enemy,
 			&usr.Role,
-			&usr.SixClanMembers,
 			&usr.JoinTime,
 		)
 		if err != nil {
@@ -191,7 +188,7 @@ func (r *postgresRepository) GetEventMembersList(ctx context.Context, eventID st
 
 func (r *postgresRepository) GetEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, is_started, is_finished, target_game_count, game_count
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status
 		FROM events
 		WHERE name = $1
 	`
@@ -218,10 +215,9 @@ func (r *postgresRepository) GetEventsByEventName(ctx context.Context, eventName
 			&evn.TimeFinish,
 			&evn.CreateTime,
 			&evn.WinnerSide,
-			&evn.IsStarted,
-			&evn.IsFinished,
 			&evn.TargetGameCount,
 			&evn.GameCount,
+			&evn.Status,
 		)
 		if err != nil {
 			return nil, err
@@ -254,6 +250,39 @@ func (r *postgresRepository) UpdateTimeFinishEvent(ctx context.Context, eventID 
 	return err
 }
 
+// UpdateEventStatus переводит ивент в новый статус — но только из ожидаемого
+// предыдущего (pending->confirmed или confirmed->in_progress), чтобы
+// повторный или опоздавший вызов (например, после рестарта сервиса) не мог
+// откатить ивент назад в более раннюю фазу жизненного цикла.
+func (r *postgresRepository) UpdateEventStatus(ctx context.Context, eventID string, status domain.EventStatus) error {
+	var fromStatuses []string
+	switch status {
+	case domain.EventStatusConfirmed:
+		fromStatuses = []string{string(domain.EventStatusPending)}
+	case domain.EventStatusInProgress:
+		fromStatuses = []string{string(domain.EventStatusConfirmed)}
+	case domain.EventStatusDeclined:
+		// декленд бывает только для ивента, который так и остался pending —
+		// не набрал минимум игроков к контрольной точке.
+		fromStatuses = []string{string(domain.EventStatusPending)}
+	case domain.EventStatusCanceled:
+		// отменить вручную (CancelEvent) можно и pending, и уже confirmed —
+		// но не то, что уже in_progress/finished/declined.
+		fromStatuses = []string{string(domain.EventStatusPending), string(domain.EventStatusConfirmed)}
+	default:
+		return fmt.Errorf("UpdateEventStatus: unsupported target status %q", status)
+	}
+
+	query := `
+		UPDATE events
+		SET status = $1
+		WHERE event_id = $2 AND status = ANY($3)
+	`
+
+	_, err := r.pool.Exec(ctx, query, status, eventID, fromStatuses)
+	return err
+}
+
 // UpdateEventWinner/UpdateEventLoser удалены: писали в event_team_winner/event_team_loser,
 // которых больше нет в схеме (заменены на events.winner_side). Не были нигде вызваны
 // из сервисного слоя — мёртвый код. Вернём в виде UpdateEventWinnerSide, когда будем
@@ -270,14 +299,12 @@ func (r *postgresRepository) RenameEvent(ctx context.Context, eventID, oldName, 
 	return err
 }
 
-func (r *postgresRepository) DeleteEvent(ctx context.Context, eventID string) error {
-	query := `
-		DELETE FROM events WHERE event_id = $1
-	`
-
-	_, err := r.pool.Exec(ctx, query, eventID)
-	return err
-}
+// DeleteEvent убран: раньше он реально удалял ивент со всеми зависимыми
+// строками (team_members/team/users) — теперь и ручная отмена (CancelEvent,
+// статус "canceled"), и автоматическая (не набрали минимум игроков к
+// контрольной точке, статус "declined") просто переводят ивент в статус
+// через UpdateEventStatus, а сама строка и вся история участников/команд
+// остаются в базе.
 
 func (r *postgresRepository) IsUserInEvent(ctx context.Context, eventID, userID string) (bool, error) {
 	query := `
@@ -294,12 +321,11 @@ func (r *postgresRepository) IsUserInEvent(ctx context.Context, eventID, userID 
 
 func (r *postgresRepository) JoinToEvent(ctx context.Context, userEventID, eventID, userID, clanID string, enemy bool, joinTime time.Time) error {
 	query := `
-		INSERT INTO users (user_event_id, user_id, event_id, clan_id, enemy, role, six_clan_members, join_time)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO users (user_event_id, user_id, event_id, clan_id, enemy, role, join_time)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 	`
 
-	sixClanMembers := false
-	_, err := r.pool.Exec(ctx, query, userEventID, userID, eventID, clanID, enemy, domain.RolePlayer, sixClanMembers, joinTime)
+	_, err := r.pool.Exec(ctx, query, userEventID, userID, eventID, clanID, enemy, domain.RolePlayer, joinTime)
 	if err != nil {
 		return err
 	}
@@ -348,7 +374,7 @@ func (r *postgresRepository) UpdateUserRole(ctx context.Context, userID, eventID
 
 func (r *postgresRepository) GetUserByID(ctx context.Context, eventID, userID string) (domain.User, error) {
 	query := `
-		SELECT user_event_id, user_id, event_id, clan_id, enemy, role, six_clan_members, join_time
+		SELECT user_event_id, user_id, event_id, clan_id, enemy, role, join_time
 		FROM users
 		WHERE user_id = $1 AND event_id = $2
 	`
@@ -361,12 +387,11 @@ func (r *postgresRepository) GetUserByID(ctx context.Context, eventID, userID st
 		&user.ClanID,
 		&user.Enemy,
 		&user.Role,
-		&user.SixClanMembers,
 		&user.JoinTime,
 	)
 
 	if err == pgx.ErrNoRows {
-		return domain.User{}, nil
+		return domain.User{}, fmt.Errorf("user %q not found in event %q", userID, eventID)
 	}
 
 	if err != nil {
@@ -376,56 +401,73 @@ func (r *postgresRepository) GetUserByID(ctx context.Context, eventID, userID st
 	return user, nil
 }
 
-func (r *postgresRepository) CheckSixClanMembers(ctx context.Context, eventID, userID, clanID string) (bool, error) {
+// CheckSixClanMembers считает ДРУГИХ участников этой КОМАНДЫ (team_members,
+// исключая userEventID) с тем же кланом — clan_id хранится в users (по
+// ивенту, не по команде), поэтому JOIN. Считается на уровне команды, а не
+// всего ивента: другой микросервис перед стартом конкретной игры смотрит на
+// team_members.six_clan_members у каждого участника и решает, приглашать его
+// или нет.
+//
+// ВРЕМЕННО ДЛЯ ТЕСТА: боевой порог — не менее 5 ДРУГИХ однокланников в
+// команде (итого 6 вместе с самим игроком). Сейчас занижен до 1 (итого 2),
+// чтобы фичу было легко проверить руками, не собирая 6 человек одного клана.
+// Перед проверкой на бою вернуть "count >= 5" (и парой строк ниже, в
+// RemoveUserFromTeam-логике сервисного слоя, порог "clanMembersLeft < 2"
+// обратно на "< 6").
+func (r *postgresRepository) CheckSixClanMembers(ctx context.Context, teamID, userEventID, clanID string) (bool, error) {
 	query := `
 		SELECT COUNT(*)
-		FROM users
-		WHERE event_id = $1
-		AND clan_id = $2
-		AND clan_id != ''
-		AND user_id != $3
+		FROM team_members tm
+		JOIN users u ON u.user_event_id = tm.user_event_id
+		WHERE tm.team_id = $1
+		AND u.clan_id = $2
+		AND tm.user_event_id != $3
 	`
 
 	var count int
-	err := r.pool.QueryRow(ctx, query, eventID, clanID, userID).Scan(&count)
+	err := r.pool.QueryRow(ctx, query, teamID, clanID, userEventID).Scan(&count)
 	if err != nil {
 		return false, err
 	}
 
-	return count >= 5, nil
+	return count >= 1, nil // боевое значение: count >= 5
 }
 
-func (r *postgresRepository) UpdateUserSixClanMembers(ctx context.Context, userID, eventID string, hasSixClanMembers bool) error {
+func (r *postgresRepository) UpdateTeamMemberSixClanMembers(ctx context.Context, teamID, userEventID string, hasSixClanMembers bool) error {
 	query := `
-		UPDATE users
+		UPDATE team_members
 		SET six_clan_members = $1
-		WHERE user_id = $2 AND event_id = $3
+		WHERE team_id = $2 AND user_event_id = $3
 	`
 
-	_, err := r.pool.Exec(ctx, query, hasSixClanMembers, userID, eventID)
+	_, err := r.pool.Exec(ctx, query, hasSixClanMembers, teamID, userEventID)
 	return err
 }
 
-func (r *postgresRepository) UpdateSixClanMembersForClan(ctx context.Context, eventID, clanID string, hasSixClanMembers bool) error {
+func (r *postgresRepository) UpdateSixClanMembersForClanInTeam(ctx context.Context, teamID, clanID string, hasSixClanMembers bool) error {
 	query := `
-		UPDATE users
+		UPDATE team_members tm
 		SET six_clan_members = $1
-		WHERE event_id = $2 AND clan_id = $3
+		FROM users u
+		WHERE tm.user_event_id = u.user_event_id
+		AND tm.team_id = $2
+		AND u.clan_id = $3
 	`
 
-	_, err := r.pool.Exec(ctx, query, hasSixClanMembers, eventID, clanID)
+	_, err := r.pool.Exec(ctx, query, hasSixClanMembers, teamID, clanID)
 	return err
 }
 
-func (r *postgresRepository) CountClanMembersInEvent(ctx context.Context, eventID, clanID string) (int, error) {
+func (r *postgresRepository) CountClanMembersInTeam(ctx context.Context, teamID, clanID string) (int, error) {
 	query := `
 		SELECT COUNT(*)
-		FROM users
-		WHERE event_id = $1 AND clan_id = $2
+		FROM team_members tm
+		JOIN users u ON u.user_event_id = tm.user_event_id
+		WHERE tm.team_id = $1 AND u.clan_id = $2
 	`
 
 	var count int
-	err := r.pool.QueryRow(ctx, query, eventID, clanID).Scan(&count)
+	err := r.pool.QueryRow(ctx, query, teamID, clanID).Scan(&count)
 	return count, err
 }
 
@@ -459,16 +501,11 @@ func (r *postgresRepository) GetUserIDsByEventID(ctx context.Context, eventID st
 	return userIDs, rows.Err()
 }
 
-// events.is_confirmed убрана из схемы (её не было и на новой диаграмме) —
-// подтверждение/отклонение по достижению 80% теперь не персистится отдельным
-// флагом: отклонение = реальное DeleteEvent, подтверждение — просто Kafka-событие
-// из сервисного слоя.
-
 func (r *postgresRepository) GetUnfinishedEventsByUserID(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, is_started, is_finished, target_game_count, game_count
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status
 		FROM events
-		WHERE user_create_id = $1 AND is_finished = false
+		WHERE user_create_id = $1 AND status IN ('pending', 'confirmed', 'in_progress')
 	`
 
 	rows, err := r.pool.Query(ctx, query, userCreateID)
@@ -494,10 +531,9 @@ func (r *postgresRepository) GetUnfinishedEventsByUserID(ctx context.Context, us
 			&evn.TimeFinish,
 			&evn.CreateTime,
 			&evn.WinnerSide,
-			&evn.IsStarted,
-			&evn.IsFinished,
 			&evn.TargetGameCount,
 			&evn.GameCount,
+			&evn.Status,
 		)
 		if err != nil {
 			return nil, err
@@ -510,9 +546,9 @@ func (r *postgresRepository) GetUnfinishedEventsByUserID(ctx context.Context, us
 
 func (r *postgresRepository) GetUnfinishedEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, is_started, is_finished, target_game_count, game_count
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status
 		FROM events
-		WHERE name = $1 AND is_finished = false
+		WHERE name = $1 AND status IN ('pending', 'confirmed', 'in_progress')
 	`
 	rows, err := r.pool.Query(ctx, query, eventName)
 	if err == pgx.ErrNoRows {
@@ -537,10 +573,9 @@ func (r *postgresRepository) GetUnfinishedEventsByEventName(ctx context.Context,
 			&evn.TimeFinish,
 			&evn.CreateTime,
 			&evn.WinnerSide,
-			&evn.IsStarted,
-			&evn.IsFinished,
 			&evn.TargetGameCount,
 			&evn.GameCount,
+			&evn.Status,
 		)
 		if err != nil {
 			return nil, err
@@ -551,15 +586,50 @@ func (r *postgresRepository) GetUnfinishedEventsByEventName(ctx context.Context,
 	return events, rows.Err()
 }
 
-func (r *postgresRepository) StartEventDB(ctx context.Context, eventID string) error {
+// GetAllUnfinishedEvents отдаёт все ещё активные ивенты (pending/confirmed/
+// in_progress — не finished, не declined и не canceled) вне
+// зависимости от создателя — используется только при старте сервиса, чтобы
+// восстановить таймеры controlEventTimerDenial/confirmEvent, потерянные при
+// рестарте (eventTimers — чисто in-memory карта).
+func (r *postgresRepository) GetAllUnfinishedEvents(ctx context.Context) ([]domain.Event, error) {
 	query := `
-		UPDATE events
-		SET is_started = true
-		WHERE event_id = $1
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status
+		FROM events
+		WHERE status IN ('pending', 'confirmed', 'in_progress')
 	`
+	rows, err := r.pool.Query(ctx, query)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-	_, err := r.pool.Exec(ctx, query, eventID)
-	return err
+	events := make([]domain.Event, 0)
+	for rows.Next() {
+		evn := domain.Event{}
+		err := rows.Scan(
+			&evn.EventID,
+			&evn.Name,
+			&evn.UserCreateID,
+			&evn.EnemySideLeader,
+			&evn.UserCount,
+			&evn.TimeStart,
+			&evn.TimeFinish,
+			&evn.CreateTime,
+			&evn.WinnerSide,
+			&evn.TargetGameCount,
+			&evn.GameCount,
+			&evn.Status,
+		)
+		if err != nil {
+			return nil, err
+		}
+		events = append(events, evn)
+	}
+
+	return events, rows.Err()
 }
 
 func (r *postgresRepository) IncrementEventGameCount(ctx context.Context, eventID string) error {
@@ -573,11 +643,16 @@ func (r *postgresRepository) IncrementEventGameCount(ctx context.Context, eventI
 	return err
 }
 
+// FinishEventDB переводит ивент в статус "finished" и одновременно пишет
+// time_finish и итоговый winner_side — атомарно, одним UPDATE'ом (а не
+// отдельным вызовом UpdateEventStatus + отдельным UPDATE на эти поля),
+// и только из "in_progress", по тем же соображениям идемпотентности, что и
+// UpdateEventStatus.
 func (r *postgresRepository) FinishEventDB(ctx context.Context, eventID, winnerSide string) error {
 	query := `
 		UPDATE events
-		SET is_finished = true, time_finish = $1, winner_side = $2
-		WHERE event_id = $3
+		SET status = 'finished', time_finish = $1, winner_side = $2
+		WHERE event_id = $3 AND status = 'in_progress'
 	`
 
 	_, err := r.pool.Exec(ctx, query, time.Now(), winnerSide, eventID)
@@ -586,8 +661,8 @@ func (r *postgresRepository) FinishEventDB(ctx context.Context, eventID, winnerS
 
 func (r *postgresRepository) CreateTeam(ctx context.Context, team domain.Team) error {
 	query := `
-		INSERT INTO team (team_id, event_id, winner, side_leader_id, game_number, members_count, time_start, time_finish, kills, deaths, revival, equipment_destroyed)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		INSERT INTO team (team_id, event_id, winner, side_leader_id, game_number, members_count, time_start, time_finish, total_kills, total_deaths, total_points, total_revival, total_destroyed_vehicles)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	`
 
 	// time_start/time_finish пишем как настоящий NULL, если ещё не заданы —
@@ -600,13 +675,13 @@ func (r *postgresRepository) CreateTeam(ctx context.Context, team domain.Team) e
 		timeFinish = &team.TimeFinish
 	}
 
-	_, err := r.pool.Exec(ctx, query, team.TeamID, team.EventID, team.Winner, team.SideLeaderID, team.GameNumber, team.MembersCount, timeStart, timeFinish, team.Kills, team.Deaths, team.Revival, team.EquipmentDestroyed)
+	_, err := r.pool.Exec(ctx, query, team.TeamID, team.EventID, team.Winner, team.SideLeaderID, team.GameNumber, team.MembersCount, timeStart, timeFinish, team.TotalKills, team.TotalDeaths, team.TotalPoints, team.TotalRevival, team.TotalDestroyedVehicles)
 	return err
 }
 
 func (r *postgresRepository) GetTeamsByEventID(ctx context.Context, eventID string) ([]domain.Team, error) {
 	query := `
-		SELECT team_id, event_id, winner, side_leader_id, game_number, members_count, time_start, time_finish, kills, deaths, revival, equipment_destroyed
+		SELECT team_id, event_id, winner, side_leader_id, game_number, members_count, time_start, time_finish, total_kills, total_deaths, total_points, total_revival, total_destroyed_vehicles
 		FROM team
 		WHERE event_id = $1
 		ORDER BY game_number ASC
@@ -634,10 +709,11 @@ func (r *postgresRepository) GetTeamsByEventID(ctx context.Context, eventID stri
 			&t.MembersCount,
 			&timeStart,
 			&timeFinish,
-			&t.Kills,
-			&t.Deaths,
-			&t.Revival,
-			&t.EquipmentDestroyed,
+			&t.TotalKills,
+			&t.TotalDeaths,
+			&t.TotalPoints,
+			&t.TotalRevival,
+			&t.TotalDestroyedVehicles,
 		)
 		if err != nil {
 			return nil, err
@@ -656,7 +732,7 @@ func (r *postgresRepository) GetTeamsByEventID(ctx context.Context, eventID stri
 
 func (r *postgresRepository) GetTeamByID(ctx context.Context, teamID string) (domain.Team, error) {
 	query := `
-		SELECT team_id, event_id, winner, side_leader_id, game_number, members_count, time_start, time_finish, kills, deaths, revival, equipment_destroyed
+		SELECT team_id, event_id, winner, side_leader_id, game_number, members_count, time_start, time_finish, total_kills, total_deaths, total_points, total_revival, total_destroyed_vehicles
 		FROM team
 		WHERE team_id = $1
 	`
@@ -672,14 +748,15 @@ func (r *postgresRepository) GetTeamByID(ctx context.Context, teamID string) (do
 		&t.MembersCount,
 		&timeStart,
 		&timeFinish,
-		&t.Kills,
-		&t.Deaths,
-		&t.Revival,
-		&t.EquipmentDestroyed,
+		&t.TotalKills,
+		&t.TotalDeaths,
+		&t.TotalPoints,
+		&t.TotalRevival,
+		&t.TotalDestroyedVehicles,
 	)
 
 	if err == pgx.ErrNoRows {
-		return domain.Team{}, nil
+		return domain.Team{}, err
 	}
 	if err != nil {
 		return domain.Team{}, err
@@ -694,7 +771,7 @@ func (r *postgresRepository) GetTeamByID(ctx context.Context, teamID string) (do
 	return t, nil
 }
 
-func (r *postgresRepository) AddUserToTeam(ctx context.Context, teamID, userEventID string, role domain.Role) error {
+func (r *postgresRepository) JoinUserToTeam(ctx context.Context, teamID, userEventID string, role domain.Role) error {
 	query := `
 		INSERT INTO team_members (team_id, user_event_id, role)
 		VALUES ($1, $2, $3)
@@ -734,42 +811,96 @@ func (r *postgresRepository) RemoveUserFromTeam(ctx context.Context, teamID, use
 	return err
 }
 
-func (r *postgresRepository) StartTeamGame(ctx context.Context, teamID string, timeStart time.Time) error {
+// StartTeamGame стартует обе команды одной игры одним UPDATE'ом — они всегда
+// начинаются вместе.
+func (r *postgresRepository) StartTeamGame(ctx context.Context, team1ID, team2ID string, timeStart time.Time) error {
 	query := `
 		UPDATE team
 		SET time_start = $1
-		WHERE team_id = $2
+		WHERE team_id IN ($2, $3)
 	`
 
-	_, err := r.pool.Exec(ctx, query, timeStart, teamID)
-	return err
+	tag, err := r.pool.Exec(ctx, query, timeStart, team1ID, team2ID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 2 {
+		return fmt.Errorf("expected to start 2 teams, affected %d", tag.RowsAffected())
+	}
+	return nil
 }
 
-func (r *postgresRepository) FinishTeamGame(ctx context.Context, teamID string, timeFinish time.Time, winner bool, kills, deaths, revival, equipmentDestroyed int64) error {
+// SumTeamMemberStats складывает индивидуальную статистику всех team_members
+// этой команды (их заносят по одному через AddTeamMemberStats — ПОСЛЕ того,
+// как FinishTeamGame уже закрыл игру для этой команды) — вызывается из
+// сервисного слоя после каждого AddTeamMemberStats, чтобы обновить
+// Team.total_* и не требовать от клиента самому суммировать все числа.
+func (r *postgresRepository) SumTeamMemberStats(ctx context.Context, teamID string) (kills, deaths, points, revival, destroyedVehicles int64, err error) {
+	query := `
+		SELECT COALESCE(SUM(kills), 0), COALESCE(SUM(deaths), 0), COALESCE(SUM(points), 0), COALESCE(SUM(revival), 0), COALESCE(SUM(destroyed_vehicles), 0)
+		FROM team_members
+		WHERE team_id = $1
+	`
+
+	err = r.pool.QueryRow(ctx, query, teamID).Scan(&kills, &deaths, &points, &revival, &destroyedVehicles)
+	return kills, deaths, points, revival, destroyedVehicles, err
+}
+
+func (r *postgresRepository) UpdateTeamTotals(ctx context.Context, teamID string, kills, deaths, points, revival, destroyedVehicles int64) error {
 	query := `
 		UPDATE team
-		SET time_finish = $1, winner = $2, kills = $3, deaths = $4, revival = $5, equipment_destroyed = $6
-		WHERE team_id = $7
+		SET total_kills = $1, total_deaths = $2, total_points = $3, total_revival = $4, total_destroyed_vehicles = $5
+		WHERE team_id = $6
 	`
 
-	_, err := r.pool.Exec(ctx, query, timeFinish, winner, kills, deaths, revival, equipmentDestroyed, teamID)
+	_, err := r.pool.Exec(ctx, query, kills, deaths, points, revival, destroyedVehicles, teamID)
 	return err
 }
 
-func (r *postgresRepository) AddTeamMemberStats(ctx context.Context, teamID, userEventID string, kills, deaths, points int64) error {
+// FinishTeamGame закрывает одну игру: обеим командам сразу проставляет
+// time_finish, а winner выставляется через сравнение team_id с winnerTeamID
+// (сервисный слой уже проверил, что winnerTeamID — это team1ID либо team2ID).
+func (r *postgresRepository) FinishTeamGame(ctx context.Context, team1ID, team2ID, winnerTeamID string, timeFinish time.Time) error {
 	query := `
-		UPDATE team_members
-		SET kills = $1, deaths = $2, points = $3
-		WHERE team_id = $4 AND user_event_id = $5
+		UPDATE team
+		SET time_finish = $1, winner = (team_id = $2)
+		WHERE team_id IN ($3, $4)
 	`
 
-	_, err := r.pool.Exec(ctx, query, kills, deaths, points, teamID, userEventID)
-	return err
+	tag, err := r.pool.Exec(ctx, query, timeFinish, winnerTeamID, team1ID, team2ID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 2 {
+		return fmt.Errorf("expected to finish 2 teams, affected %d", tag.RowsAffected())
+	}
+	return nil
+}
+
+// AddTeamMemberStats обновляет статистику уже существующего участника
+// команды (team_members заполняется через JoinUserToTeam до игры) — если
+// строки не было, значит игрок не состоял в этой команде, и это ошибка, а не
+// молчаливый no-op.
+func (r *postgresRepository) AddTeamMemberStats(ctx context.Context, teamID, userEventID string, kills, deaths, points, revival, destroyedVehicles int64) error {
+	query := `
+		UPDATE team_members
+		SET kills = $1, deaths = $2, points = $3, revival = $4, destroyed_vehicles = $5
+		WHERE team_id = $6 AND user_event_id = $7
+	`
+
+	tag, err := r.pool.Exec(ctx, query, kills, deaths, points, revival, destroyedVehicles, teamID, userEventID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("player is not a member of team %q", teamID)
+	}
+	return nil
 }
 
 func (r *postgresRepository) GetTeamStats(ctx context.Context, teamID string) ([]domain.TeamMember, error) {
 	query := `
-		SELECT tm.team_id, tm.user_event_id, u.user_id, tm.role, tm.kills, tm.deaths, tm.points
+		SELECT tm.team_id, tm.user_event_id, u.user_id, tm.role, tm.kills, tm.deaths, tm.points, tm.revival, tm.destroyed_vehicles, tm.six_clan_members
 		FROM team_members tm
 		JOIN users u ON tm.user_event_id = u.user_event_id
 		WHERE tm.team_id = $1
@@ -795,6 +926,9 @@ func (r *postgresRepository) GetTeamStats(ctx context.Context, teamID string) ([
 			&m.Kills,
 			&m.Deaths,
 			&m.Points,
+			&m.Revival,
+			&m.DestroyedVehicles,
+			&m.SixClanMembers,
 		)
 		if err != nil {
 			return nil, err
@@ -803,4 +937,44 @@ func (r *postgresRepository) GetTeamStats(ctx context.Context, teamID string) ([
 	}
 
 	return stats, rows.Err()
+}
+
+// IsUserInTeam проверяет, состоит ли userEventID в команде teamID. Раньше
+// здесь был баг: делали Query() и не читали ни строки результата, ни COUNT —
+// функция всегда возвращала (true, nil), из-за чего JoinUserToTeam вообще не
+// мог никого добавить (всегда решал, что игрок "уже в команде"). Плюс
+// сравнивали с u.user_id, хотя параметром передаётся уже резолвленный
+// user_event_id — join с users был не нужен вовсе.
+func (r *postgresRepository) IsUserInTeam(ctx context.Context, teamID, userEventID string) (bool, error) {
+	query := `
+		SELECT EXISTS(SELECT 1 FROM team_members WHERE team_id = $1 AND user_event_id = $2)
+	`
+
+	var exists bool
+	if err := r.pool.QueryRow(ctx, query, teamID, userEventID).Scan(&exists); err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}
+
+// GetUserEventIDByUserIDAndTeamID резолвит user_id (внешний, из другого
+// микросервиса) в user_event_id (внутренний) в контексте конкретной команды.
+// users не хранит team_id напрямую — привязку к ивенту (а через него — к
+// команде) даёт join с team по event_id.
+func (r *postgresRepository) GetUserEventIDByUserIDAndTeamID(ctx context.Context, userID, teamID string) (string, error) {
+	query := `
+		SELECT u.user_event_id
+		FROM users u
+		JOIN team t ON t.event_id = u.event_id
+		WHERE u.user_id = $1 AND t.team_id = $2
+	`
+
+	var result string
+	err := r.pool.QueryRow(ctx, query, userID, teamID).Scan(&result)
+	if err != nil {
+		return "", err
+	}
+
+	return result, nil
 }
