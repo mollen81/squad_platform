@@ -34,9 +34,11 @@ func main() {
 	if postgresUser == "" {
 		postgresUser = "admin"
 	}
+	// Пароль берём только из окружения (.env / секреты окружения): значения
+	// по умолчанию здесь быть не должно — оно попадает в репозиторий.
 	postgresPassword := os.Getenv("POSTGRES_PASSWORD")
 	if postgresPassword == "" {
-		postgresPassword = "0324!"
+		log.Fatal("POSTGRES_PASSWORD is not set")
 	}
 	postgresDB := os.Getenv("POSTGRES_DB")
 	if postgresDB == "" {

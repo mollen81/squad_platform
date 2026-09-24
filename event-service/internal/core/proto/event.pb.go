@@ -157,13 +157,14 @@ func (x *Event) GetStatus() string {
 }
 
 type User struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserEventId   string                 `protobuf:"bytes,1,opt,name=user_event_id,json=userEventId,proto3" json:"user_event_id,omitempty"`
-	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	EventId       string                 `protobuf:"bytes,3,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	ClanId        string                 `protobuf:"bytes,4,opt,name=clan_id,json=clanId,proto3" json:"clan_id,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	UserEventId string                 `protobuf:"bytes,1,opt,name=user_event_id,json=userEventId,proto3" json:"user_event_id,omitempty"`
+	UserId      string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	EventId     string                 `protobuf:"bytes,3,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	ClanId      string                 `protobuf:"bytes,4,opt,name=clan_id,json=clanId,proto3" json:"clan_id,omitempty"`
+	// Сторона, за которую игрок вошёл в ивент: войти в команду противоположной
+	// стороны нельзя (см. JoinUserToTeam).
 	Enemy         bool                   `protobuf:"varint,5,opt,name=enemy,proto3" json:"enemy,omitempty"`
-	Role          string                 `protobuf:"bytes,6,opt,name=role,proto3" json:"role,omitempty"`
 	JoinTime      *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=join_time,json=joinTime,proto3" json:"join_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -234,13 +235,6 @@ func (x *User) GetEnemy() bool {
 	return false
 }
 
-func (x *User) GetRole() string {
-	if x != nil {
-		return x.Role
-	}
-	return ""
-}
-
 func (x *User) GetJoinTime() *timestamppb.Timestamp {
 	if x != nil {
 		return x.JoinTime
@@ -262,8 +256,12 @@ type Team struct {
 	TotalRevival           int64                  `protobuf:"varint,10,opt,name=total_revival,json=totalRevival,proto3" json:"total_revival,omitempty"`
 	TotalDestroyedVehicles int64                  `protobuf:"varint,11,opt,name=total_destroyed_vehicles,json=totalDestroyedVehicles,proto3" json:"total_destroyed_vehicles,omitempty"`
 	// Пустой time_start => игра ещё не началась. Пустой time_finish => игра ещё не окончена.
-	TimeStart     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=time_start,json=timeStart,proto3" json:"time_start,omitempty"`
-	TimeFinish    *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=time_finish,json=timeFinish,proto3" json:"time_finish,omitempty"`
+	TimeStart  *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=time_start,json=timeStart,proto3" json:"time_start,omitempty"`
+	TimeFinish *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=time_finish,json=timeFinish,proto3" json:"time_finish,omitempty"`
+	// Состояние участия команды в игре: pending (игра не началась) |
+	// in_progress (идёт) | finished (закончена). Менять состав команды и роли
+	// можно только в pending.
+	Status        string `protobuf:"bytes,14,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -387,6 +385,13 @@ func (x *Team) GetTimeFinish() *timestamppb.Timestamp {
 		return x.TimeFinish
 	}
 	return nil
+}
+
+func (x *Team) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
 }
 
 type TeamMember struct {
@@ -556,7 +561,6 @@ func (x *GetEventMembersListRequest) GetEventId() string {
 type GetEventMembersListResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Users         []*User                `protobuf:"bytes,1,rep,name=users,proto3" json:"users,omitempty"`
-	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -596,13 +600,6 @@ func (x *GetEventMembersListResponse) GetUsers() []*User {
 		return x.Users
 	}
 	return nil
-}
-
-func (x *GetEventMembersListResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 type CreateEventRequest struct {
@@ -700,7 +697,6 @@ func (x *CreateEventRequest) GetTargetGameCount() int64 {
 
 type CreateEventResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -733,13 +729,6 @@ func (x *CreateEventResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CreateEventResponse.ProtoReflect.Descriptor instead.
 func (*CreateEventResponse) Descriptor() ([]byte, []int) {
 	return file_event_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *CreateEventResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 type GetEventsByCreatorIdRequest struct {
@@ -789,7 +778,6 @@ func (x *GetEventsByCreatorIdRequest) GetUserCreateId() string {
 type GetEventsByCreatorIdResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Events        []*Event               `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
-	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -829,13 +817,6 @@ func (x *GetEventsByCreatorIdResponse) GetEvents() []*Event {
 		return x.Events
 	}
 	return nil
-}
-
-func (x *GetEventsByCreatorIdResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 type GetLastEventByCreatorIdRequest struct {
@@ -885,7 +866,6 @@ func (x *GetLastEventByCreatorIdRequest) GetUserCreateId() string {
 type GetLastEventByCreatorIdResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Event         *Event                 `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
-	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -925,13 +905,6 @@ func (x *GetLastEventByCreatorIdResponse) GetEvent() *Event {
 		return x.Event
 	}
 	return nil
-}
-
-func (x *GetLastEventByCreatorIdResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 type GetEventsByEventNameRequest struct {
@@ -981,7 +954,6 @@ func (x *GetEventsByEventNameRequest) GetEventName() string {
 type GetEventsByEventNameResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Events        []*Event               `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
-	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1021,13 +993,6 @@ func (x *GetEventsByEventNameResponse) GetEvents() []*Event {
 		return x.Events
 	}
 	return nil
-}
-
-func (x *GetEventsByEventNameResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 type UpdateTimeEventRequest struct {
@@ -1092,7 +1057,6 @@ func (x *UpdateTimeEventRequest) GetNewTimeStart() *timestamppb.Timestamp {
 
 type UpdateTimeEventResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1125,13 +1089,6 @@ func (x *UpdateTimeEventResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdateTimeEventResponse.ProtoReflect.Descriptor instead.
 func (*UpdateTimeEventResponse) Descriptor() ([]byte, []int) {
 	return file_event_proto_rawDescGZIP(), []int{15}
-}
-
-func (x *UpdateTimeEventResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 // CancelEvent — ручная отмена ивента создателем (пока он ещё pending или
@@ -1192,7 +1149,6 @@ func (x *CancelEventRequest) GetUserCreateId() string {
 
 type CancelEventResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1225,13 +1181,6 @@ func (x *CancelEventResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use CancelEventResponse.ProtoReflect.Descriptor instead.
 func (*CancelEventResponse) Descriptor() ([]byte, []int) {
 	return file_event_proto_rawDescGZIP(), []int{17}
-}
-
-func (x *CancelEventResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 type JoinToEventRequest struct {
@@ -1304,7 +1253,6 @@ func (x *JoinToEventRequest) GetEnemy() bool {
 
 type JoinToEventResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1337,13 +1285,6 @@ func (x *JoinToEventResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use JoinToEventResponse.ProtoReflect.Descriptor instead.
 func (*JoinToEventResponse) Descriptor() ([]byte, []int) {
 	return file_event_proto_rawDescGZIP(), []int{19}
-}
-
-func (x *JoinToEventResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 type LeaveEventRequest struct {
@@ -1400,7 +1341,6 @@ func (x *LeaveEventRequest) GetEventId() string {
 
 type LeaveEventResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1435,19 +1375,17 @@ func (*LeaveEventResponse) Descriptor() ([]byte, []int) {
 	return file_event_proto_rawDescGZIP(), []int{21}
 }
 
-func (x *LeaveEventResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
-}
-
+// SetRole назначает роль внутри одной команды (одной игры), поэтому
+// принимает team_id, а не event_id: в разных играх у игрока могут быть разные
+// роли. Вызывать может только сайд-лидер этой же команды, и только пока её
+// игра не началась (status = pending).
 type SetRoleRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	SideLeaderId  string                 `protobuf:"bytes,2,opt,name=side_leader_id,json=sideLeaderId,proto3" json:"side_leader_id,omitempty"`
-	UserId        string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Role          string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	SideLeaderId string                 `protobuf:"bytes,2,opt,name=side_leader_id,json=sideLeaderId,proto3" json:"side_leader_id,omitempty"`
+	UserId       string                 `protobuf:"bytes,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	// "player" | "side_leader" ("squad_leader" через SetRole не выдаётся)
+	Role          string `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	TeamId        string `protobuf:"bytes,5,opt,name=team_id,json=teamId,proto3" json:"team_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1482,13 +1420,6 @@ func (*SetRoleRequest) Descriptor() ([]byte, []int) {
 	return file_event_proto_rawDescGZIP(), []int{22}
 }
 
-func (x *SetRoleRequest) GetEventId() string {
-	if x != nil {
-		return x.EventId
-	}
-	return ""
-}
-
 func (x *SetRoleRequest) GetSideLeaderId() string {
 	if x != nil {
 		return x.SideLeaderId
@@ -1510,9 +1441,15 @@ func (x *SetRoleRequest) GetRole() string {
 	return ""
 }
 
+func (x *SetRoleRequest) GetTeamId() string {
+	if x != nil {
+		return x.TeamId
+	}
+	return ""
+}
+
 type SetRoleResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1545,13 +1482,6 @@ func (x *SetRoleResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SetRoleResponse.ProtoReflect.Descriptor instead.
 func (*SetRoleResponse) Descriptor() ([]byte, []int) {
 	return file_event_proto_rawDescGZIP(), []int{23}
-}
-
-func (x *SetRoleResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 type GetTeamsByEventIDRequest struct {
@@ -1601,7 +1531,6 @@ func (x *GetTeamsByEventIDRequest) GetEventId() string {
 type GetTeamsByEventIDResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Teams         []*Team                `protobuf:"bytes,1,rep,name=teams,proto3" json:"teams,omitempty"`
-	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1641,13 +1570,6 @@ func (x *GetTeamsByEventIDResponse) GetTeams() []*Team {
 		return x.Teams
 	}
 	return nil
-}
-
-func (x *GetTeamsByEventIDResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 // Стартует сразу обе стороны одной игры (game_number), поэтому принимает id
@@ -1706,7 +1628,6 @@ func (x *StartTeamGameRequest) GetTeam2Id() string {
 
 type StartTeamGameResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1739,13 +1660,6 @@ func (x *StartTeamGameResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use StartTeamGameResponse.ProtoReflect.Descriptor instead.
 func (*StartTeamGameResponse) Descriptor() ([]byte, []int) {
 	return file_event_proto_rawDescGZIP(), []int{27}
-}
-
-func (x *StartTeamGameResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 // Закрывает ровно одну игру (game_number) внутри ивента — обе её команды
@@ -1817,7 +1731,6 @@ func (x *FinishTeamGameRequest) GetTeamWinnerId() string {
 
 type FinishTeamGameResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1850,13 +1763,6 @@ func (x *FinishTeamGameResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use FinishTeamGameResponse.ProtoReflect.Descriptor instead.
 func (*FinishTeamGameResponse) Descriptor() ([]byte, []int) {
 	return file_event_proto_rawDescGZIP(), []int{29}
-}
-
-func (x *FinishTeamGameResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 // Вызывается один раз на игрока, ПОСЛЕ того как FinishTeamGame уже закрыл
@@ -1957,7 +1863,6 @@ func (x *AddTeamMemberStatsRequest) GetDestroyedVehicles() int64 {
 
 type AddTeamMemberStatsResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1990,13 +1895,6 @@ func (x *AddTeamMemberStatsResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use AddTeamMemberStatsResponse.ProtoReflect.Descriptor instead.
 func (*AddTeamMemberStatsResponse) Descriptor() ([]byte, []int) {
 	return file_event_proto_rawDescGZIP(), []int{31}
-}
-
-func (x *AddTeamMemberStatsResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 type GetTeamStatsRequest struct {
@@ -2048,12 +1946,11 @@ type GetTeamStatsResponse struct {
 	Stats []*TeamMember          `protobuf:"bytes,1,rep,name=stats,proto3" json:"stats,omitempty"`
 	// Итог по всей команде — то же, что лежит в Team после FinishTeamGame,
 	// отдано отдельными полями, чтобы не заставлять клиента суммировать stats самому.
-	TotalKills             int64  `protobuf:"varint,2,opt,name=total_kills,json=totalKills,proto3" json:"total_kills,omitempty"`
-	TotalDeaths            int64  `protobuf:"varint,3,opt,name=total_deaths,json=totalDeaths,proto3" json:"total_deaths,omitempty"`
-	TotalPoints            int64  `protobuf:"varint,4,opt,name=total_points,json=totalPoints,proto3" json:"total_points,omitempty"`
-	TotalRevival           int64  `protobuf:"varint,5,opt,name=total_revival,json=totalRevival,proto3" json:"total_revival,omitempty"`
-	TotalDestroyedVehicles int64  `protobuf:"varint,6,opt,name=total_destroyed_vehicles,json=totalDestroyedVehicles,proto3" json:"total_destroyed_vehicles,omitempty"`
-	Error                  string `protobuf:"bytes,7,opt,name=error,proto3" json:"error,omitempty"`
+	TotalKills             int64 `protobuf:"varint,2,opt,name=total_kills,json=totalKills,proto3" json:"total_kills,omitempty"`
+	TotalDeaths            int64 `protobuf:"varint,3,opt,name=total_deaths,json=totalDeaths,proto3" json:"total_deaths,omitempty"`
+	TotalPoints            int64 `protobuf:"varint,4,opt,name=total_points,json=totalPoints,proto3" json:"total_points,omitempty"`
+	TotalRevival           int64 `protobuf:"varint,5,opt,name=total_revival,json=totalRevival,proto3" json:"total_revival,omitempty"`
+	TotalDestroyedVehicles int64 `protobuf:"varint,6,opt,name=total_destroyed_vehicles,json=totalDestroyedVehicles,proto3" json:"total_destroyed_vehicles,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -2130,13 +2027,6 @@ func (x *GetTeamStatsResponse) GetTotalDestroyedVehicles() int64 {
 	return 0
 }
 
-func (x *GetTeamStatsResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
-}
-
 type GetTeamByIDRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TeamId        string                 `protobuf:"bytes,1,opt,name=team_id,json=teamId,proto3" json:"team_id,omitempty"`
@@ -2184,7 +2074,6 @@ func (x *GetTeamByIDRequest) GetTeamId() string {
 type GetTeamByIDResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Team          *Team                  `protobuf:"bytes,1,opt,name=team,proto3" json:"team,omitempty"`
-	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2224,13 +2113,6 @@ func (x *GetTeamByIDResponse) GetTeam() *Team {
 		return x.Team
 	}
 	return nil
-}
-
-func (x *GetTeamByIDResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 type JoinUserToTeamRequest struct {
@@ -2295,7 +2177,6 @@ func (x *JoinUserToTeamRequest) GetRole() string {
 
 type JoinUserToTeamResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2328,13 +2209,6 @@ func (x *JoinUserToTeamResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use JoinUserToTeamResponse.ProtoReflect.Descriptor instead.
 func (*JoinUserToTeamResponse) Descriptor() ([]byte, []int) {
 	return file_event_proto_rawDescGZIP(), []int{37}
-}
-
-func (x *JoinUserToTeamResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 type RemoveUserFromTeamRequest struct {
@@ -2391,7 +2265,6 @@ func (x *RemoveUserFromTeamRequest) GetUserId() string {
 
 type RemoveUserFromTeamResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2424,13 +2297,6 @@ func (x *RemoveUserFromTeamResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RemoveUserFromTeamResponse.ProtoReflect.Descriptor instead.
 func (*RemoveUserFromTeamResponse) Descriptor() ([]byte, []int) {
 	return file_event_proto_rawDescGZIP(), []int{39}
-}
-
-func (x *RemoveUserFromTeamResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 type GetUnfinishedEventsByUserIDRequest struct {
@@ -2480,7 +2346,6 @@ func (x *GetUnfinishedEventsByUserIDRequest) GetUserCreateId() string {
 type GetUnfinishedEventsByUserIDResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Events        []*Event               `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
-	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2520,13 +2385,6 @@ func (x *GetUnfinishedEventsByUserIDResponse) GetEvents() []*Event {
 		return x.Events
 	}
 	return nil
-}
-
-func (x *GetUnfinishedEventsByUserIDResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
 }
 
 type GetUnfinishedEventsByEventNameRequest struct {
@@ -2576,7 +2434,6 @@ func (x *GetUnfinishedEventsByEventNameRequest) GetEventName() string {
 type GetUnfinishedEventsByEventNameResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Events        []*Event               `protobuf:"bytes,1,rep,name=events,proto3" json:"events,omitempty"`
-	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2618,13 +2475,6 @@ func (x *GetUnfinishedEventsByEventNameResponse) GetEvents() []*Event {
 	return nil
 }
 
-func (x *GetUnfinishedEventsByEventNameResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
-}
-
 var File_event_proto protoreflect.FileDescriptor
 
 const file_event_proto_rawDesc = "" +
@@ -2649,15 +2499,14 @@ const file_event_proto_rawDesc = "" +
 	"\x11target_game_count\x18\f \x01(\x03R\x0ftargetGameCount\x12\x1d\n" +
 	"\n" +
 	"game_count\x18\r \x01(\x03R\tgameCount\x12\x16\n" +
-	"\x06status\x18\x0e \x01(\tR\x06status\"\xf2\x01\n" +
+	"\x06status\x18\x0e \x01(\tR\x06status\"\xea\x01\n" +
 	"\x04User\x12\"\n" +
 	"\ruser_event_id\x18\x01 \x01(\tR\vuserEventId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x19\n" +
 	"\bevent_id\x18\x03 \x01(\tR\aeventId\x12\x17\n" +
 	"\aclan_id\x18\x04 \x01(\tR\x06clanId\x12\x14\n" +
-	"\x05enemy\x18\x05 \x01(\bR\x05enemy\x12\x12\n" +
-	"\x04role\x18\x06 \x01(\tR\x04role\x127\n" +
-	"\tjoin_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\bjoinTimeJ\x04\b\a\x10\bR\x10six_clan_members\"\xfc\x03\n" +
+	"\x05enemy\x18\x05 \x01(\bR\x05enemy\x127\n" +
+	"\tjoin_time\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\bjoinTimeJ\x04\b\x06\x10\aJ\x04\b\a\x10\bR\x04roleR\x10six_clan_members\"\x94\x04\n" +
 	"\x04Team\x12\x17\n" +
 	"\ateam_id\x18\x01 \x01(\tR\x06teamId\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12$\n" +
@@ -2676,7 +2525,8 @@ const file_event_proto_rawDesc = "" +
 	"\n" +
 	"time_start\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\ttimeStart\x12;\n" +
 	"\vtime_finish\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"timeFinish\"\xaf\x02\n" +
+	"timeFinish\x12\x16\n" +
+	"\x06status\x18\x0e \x01(\tR\x06status\"\xaf\x02\n" +
 	"\n" +
 	"TeamMember\x12\x17\n" +
 	"\ateam_id\x18\x01 \x01(\tR\x06teamId\x12\"\n" +
@@ -2691,10 +2541,9 @@ const file_event_proto_rawDesc = "" +
 	"\x10six_clan_members\x18\n" +
 	" \x01(\bR\x0esixClanMembers\"7\n" +
 	"\x1aGetEventMembersListRequest\x12\x19\n" +
-	"\bevent_id\x18\x01 \x01(\tR\aeventId\"V\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\"M\n" +
 	"\x1bGetEventMembersListResponse\x12!\n" +
-	"\x05users\x18\x01 \x03(\v2\v.event.UserR\x05users\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\"\xd5\x02\n" +
+	"\x05users\x18\x01 \x03(\v2\v.event.UserR\x05usersJ\x04\b\x02\x10\x03R\x05error\"\xd5\x02\n" +
 	"\x12CreateEventRequest\x12&\n" +
 	"\x0fuser_creator_id\x18\x01 \x01(\tR\ruserCreatorId\x12&\n" +
 	"\x0fcreator_clan_id\x18\x02 \x01(\tR\rcreatorClanId\x12/\n" +
@@ -2704,71 +2553,59 @@ const file_event_proto_rawDesc = "" +
 	"event_name\x18\x05 \x01(\tR\teventName\x129\n" +
 	"\n" +
 	"time_start\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\ttimeStart\x12*\n" +
-	"\x11target_game_count\x18\a \x01(\x03R\x0ftargetGameCount\"+\n" +
-	"\x13CreateEventResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"C\n" +
+	"\x11target_game_count\x18\a \x01(\x03R\x0ftargetGameCount\"\"\n" +
+	"\x13CreateEventResponseJ\x04\b\x01\x10\x02R\x05error\"C\n" +
 	"\x1bGetEventsByCreatorIdRequest\x12$\n" +
-	"\x0euser_create_id\x18\x01 \x01(\tR\fuserCreateId\"Z\n" +
+	"\x0euser_create_id\x18\x01 \x01(\tR\fuserCreateId\"Q\n" +
 	"\x1cGetEventsByCreatorIdResponse\x12$\n" +
-	"\x06events\x18\x01 \x03(\v2\f.event.EventR\x06events\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\"F\n" +
+	"\x06events\x18\x01 \x03(\v2\f.event.EventR\x06eventsJ\x04\b\x02\x10\x03R\x05error\"F\n" +
 	"\x1eGetLastEventByCreatorIdRequest\x12$\n" +
-	"\x0euser_create_id\x18\x01 \x01(\tR\fuserCreateId\"[\n" +
+	"\x0euser_create_id\x18\x01 \x01(\tR\fuserCreateId\"R\n" +
 	"\x1fGetLastEventByCreatorIdResponse\x12\"\n" +
-	"\x05event\x18\x01 \x01(\v2\f.event.EventR\x05event\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\"<\n" +
+	"\x05event\x18\x01 \x01(\v2\f.event.EventR\x05eventJ\x04\b\x02\x10\x03R\x05error\"<\n" +
 	"\x1bGetEventsByEventNameRequest\x12\x1d\n" +
 	"\n" +
-	"event_name\x18\x01 \x01(\tR\teventName\"Z\n" +
+	"event_name\x18\x01 \x01(\tR\teventName\"Q\n" +
 	"\x1cGetEventsByEventNameResponse\x12$\n" +
-	"\x06events\x18\x01 \x03(\v2\f.event.EventR\x06events\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\"\x9b\x01\n" +
+	"\x06events\x18\x01 \x03(\v2\f.event.EventR\x06eventsJ\x04\b\x02\x10\x03R\x05error\"\x9b\x01\n" +
 	"\x16UpdateTimeEventRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12$\n" +
 	"\x0euser_create_id\x18\x02 \x01(\tR\fuserCreateId\x12@\n" +
-	"\x0enew_time_start\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\fnewTimeStart\"/\n" +
-	"\x17UpdateTimeEventResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"U\n" +
+	"\x0enew_time_start\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\fnewTimeStart\"&\n" +
+	"\x17UpdateTimeEventResponseJ\x04\b\x01\x10\x02R\x05error\"U\n" +
 	"\x12CancelEventRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12$\n" +
-	"\x0euser_create_id\x18\x02 \x01(\tR\fuserCreateId\"+\n" +
-	"\x13CancelEventResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"w\n" +
+	"\x0euser_create_id\x18\x02 \x01(\tR\fuserCreateId\"\"\n" +
+	"\x13CancelEventResponseJ\x04\b\x01\x10\x02R\x05error\"w\n" +
 	"\x12JoinToEventRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x17\n" +
 	"\aclan_id\x18\x03 \x01(\tR\x06clanId\x12\x14\n" +
-	"\x05enemy\x18\x04 \x01(\bR\x05enemy\"+\n" +
-	"\x13JoinToEventResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"G\n" +
+	"\x05enemy\x18\x04 \x01(\bR\x05enemy\"\"\n" +
+	"\x13JoinToEventResponseJ\x04\b\x01\x10\x02R\x05error\"G\n" +
 	"\x11LeaveEventRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x19\n" +
-	"\bevent_id\x18\x02 \x01(\tR\aeventId\"*\n" +
-	"\x12LeaveEventResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"~\n" +
-	"\x0eSetRoleRequest\x12\x19\n" +
-	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12$\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\"!\n" +
+	"\x12LeaveEventResponseJ\x04\b\x01\x10\x02R\x05error\"\x8c\x01\n" +
+	"\x0eSetRoleRequest\x12$\n" +
 	"\x0eside_leader_id\x18\x02 \x01(\tR\fsideLeaderId\x12\x17\n" +
 	"\auser_id\x18\x03 \x01(\tR\x06userId\x12\x12\n" +
-	"\x04role\x18\x04 \x01(\tR\x04role\"'\n" +
-	"\x0fSetRoleResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"5\n" +
+	"\x04role\x18\x04 \x01(\tR\x04role\x12\x17\n" +
+	"\ateam_id\x18\x05 \x01(\tR\x06teamIdJ\x04\b\x01\x10\x02R\bevent_id\"\x1e\n" +
+	"\x0fSetRoleResponseJ\x04\b\x01\x10\x02R\x05error\"5\n" +
 	"\x18GetTeamsByEventIDRequest\x12\x19\n" +
-	"\bevent_id\x18\x01 \x01(\tR\aeventId\"T\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\"K\n" +
 	"\x19GetTeamsByEventIDResponse\x12!\n" +
-	"\x05teams\x18\x01 \x03(\v2\v.event.TeamR\x05teams\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\"L\n" +
+	"\x05teams\x18\x01 \x03(\v2\v.event.TeamR\x05teamsJ\x04\b\x02\x10\x03R\x05error\"L\n" +
 	"\x14StartTeamGameRequest\x12\x19\n" +
 	"\bteam1_id\x18\x01 \x01(\tR\ateam1Id\x12\x19\n" +
-	"\bteam2_id\x18\x02 \x01(\tR\ateam2Id\"-\n" +
-	"\x15StartTeamGameResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"s\n" +
+	"\bteam2_id\x18\x02 \x01(\tR\ateam2Id\"$\n" +
+	"\x15StartTeamGameResponseJ\x04\b\x01\x10\x02R\x05error\"s\n" +
 	"\x15FinishTeamGameRequest\x12\x19\n" +
 	"\bteam1_id\x18\x01 \x01(\tR\ateam1Id\x12\x19\n" +
 	"\bteam2_id\x18\x02 \x01(\tR\ateam2Id\x12$\n" +
-	"\x0eteam_winner_id\x18\x03 \x01(\tR\fteamWinnerId\".\n" +
-	"\x16FinishTeamGameResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"\xdc\x01\n" +
+	"\x0eteam_winner_id\x18\x03 \x01(\tR\fteamWinnerId\"%\n" +
+	"\x16FinishTeamGameResponseJ\x04\b\x01\x10\x02R\x05error\"\xdc\x01\n" +
 	"\x19AddTeamMemberStatsRequest\x12\x17\n" +
 	"\ateam_id\x18\x01 \x01(\tR\x06teamId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x14\n" +
@@ -2776,11 +2613,10 @@ const file_event_proto_rawDesc = "" +
 	"\x06deaths\x18\x04 \x01(\x03R\x06deaths\x12\x16\n" +
 	"\x06points\x18\x05 \x01(\x03R\x06points\x12\x18\n" +
 	"\arevival\x18\x06 \x01(\x03R\arevival\x12-\n" +
-	"\x12destroyed_vehicles\x18\a \x01(\x03R\x11destroyedVehicles\"2\n" +
-	"\x1aAddTeamMemberStatsResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\".\n" +
+	"\x12destroyed_vehicles\x18\a \x01(\x03R\x11destroyedVehicles\")\n" +
+	"\x1aAddTeamMemberStatsResponseJ\x04\b\x01\x10\x02R\x05error\".\n" +
 	"\x13GetTeamStatsRequest\x12\x17\n" +
-	"\ateam_id\x18\x01 \x01(\tR\x06teamId\"\x9b\x02\n" +
+	"\ateam_id\x18\x01 \x01(\tR\x06teamId\"\x92\x02\n" +
 	"\x14GetTeamStatsResponse\x12'\n" +
 	"\x05stats\x18\x01 \x03(\v2\x11.event.TeamMemberR\x05stats\x12\x1f\n" +
 	"\vtotal_kills\x18\x02 \x01(\x03R\n" +
@@ -2788,35 +2624,29 @@ const file_event_proto_rawDesc = "" +
 	"\ftotal_deaths\x18\x03 \x01(\x03R\vtotalDeaths\x12!\n" +
 	"\ftotal_points\x18\x04 \x01(\x03R\vtotalPoints\x12#\n" +
 	"\rtotal_revival\x18\x05 \x01(\x03R\ftotalRevival\x128\n" +
-	"\x18total_destroyed_vehicles\x18\x06 \x01(\x03R\x16totalDestroyedVehicles\x12\x14\n" +
-	"\x05error\x18\a \x01(\tR\x05error\"-\n" +
+	"\x18total_destroyed_vehicles\x18\x06 \x01(\x03R\x16totalDestroyedVehiclesJ\x04\b\a\x10\bR\x05error\"-\n" +
 	"\x12GetTeamByIDRequest\x12\x17\n" +
-	"\ateam_id\x18\x01 \x01(\tR\x06teamId\"L\n" +
+	"\ateam_id\x18\x01 \x01(\tR\x06teamId\"C\n" +
 	"\x13GetTeamByIDResponse\x12\x1f\n" +
-	"\x04team\x18\x01 \x01(\v2\v.event.TeamR\x04team\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\"]\n" +
+	"\x04team\x18\x01 \x01(\v2\v.event.TeamR\x04teamJ\x04\b\x02\x10\x03R\x05error\"]\n" +
 	"\x15JoinUserToTeamRequest\x12\x17\n" +
 	"\ateam_id\x18\x01 \x01(\tR\x06teamId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x12\n" +
-	"\x04role\x18\x03 \x01(\tR\x04role\".\n" +
-	"\x16JoinUserToTeamResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"M\n" +
+	"\x04role\x18\x03 \x01(\tR\x04role\"%\n" +
+	"\x16JoinUserToTeamResponseJ\x04\b\x01\x10\x02R\x05error\"M\n" +
 	"\x19RemoveUserFromTeamRequest\x12\x17\n" +
 	"\ateam_id\x18\x01 \x01(\tR\x06teamId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\"2\n" +
-	"\x1aRemoveUserFromTeamResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"J\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\")\n" +
+	"\x1aRemoveUserFromTeamResponseJ\x04\b\x01\x10\x02R\x05error\"J\n" +
 	"\"GetUnfinishedEventsByUserIDRequest\x12$\n" +
-	"\x0euser_create_id\x18\x01 \x01(\tR\fuserCreateId\"a\n" +
+	"\x0euser_create_id\x18\x01 \x01(\tR\fuserCreateId\"X\n" +
 	"#GetUnfinishedEventsByUserIDResponse\x12$\n" +
-	"\x06events\x18\x01 \x03(\v2\f.event.EventR\x06events\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\"F\n" +
+	"\x06events\x18\x01 \x03(\v2\f.event.EventR\x06eventsJ\x04\b\x02\x10\x03R\x05error\"F\n" +
 	"%GetUnfinishedEventsByEventNameRequest\x12\x1d\n" +
 	"\n" +
-	"event_name\x18\x01 \x01(\tR\teventName\"d\n" +
+	"event_name\x18\x01 \x01(\tR\teventName\"[\n" +
 	"&GetUnfinishedEventsByEventNameResponse\x12$\n" +
-	"\x06events\x18\x01 \x03(\v2\f.event.EventR\x06events\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error2\xb5\r\n" +
+	"\x06events\x18\x01 \x03(\v2\f.event.EventR\x06eventsJ\x04\b\x02\x10\x03R\x05error2\xb5\r\n" +
 	"\fEventService\x12D\n" +
 	"\vCreateEvent\x12\x19.event.CreateEventRequest\x1a\x1a.event.CreateEventResponse\x12_\n" +
 	"\x14GetEventsByCreatorId\x12\".event.GetEventsByCreatorIdRequest\x1a#.event.GetEventsByCreatorIdResponse\x12h\n" +

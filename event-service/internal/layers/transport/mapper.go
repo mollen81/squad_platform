@@ -8,20 +8,27 @@ import (
 )
 
 func toProtoEvent(e domain.Event) *pb.Event {
-	return &pb.Event{
+	event := &pb.Event{
 		EventId:           e.EventID,
 		EventName:         e.Name,
 		UserCreateId:      e.UserCreateID,
 		EnemySideLeaderId: e.EnemySideLeader,
 		UserCount:         e.UserCount,
 		TimeStart:         timestamppb.New(e.TimeStart),
-		TimeFinish:        timestamppb.New(e.TimeFinish),
 		CreateTime:        timestamppb.New(e.CreateTime),
 		WinnerSide:        e.WinnerSide,
 		Status:            string(e.Status),
 		TargetGameCount:   e.TargetGameCount,
 		GameCount:         e.GameCount,
 	}
+
+	// Как и у команды: пока ивент не завершён, time_finish в БД NULL —
+	// поле остаётся пустым, а не превращается в "0001-01-01".
+	if !e.TimeFinish.IsZero() {
+		event.TimeFinish = timestamppb.New(e.TimeFinish)
+	}
+
+	return event
 }
 
 func toProtoEvents(events []*domain.Event) []*pb.Event {
@@ -50,7 +57,6 @@ func toProtoUser(u domain.User) *pb.User {
 		EventId:     u.EventID,
 		ClanId:      u.ClanID,
 		Enemy:       u.Enemy,
-		Role:        string(u.Role),
 		JoinTime:    timestamppb.New(u.JoinTime),
 	}
 }
@@ -70,6 +76,7 @@ func toProtoTeam(t domain.Team) *pb.Team {
 		SideLeaderId:           t.SideLeaderID,
 		GameNumber:             t.GameNumber,
 		MembersCount:           t.MembersCount,
+		Status:                 string(t.Status),
 		Winner:                 t.Winner,
 		TotalKills:             t.TotalKills,
 		TotalDeaths:            t.TotalDeaths,
@@ -119,11 +126,4 @@ func toProtoTeamMembers(members []domain.TeamMember) []*pb.TeamMember {
 		result = append(result, toProtoTeamMember(m))
 	}
 	return result
-}
-
-func errString(err error) string {
-	if err == nil {
-		return ""
-	}
-	return err.Error()
 }

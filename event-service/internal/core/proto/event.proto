@@ -51,8 +51,11 @@ message User {
     string user_id = 2;
     string event_id = 3;
     string clan_id = 4;
+    // Сторона, за которую игрок вошёл в ивент: войти в команду противоположной
+    // стороны нельзя (см. JoinUserToTeam).
     bool enemy = 5;
-    string role = 6;
+    reserved 6; // было role — роль есть только внутри команды, см. TeamMember
+    reserved "role";
     reserved 7; // было six_clan_members — переехало в TeamMember, см. ниже
     reserved "six_clan_members";
     google.protobuf.Timestamp join_time = 8;
@@ -73,6 +76,10 @@ message Team {
     // Пустой time_start => игра ещё не началась. Пустой time_finish => игра ещё не окончена.
     google.protobuf.Timestamp time_start = 12;
     google.protobuf.Timestamp time_finish = 13;
+    // Состояние участия команды в игре: pending (игра не началась) |
+    // in_progress (идёт) | finished (закончена). Менять состав команды и роли
+    // можно только в pending.
+    string status = 14;
 }
 
 message TeamMember {
@@ -98,7 +105,8 @@ message GetEventMembersListRequest {
 
 message GetEventMembersListResponse {
     repeated User users = 1;
-    string error = 2;
+    reserved 2; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 message CreateEventRequest {
@@ -113,7 +121,8 @@ message CreateEventRequest {
 }
 
 message CreateEventResponse {
-    string error = 1;
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 message GetEventsByCreatorIdRequest {
@@ -122,7 +131,8 @@ message GetEventsByCreatorIdRequest {
 
 message GetEventsByCreatorIdResponse {
     repeated Event events = 1;
-    string error = 2;
+    reserved 2; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 message GetLastEventByCreatorIdRequest {
@@ -131,7 +141,8 @@ message GetLastEventByCreatorIdRequest {
 
 message GetLastEventByCreatorIdResponse {
     Event event = 1;
-    string error = 2;
+    reserved 2; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 message GetEventsByEventNameRequest {
@@ -140,7 +151,8 @@ message GetEventsByEventNameRequest {
 
 message GetEventsByEventNameResponse {
     repeated Event events = 1;
-    string error = 2;
+    reserved 2; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 message UpdateTimeEventRequest {
@@ -150,7 +162,8 @@ message UpdateTimeEventRequest {
 }
 
 message UpdateTimeEventResponse {
-    string error = 1;
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 // CancelEvent — ручная отмена ивента создателем (пока он ещё pending или
@@ -163,7 +176,8 @@ message CancelEventRequest {
 }
 
 message CancelEventResponse {
-    string error = 1;
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 message JoinToEventRequest {
@@ -174,7 +188,8 @@ message JoinToEventRequest {
 }
 
 message JoinToEventResponse {
-    string error = 1;
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 message LeaveEventRequest {
@@ -183,18 +198,27 @@ message LeaveEventRequest {
 }
 
 message LeaveEventResponse {
-    string error = 1;
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
+// SetRole назначает роль внутри одной команды (одной игры), поэтому
+// принимает team_id, а не event_id: в разных играх у игрока могут быть разные
+// роли. Вызывать может только сайд-лидер этой же команды, и только пока её
+// игра не началась (status = pending).
 message SetRoleRequest {
-    string event_id = 1;
+    reserved 1; // было event_id — роль назначается по команде, а не по ивенту
+    reserved "event_id";
     string side_leader_id = 2;
     string user_id = 3;
+    // "player" | "side_leader" ("squad_leader" через SetRole не выдаётся)
     string role = 4;
+    string team_id = 5;
 }
 
 message SetRoleResponse {
-    string error = 1;
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 message GetTeamsByEventIDRequest {
@@ -203,7 +227,8 @@ message GetTeamsByEventIDRequest {
 
 message GetTeamsByEventIDResponse {
     repeated Team teams = 1;
-    string error = 2;
+    reserved 2; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 // Стартует сразу обе стороны одной игры (game_number), поэтому принимает id
@@ -214,7 +239,8 @@ message StartTeamGameRequest {
 }
 
 message StartTeamGameResponse {
-    string error = 1;
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 // Закрывает ровно одну игру (game_number) внутри ивента — обе её команды
@@ -231,7 +257,8 @@ message FinishTeamGameRequest {
 }
 
 message FinishTeamGameResponse {
-    string error = 1;
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 // Вызывается один раз на игрока, ПОСЛЕ того как FinishTeamGame уже закрыл
@@ -249,7 +276,8 @@ message AddTeamMemberStatsRequest {
 }
 
 message AddTeamMemberStatsResponse {
-    string error = 1;
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 message GetTeamStatsRequest {
@@ -265,7 +293,8 @@ message GetTeamStatsResponse {
     int64 total_points = 4;
     int64 total_revival = 5;
     int64 total_destroyed_vehicles = 6;
-    string error = 7;
+    reserved 7; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 message GetTeamByIDRequest {
@@ -274,7 +303,8 @@ message GetTeamByIDRequest {
 
 message GetTeamByIDResponse {
     Team team = 1;
-    string error = 2;
+    reserved 2; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 message JoinUserToTeamRequest {
@@ -284,7 +314,8 @@ message JoinUserToTeamRequest {
 }
 
 message JoinUserToTeamResponse {
-    string error = 1;
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 message RemoveUserFromTeamRequest {
@@ -293,7 +324,8 @@ message RemoveUserFromTeamRequest {
 }
 
 message RemoveUserFromTeamResponse {
-    string error = 1;
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 message GetUnfinishedEventsByUserIDRequest {
@@ -302,7 +334,8 @@ message GetUnfinishedEventsByUserIDRequest {
 
 message GetUnfinishedEventsByUserIDResponse {
     repeated Event events = 1;
-    string error = 2;
+    reserved 2; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }
 
 message GetUnfinishedEventsByEventNameRequest {
@@ -311,5 +344,6 @@ message GetUnfinishedEventsByEventNameRequest {
 
 message GetUnfinishedEventsByEventNameResponse {
     repeated Event events = 1;
-    string error = 2;
+    reserved 2; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
 }

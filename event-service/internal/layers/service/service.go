@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -21,6 +20,8 @@ const (
 	CheckTimeBeforeStart = 30 * time.Minute
 	// За сколько до старта отправляется сообщение об аренде сервера
 	RentServerTimeBeforeStart = 15 * time.Minute
+	// Максимум игроков в одной команде (сторона в одной игре)
+	MaxTeamMembers = 50
 	// Сколько максимум ждать Kafka при публикации после коммита
 	publishTimeout = 30 * time.Second
 )
@@ -76,7 +77,7 @@ func (s *eventService) lockEventRow(ctx context.Context, eventID string) (domain
 	}
 
 	if event.EventID == "" {
-		return domain.Event{}, errors.New("event not found")
+		return domain.Event{}, domain.NotFound("event not found")
 	}
 
 	return event, nil
@@ -95,16 +96,29 @@ func (s *eventService) teamEventID(ctx context.Context, teamID string) (string, 
 }
 
 func (s *eventService) CreateEvent(ctx context.Context, userCreatorID, creatorClanID, enemySideLeaderID, enemySideLeaderClanID, eventName string, timeStart time.Time, targetGameCount int64) error {
-	if userCreatorID == "" || enemySideLeaderID == "" {
-		return errors.New("must have user creator id and enemy side leader id")
+	if err := validateID("user_creator_id", userCreatorID); err != nil {
+		return err
 	}
 
-	if creatorClanID == "" || enemySideLeaderClanID == "" {
-		return errors.New("must have creator clan id and enemy side leader clan id")
+	if err := validateID("creator_clan_id", creatorClanID); err != nil {
+		return err
+	}
+
+	if err := validateID("enemy_side_leader_id", enemySideLeaderID); err != nil {
+		return err
+	}
+
+	if err := validateID("enemy_side_leader_clan_id", enemySideLeaderClanID); err != nil {
+		return err
 	}
 
 	if userCreatorID == enemySideLeaderID {
-		return errors.New("creator and enemy side leader must be different users")
+		return domain.InvalidArgument("creator and enemy side leader must be different users")
+	}
+
+	eventName, err := normalizeEventName(eventName)
+	if err != nil {
+		return err
 	}
 
 	now := time.Now()
@@ -112,15 +126,15 @@ func (s *eventService) CreateEvent(ctx context.Context, userCreatorID, creatorCl
 	maxTime := now.Add(45 * 24 * time.Hour)
 
 	if timeStart.Before(minTime) {
-		return errors.New("event start time must be at least 45 minutes from now")
+		return domain.InvalidArgument("event start time must be at least 45 minutes from now")
 	}
 
 	if timeStart.After(maxTime) {
-		return errors.New("event start time must be within 45 days from now")
+		return domain.InvalidArgument("event start time must be within 45 days from now")
 	}
 
 	if targetGameCount < 1 || targetGameCount > 3 {
-		return errors.New("target game count must be 1, 2 or 3")
+		return domain.InvalidArgument("target game count must be 1, 2 or 3")
 	}
 
 	event := domain.Event{
@@ -154,12 +168,12 @@ func (s *eventService) CreateEvent(ctx context.Context, userCreatorID, creatorCl
 		}
 
 		var err error
-		creatorUser, err = s.addUserToEvent(ctx, event.EventID, userCreatorID, creatorClanID, false, domain.RoleSquadLeader)
+		creatorUser, err = s.addUserToEvent(ctx, event.EventID, userCreatorID, creatorClanID, false)
 		if err != nil {
 			return err
 		}
 
-		enemyUser, err = s.addUserToEvent(ctx, event.EventID, enemySideLeaderID, enemySideLeaderClanID, true, domain.RoleSquadLeader)
+		enemyUser, err = s.addUserToEvent(ctx, event.EventID, enemySideLeaderID, enemySideLeaderClanID, true)
 		if err != nil {
 			return err
 		}
@@ -185,6 +199,18 @@ func (s *eventService) CreateEvent(ctx context.Context, userCreatorID, creatorCl
 			}
 
 			if err := s.eventRepo.CreateTeam(ctx, enemyTeam); err != nil {
+				return err
+			}
+
+			// Сайд-лидер обязан играть каждую игру, поэтому сразу попадает в
+			// состав своей команды на все игры: убрать его оттуда нельзя
+			// (RemoveUserFromTeam), выйти из ивента — тоже (LeaveEvent).
+			// squad_leader — главный в команде, через SetRole эта роль не выдаётся.
+			if err := s.eventRepo.JoinUserToTeam(ctx, allyTeam.TeamID, creatorUser.UserEventID, domain.RoleSquadLeader); err != nil {
+				return err
+			}
+
+			if err := s.eventRepo.JoinUserToTeam(ctx, enemyTeam.TeamID, enemyUser.UserEventID, domain.RoleSquadLeader); err != nil {
 				return err
 			}
 		}
@@ -214,6 +240,10 @@ func (s *eventService) CreateEvent(ctx context.Context, userCreatorID, creatorCl
 }
 
 func (s *eventService) GetEventsByCreatorId(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
+	if err := validateID("user_create_id", userCreateID); err != nil {
+		return nil, err
+	}
+
 	events, err := s.eventRepo.GetEventsByCreatorId(ctx, userCreateID)
 	if err != nil {
 		return nil, err
@@ -223,6 +253,10 @@ func (s *eventService) GetEventsByCreatorId(ctx context.Context, userCreateID st
 }
 
 func (s *eventService) GetLastEventByCreatorId(ctx context.Context, userCreateID string) (*domain.Event, error) {
+	if err := validateID("user_create_id", userCreateID); err != nil {
+		return nil, err
+	}
+
 	event, err := s.eventRepo.GetLastEventByCreatorId(ctx, userCreateID)
 	if err != nil {
 		return nil, err
@@ -232,6 +266,10 @@ func (s *eventService) GetLastEventByCreatorId(ctx context.Context, userCreateID
 }
 
 func (s *eventService) GetEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error) {
+	if err := validateSearchName(eventName); err != nil {
+		return []domain.Event{}, err
+	}
+
 	event, err := s.eventRepo.GetEventsByEventName(ctx, eventName)
 	if err != nil {
 		return []domain.Event{}, err
@@ -241,6 +279,10 @@ func (s *eventService) GetEventsByEventName(ctx context.Context, eventName strin
 }
 
 func (s *eventService) GetEventMembersList(ctx context.Context, eventID string) ([]domain.User, error) {
+	if err := validateID("event_id", eventID); err != nil {
+		return []domain.User{}, err
+	}
+
 	events, err := s.eventRepo.GetEventMembersList(ctx, eventID)
 	if err != nil {
 		return []domain.User{}, err
@@ -250,6 +292,14 @@ func (s *eventService) GetEventMembersList(ctx context.Context, eventID string) 
 }
 
 func (s *eventService) UpdateTimeEvent(ctx context.Context, eventID, userCreateID string, newTimeStart time.Time) error {
+	if err := validateID("event_id", eventID); err != nil {
+		return err
+	}
+
+	if err := validateID("user_create_id", userCreateID); err != nil {
+		return err
+	}
+
 	unlock, err := s.eventLocks.lock(ctx, eventID)
 	if err != nil {
 		return err
@@ -263,12 +313,12 @@ func (s *eventService) UpdateTimeEvent(ctx context.Context, eventID, userCreateI
 		}
 
 		if event.UserCreateID != userCreateID {
-			return errors.New("you are not admin")
+			return domain.PermissionDenied("you are not admin")
 		}
 
 		// Время можно менять только в статусе pending
 		if event.Status != domain.EventStatusPending {
-			return fmt.Errorf("cannot change time: event status is %s (must be pending)", event.Status)
+			return domain.FailedPrecondition("cannot change time: event status is %s (must be pending)", event.Status)
 		}
 
 		now := time.Now()
@@ -276,11 +326,11 @@ func (s *eventService) UpdateTimeEvent(ctx context.Context, eventID, userCreateI
 		maxTime := now.Add(45 * 24 * time.Hour)
 
 		if newTimeStart.Before(minTime) {
-			return errors.New("event start time must be at least 45 minutes from now")
+			return domain.InvalidArgument("event start time must be at least 45 minutes from now")
 		}
 
 		if newTimeStart.After(maxTime) {
-			return errors.New("event start time must be within 45 days from now")
+			return domain.InvalidArgument("event start time must be within 45 days from now")
 		}
 
 		return s.eventRepo.UpdateTimeEvent(ctx, eventID, newTimeStart)
@@ -307,6 +357,14 @@ func (s *eventService) UpdateTimeEvent(ctx context.Context, eventID, userCreateI
 // игроков к контрольной точке — см. checkMinPlayers). Сама строка события и
 // вся история участников/команд никуда не удаляются — просто больше не активны.
 func (s *eventService) CancelEvent(ctx context.Context, eventID, userCreateID string) error {
+	if err := validateID("event_id", eventID); err != nil {
+		return err
+	}
+
+	if err := validateID("user_create_id", userCreateID); err != nil {
+		return err
+	}
+
 	unlock, err := s.eventLocks.lock(ctx, eventID)
 	if err != nil {
 		return err
@@ -320,11 +378,11 @@ func (s *eventService) CancelEvent(ctx context.Context, eventID, userCreateID st
 		}
 
 		if event.UserCreateID != userCreateID {
-			return errors.New("you are not admin")
+			return domain.PermissionDenied("you are not admin")
 		}
 
 		if event.Status != domain.EventStatusPending && event.Status != domain.EventStatusConfirmed {
-			return fmt.Errorf("cannot cancel event: current status is %q", event.Status)
+			return domain.FailedPrecondition("cannot cancel event: current status is %q", event.Status)
 		}
 
 		return s.eventRepo.UpdateEventStatus(ctx, eventID, domain.EventStatusCanceled)
@@ -346,16 +404,16 @@ func (s *eventService) CancelEvent(ctx context.Context, eventID, userCreateID st
 }
 
 func (s *eventService) JoinToEvent(ctx context.Context, eventID, userID, clanID string, enemy bool) error {
-	if eventID == "" {
-		return errors.New("must have event id")
+	if err := validateID("event_id", eventID); err != nil {
+		return err
 	}
 
-	if userID == "" {
-		return errors.New("must have user id")
+	if err := validateID("user_id", userID); err != nil {
+		return err
 	}
 
-	if clanID == "" {
-		return errors.New("must have clanID")
+	if err := validateID("clan_id", clanID); err != nil {
+		return err
 	}
 
 	unlock, err := s.eventLocks.lock(ctx, eventID)
@@ -371,12 +429,14 @@ func (s *eventService) JoinToEvent(ctx context.Context, eventID, userID, clanID 
 			return err
 		}
 
-		// Присоединяться можно только к pending/confirmed ивентам
-		if event.Status != domain.EventStatusPending && event.Status != domain.EventStatusConfirmed {
-			return fmt.Errorf("cannot join: event status is %s", event.Status)
+		// Присоединиться можно только к pending-ивенту: после подтверждения
+		// состав заморожен — иначе он мог бы упасть ниже минимума уже после
+		// проверки, а список игроков в rent.server устареть.
+		if event.Status != domain.EventStatusPending {
+			return domain.FailedPrecondition("cannot join: event status is %s (must be pending)", event.Status)
 		}
 
-		user, err = s.addUserToEvent(ctx, eventID, userID, clanID, enemy, domain.RolePlayer)
+		user, err = s.addUserToEvent(ctx, eventID, userID, clanID, enemy)
 		return err
 	})
 	if err != nil {
@@ -391,15 +451,16 @@ func (s *eventService) JoinToEvent(ctx context.Context, eventID, userID, clanID 
 
 // addUserToEvent — общая часть CreateEvent и JoinToEvent. Вызывается внутри
 // транзакции, в которой строка ивента уже заблокирована (или только что
-// вставлена этой же транзакцией).
-func (s *eventService) addUserToEvent(ctx context.Context, eventID, userID, clanID string, enemy bool, role domain.Role) (domain.User, error) {
+// вставлена этой же транзакцией). Роль здесь не назначается: она есть только
+// внутри команды (team_members), см. SetRole.
+func (s *eventService) addUserToEvent(ctx context.Context, eventID, userID, clanID string, enemy bool) (domain.User, error) {
 	alreadyJoined, err := s.eventRepo.IsUserInEvent(ctx, eventID, userID)
 	if err != nil {
 		return domain.User{}, err
 	}
 
 	if alreadyJoined {
-		return domain.User{}, errors.New("user already joined this event")
+		return domain.User{}, domain.AlreadyExists("user already joined this event")
 	}
 
 	user := domain.User{
@@ -408,7 +469,6 @@ func (s *eventService) addUserToEvent(ctx context.Context, eventID, userID, clan
 		EventID:     eventID,
 		ClanID:      clanID,
 		Enemy:       enemy,
-		Role:        role,
 		JoinTime:    time.Now(),
 	}
 
@@ -416,16 +476,18 @@ func (s *eventService) addUserToEvent(ctx context.Context, eventID, userID, clan
 		return domain.User{}, err
 	}
 
-	if role != domain.RolePlayer {
-		if err := s.eventRepo.UpdateUserRole(ctx, userID, eventID, role); err != nil {
-			return domain.User{}, err
-		}
-	}
-
 	return user, nil
 }
 
 func (s *eventService) LeaveEvent(ctx context.Context, userID, eventID string) error {
+	if err := validateID("event_id", eventID); err != nil {
+		return err
+	}
+
+	if err := validateID("user_id", userID); err != nil {
+		return err
+	}
+
 	unlock, err := s.eventLocks.lock(ctx, eventID)
 	if err != nil {
 		return err
@@ -438,19 +500,44 @@ func (s *eventService) LeaveEvent(ctx context.Context, userID, eventID string) e
 			return err
 		}
 
+		// Сайд-лидеры обязаны играть каждую игру, поэтому выйти из ивента не
+		// могут ни создатель, ни лидер второй стороны: создателю остаётся
+		// CancelEvent, второму — договариваться с ним.
 		if event.UserCreateID == userID {
-			return errors.New("admin cannot leave event, use CancelEvent instead")
+			return domain.PermissionDenied("side leader cannot leave event, use CancelEvent instead")
 		}
 
-		// Выходить можно только из pending/confirmed ивентов
-		if event.Status != domain.EventStatusPending && event.Status != domain.EventStatusConfirmed {
-			return fmt.Errorf("cannot leave: event status is %s", event.Status)
+		if event.EnemySideLeader == userID {
+			return domain.PermissionDenied("side leader cannot leave event")
+		}
+
+		// Выходить можно только из pending-ивента: после подтверждения состав
+		// заморожен (симметрично JoinToEvent).
+		if event.Status != domain.EventStatusPending {
+			return domain.FailedPrecondition("cannot leave: event status is %s (must be pending)", event.Status)
 		}
 
 		// Проверяем, что уходящий вообще состоит в этом ивенте — иначе просто
 		// молча не удалится ни одной строки, а ошибки не будет.
-		if _, err := s.eventRepo.GetUserByID(ctx, eventID, userID); err != nil {
+		user, err := s.eventRepo.GetUserByID(ctx, eventID, userID)
+		if err != nil {
 			return err
+		}
+
+		// Сначала из всех команд ивента, иначе строку users не удалить — на
+		// неё ссылается team_members. Игры ещё не начинались (ивент pending),
+		// так что терять нечего.
+		teamIDs, err := s.eventRepo.RemoveUserFromAllTeams(ctx, eventID, user.UserEventID)
+		if err != nil {
+			return err
+		}
+
+		// Там, где однокланников осталось меньше порога, снимаем флаг —
+		// как в RemoveUserFromTeam.
+		for _, teamID := range teamIDs {
+			if err := s.refreshSixClanMembers(ctx, teamID, user.ClanID); err != nil {
+				return err
+			}
 		}
 
 		return s.eventRepo.LeaveEvent(ctx, userID, eventID)
@@ -465,13 +552,30 @@ func (s *eventService) LeaveEvent(ctx context.Context, userID, eventID string) e
 	return s.producer.PublishUserLeftEvent(pubCtx, eventID, userID)
 }
 
-func (s *eventService) SetRole(ctx context.Context, eventID, yourID, userID string, role domain.Role) error {
-	if role == domain.RoleSquadLeader {
-		return errors.New("squad_leader role cannot be assigned via SetRole")
+// SetRole назначает роль внутри ОДНОЙ команды, то есть на одну игру: роли
+// уровня всего ивента больше нет (колонка users.role убрана). Менять роли
+// может только сайд-лидер этой же команды — до чужой стороны он не
+// дотягивается, — и только пока игра не началась.
+func (s *eventService) SetRole(ctx context.Context, teamID, yourID, userID string, role domain.Role) error {
+	if err := validateID("team_id", teamID); err != nil {
+		return err
 	}
 
-	if role != domain.RoleSideLeader && role != domain.RolePlayer {
-		return errors.New("invalid role: only side_leader or player can be set via SetRole")
+	if err := validateID("side_leader_id", yourID); err != nil {
+		return err
+	}
+
+	if err := validateID("user_id", userID); err != nil {
+		return err
+	}
+
+	if err := validateAssignableRole(role); err != nil {
+		return err
+	}
+
+	eventID, err := s.teamEventID(ctx, teamID)
+	if err != nil {
+		return err
 	}
 
 	unlock, err := s.eventLocks.lock(ctx, eventID)
@@ -481,20 +585,42 @@ func (s *eventService) SetRole(ctx context.Context, eventID, yourID, userID stri
 	defer unlock()
 
 	err = s.eventRepo.WithTx(ctx, func(ctx context.Context) error {
-		event, err := s.lockEventRow(ctx, eventID)
+		if _, err := s.lockEventRow(ctx, eventID); err != nil {
+			return err
+		}
+
+		team, err := s.eventRepo.GetTeamByID(ctx, teamID)
 		if err != nil {
 			return err
 		}
 
-		if event.UserCreateID != yourID && event.EnemySideLeader != yourID {
-			return errors.New("only side leaders can set roles")
+		if team.Status != domain.TeamStatusPending {
+			return domain.FailedPrecondition("cannot set role: game already started (team status is %s)", team.Status)
 		}
 
-		if _, err := s.eventRepo.GetUserByID(ctx, eventID, userID); err != nil {
+		caller, err := s.eventRepo.GetUserByID(ctx, eventID, yourID)
+		if err != nil {
 			return err
 		}
 
-		return s.eventRepo.UpdateUserRole(ctx, userID, eventID, role)
+		// Сайд-лидер команды — единственный, кто раздаёт в ней роли; чужую
+		// сторону это автоматически закрывает.
+		if team.SideLeaderID != caller.UserEventID {
+			return domain.PermissionDenied("only the side leader of this team can set roles")
+		}
+
+		user, err := s.eventRepo.GetUserByID(ctx, eventID, userID)
+		if err != nil {
+			return err
+		}
+
+		// Сам сайд-лидер остаётся squad_leader — понизить его (в том числе
+		// самому себе) нельзя.
+		if team.SideLeaderID == user.UserEventID {
+			return domain.FailedPrecondition("cannot change the role of the team side leader")
+		}
+
+		return s.eventRepo.UpdateTeamMemberRole(ctx, teamID, user.UserEventID, role)
 	})
 	if err != nil {
 		return err
@@ -503,7 +629,7 @@ func (s *eventService) SetRole(ctx context.Context, eventID, yourID, userID stri
 	pubCtx, cancel := publishCtx(ctx)
 	defer cancel()
 
-	return s.producer.PublishUserRoleChanged(pubCtx, eventID, userID, role)
+	return s.producer.PublishUserRoleChanged(pubCtx, eventID, teamID, userID, role)
 }
 
 // ── Таймеры ─────────────────────────────────────────────────────────────────
@@ -717,31 +843,38 @@ func (s *eventService) rentServer(ctx context.Context, eventID string, timeStart
 	}
 	defer unlock()
 
-	var confirmed bool
+	var needRent bool
 	var playersList []string
-	// Статус и список игроков — из одного снимка БД.
+	// Статус, флаг отправки и список игроков — из одного снимка БД.
 	err := s.eventRepo.WithTx(ctx, func(ctx context.Context) error {
 		event, err := s.eventRepo.GetEventByID(ctx, eventID)
 		if err != nil {
 			return err
 		}
 
-		confirmed = event.Status == domain.EventStatusConfirmed
-		if !confirmed {
+		needRent = event.Status == domain.EventStatusConfirmed && !event.RentServerSent
+		if !needRent {
 			return nil
 		}
 
 		playersList, err = s.eventRepo.GetUserIDsByEventID(ctx, eventID)
 		return err
 	})
-	if err != nil || !confirmed {
+	if err != nil || !needRent {
 		return err
 	}
 
 	pubCtx, cancel := publishCtx(ctx)
 	defer cancel()
 
-	return s.producer.PublishRentServer(pubCtx, eventID, playersList, timeStart)
+	if err := s.producer.PublishRentServer(pubCtx, eventID, playersList, timeStart); err != nil {
+		return err
+	}
+
+	// Флаг ставим только после успешной публикации: если Kafka недоступна, он
+	// останется снятым, и после рестарта сервиса аренда уйдёт заново, а не
+	// потеряется совсем.
+	return s.eventRepo.MarkRentServerSent(pubCtx, eventID)
 }
 
 // startEventAndGames запускается только из цепочки таймеров (в момент
@@ -769,7 +902,7 @@ func (s *eventService) startEventAndGames(ctx context.Context, eventID string) e
 		}
 
 		if event.Status != domain.EventStatusConfirmed {
-			return fmt.Errorf("cannot start event: status is %q (must be confirmed)", event.Status)
+			return domain.FailedPrecondition("cannot start event: status is %q (must be confirmed)", event.Status)
 		}
 
 		if err := s.eventRepo.UpdateEventStatus(ctx, eventID, domain.EventStatusInProgress); err != nil {
@@ -852,6 +985,10 @@ func (s *eventService) RecoverPendingEvents(ctx context.Context) error {
 }
 
 func (s *eventService) GetUnfinishedEventsByUserID(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
+	if err := validateID("user_create_id", userCreateID); err != nil {
+		return nil, err
+	}
+
 	events, err := s.eventRepo.GetUnfinishedEventsByUserID(ctx, userCreateID)
 	if err != nil {
 		return nil, err
@@ -861,6 +998,10 @@ func (s *eventService) GetUnfinishedEventsByUserID(ctx context.Context, userCrea
 }
 
 func (s *eventService) GetUnfinishedEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error) {
+	if err := validateSearchName(eventName); err != nil {
+		return []domain.Event{}, err
+	}
+
 	events, err := s.eventRepo.GetUnfinishedEventsByEventName(ctx, eventName)
 	if err != nil {
 		return []domain.Event{}, err
@@ -873,23 +1014,44 @@ func (s *eventService) GetUnfinishedEventsByEventName(ctx context.Context, event
 // внутри FinishTeamGame, когда game_count после этой игры достигает target_game_count.
 
 func (s *eventService) GetTeamsByEventID(ctx context.Context, eventID string) ([]domain.Team, error) {
+	if err := validateID("event_id", eventID); err != nil {
+		return nil, err
+	}
+
 	return s.eventRepo.GetTeamsByEventID(ctx, eventID)
 }
 
 func (s *eventService) GetTeamByID(ctx context.Context, teamID string) (domain.Team, error) {
+	if err := validateID("team_id", teamID); err != nil {
+		return domain.Team{}, err
+	}
+
 	team, err := s.eventRepo.GetTeamByID(ctx, teamID)
 	if err != nil {
 		return domain.Team{}, err
 	}
 
 	if team.TeamID == "" {
-		return domain.Team{}, errors.New("team not found")
+		return domain.Team{}, domain.NotFound("team not found")
 	}
 
 	return team, nil
 }
 
 func (s *eventService) JoinUserToTeam(ctx context.Context, teamID, userID string, role domain.Role) error {
+	if err := validateID("team_id", teamID); err != nil {
+		return err
+	}
+
+	if err := validateID("user_id", userID); err != nil {
+		return err
+	}
+
+	// squad_leader в команде один — сайд-лидер стороны, его ставит CreateEvent.
+	if err := validateAssignableRole(role); err != nil {
+		return err
+	}
+
 	eventID, err := s.teamEventID(ctx, teamID)
 	if err != nil {
 		return err
@@ -903,14 +1065,43 @@ func (s *eventService) JoinUserToTeam(ctx context.Context, teamID, userID string
 
 	var user domain.User
 	err = s.eventRepo.WithTx(ctx, func(ctx context.Context) error {
-		if _, err := s.lockEventRow(ctx, eventID); err != nil {
+		event, err := s.lockEventRow(ctx, eventID)
+		if err != nil {
 			return err
 		}
 
-		var err error
+		if event.Status == domain.EventStatusFinished || event.Status == domain.EventStatusCanceled || event.Status == domain.EventStatusDeclined {
+			return domain.FailedPrecondition("cannot join team: event status is %s", event.Status)
+		}
+
+		team, err := s.eventRepo.GetTeamByID(ctx, teamID)
+		if err != nil {
+			return err
+		}
+
+		// Состав набирается до игры: после старта команда зафиксирована.
+		if team.Status != domain.TeamStatusPending {
+			return domain.FailedPrecondition("cannot join team: game already started (team status is %s)", team.Status)
+		}
+
+		if team.MembersCount >= MaxTeamMembers {
+			return domain.FailedPrecondition("team is full: %d players max", MaxTeamMembers)
+		}
+
 		user, err = s.eventRepo.GetUserByID(ctx, eventID, userID)
 		if err != nil {
 			return err
+		}
+
+		// Играть можно только за ту сторону, за которую человек вошёл в
+		// ивент: сторона команды — это сторона её сайд-лидера.
+		sideLeader, err := s.eventRepo.GetUserByUserEventID(ctx, team.SideLeaderID)
+		if err != nil {
+			return err
+		}
+
+		if user.Enemy != sideLeader.Enemy {
+			return domain.FailedPrecondition("user cannot join a team of the opposite side")
 		}
 
 		res, err := s.eventRepo.IsUserInTeam(ctx, teamID, user.UserEventID)
@@ -919,7 +1110,7 @@ func (s *eventService) JoinUserToTeam(ctx context.Context, teamID, userID string
 		}
 
 		if res == true {
-			return errors.New("user already im team")
+			return domain.AlreadyExists("user is already in this team")
 		}
 
 		if err := s.eventRepo.JoinUserToTeam(ctx, teamID, user.UserEventID, role); err != nil {
@@ -961,6 +1152,14 @@ func (s *eventService) JoinUserToTeam(ctx context.Context, teamID, userID string
 }
 
 func (s *eventService) RemoveUserFromTeam(ctx context.Context, teamID, userID string) error {
+	if err := validateID("team_id", teamID); err != nil {
+		return err
+	}
+
+	if err := validateID("user_id", userID); err != nil {
+		return err
+	}
+
 	eventID, err := s.teamEventID(ctx, teamID)
 	if err != nil {
 		return err
@@ -978,10 +1177,25 @@ func (s *eventService) RemoveUserFromTeam(ctx context.Context, teamID, userID st
 			return err
 		}
 
-		var err error
+		team, err := s.eventRepo.GetTeamByID(ctx, teamID)
+		if err != nil {
+			return err
+		}
+
+		// Убирать из состава можно только до старта игры: потом у игрока уже
+		// есть участие в ней и (после её конца) статистика.
+		if team.Status != domain.TeamStatusPending {
+			return domain.FailedPrecondition("cannot remove from team: game already started (team status is %s)", team.Status)
+		}
+
 		user, err = s.eventRepo.GetUserByID(ctx, eventID, userID)
 		if err != nil {
 			return err
+		}
+
+		// Сайд-лидер обязан играть каждую игру.
+		if team.SideLeaderID == user.UserEventID {
+			return domain.FailedPrecondition("side leader cannot be removed from team")
 		}
 
 		res, err := s.eventRepo.IsUserInTeam(ctx, teamID, user.UserEventID)
@@ -990,31 +1204,14 @@ func (s *eventService) RemoveUserFromTeam(ctx context.Context, teamID, userID st
 		}
 
 		if res == false {
-			return errors.New("user not in team")
+			return domain.NotFound("user is not in this team")
 		}
 
 		if err := s.eventRepo.RemoveUserFromTeam(ctx, teamID, user.UserEventID); err != nil {
 			return err
 		}
 
-		// Симметрично JoinUserToTeam: после выхода из команды однокланников в ней
-		// может остаться меньше порога — если так, снимаем six_clan_members
-		// оставшимся, иначе флаг так и останется true уже после того, как условие
-		// перестало выполняться.
-		if user.ClanID != "" {
-			clanMembersLeft, err := s.eventRepo.CountClanMembersInTeam(ctx, teamID, user.ClanID)
-			if err != nil {
-				return err
-			}
-
-			if clanMembersLeft < 6 {
-				if err := s.eventRepo.UpdateSixClanMembersForClanInTeam(ctx, teamID, user.ClanID, false); err != nil {
-					return err
-				}
-			}
-		}
-
-		return nil
+		return s.refreshSixClanMembers(ctx, teamID, user.ClanID)
 	})
 	if err != nil {
 		return err
@@ -1026,14 +1223,40 @@ func (s *eventService) RemoveUserFromTeam(ctx context.Context, teamID, userID st
 	return s.producer.PublishUserLeftTeam(pubCtx, teamID, userID, user.UserEventID)
 }
 
+// refreshSixClanMembers — симметрично JoinUserToTeam: после ухода игрока
+// однокланников в команде может остаться меньше порога, и тогда флаг
+// six_clan_members надо снять всей группе, иначе он останется true уже после
+// того, как условие перестало выполняться. Вызывается внутри транзакции.
+func (s *eventService) refreshSixClanMembers(ctx context.Context, teamID, clanID string) error {
+	if clanID == "" {
+		return nil
+	}
+
+	clanMembersLeft, err := s.eventRepo.CountClanMembersInTeam(ctx, teamID, clanID)
+	if err != nil {
+		return err
+	}
+
+	if clanMembersLeft >= 6 {
+		return nil
+	}
+
+	return s.eventRepo.UpdateSixClanMembersForClanInTeam(ctx, teamID, clanID, false)
+}
+
 // StartTeamGame стартует одну игру (game_number) целиком — обе её команды
 // сразу одним вызовом, поскольку они всегда начинаются вместе.
 func (s *eventService) StartTeamGame(ctx context.Context, team1ID, team2ID string) error {
-	if team1ID == "" || team2ID == "" {
-		return errors.New("must have both team ids")
+	if err := validateID("team1_id", team1ID); err != nil {
+		return err
 	}
+
+	if err := validateID("team2_id", team2ID); err != nil {
+		return err
+	}
+
 	if team1ID == team2ID {
-		return errors.New("team1_id and team2_id must be different")
+		return domain.InvalidArgument("team1_id and team2_id must be different")
 	}
 
 	eventID, err := s.teamEventID(ctx, team1ID)
@@ -1062,7 +1285,7 @@ func (s *eventService) StartTeamGame(ctx context.Context, team1ID, team2ID strin
 			return err
 		}
 		if team1.TeamID == "" {
-			return errors.New("team1 not found")
+			return domain.NotFound("team1 not found")
 		}
 
 		team2, err := s.eventRepo.GetTeamByID(ctx, team2ID)
@@ -1070,22 +1293,22 @@ func (s *eventService) StartTeamGame(ctx context.Context, team1ID, team2ID strin
 			return err
 		}
 		if team2.TeamID == "" {
-			return errors.New("team2 not found")
+			return domain.NotFound("team2 not found")
 		}
 
 		if team1.EventID != team2.EventID {
-			return errors.New("team1 and team2 belong to different events")
+			return domain.InvalidArgument("team1 and team2 belong to different events")
 		}
 		if team1.GameNumber != team2.GameNumber {
-			return errors.New("team1 and team2 belong to different games")
+			return domain.InvalidArgument("team1 and team2 belong to different games")
 		}
 
-		if !team1.TimeStart.IsZero() || !team2.TimeStart.IsZero() {
-			return errors.New("game already started")
+		if team1.Status != domain.TeamStatusPending || team2.Status != domain.TeamStatusPending {
+			return domain.FailedPrecondition("game already started (team status is %s)", team1.Status)
 		}
 
 		if event.Status != domain.EventStatusInProgress {
-			return errors.New("event hasn't started yet")
+			return domain.FailedPrecondition("cannot start game: event status is %s (must be in_progress)", event.Status)
 		}
 
 		if team1.GameNumber > 1 {
@@ -1095,8 +1318,8 @@ func (s *eventService) StartTeamGame(ctx context.Context, team1ID, team2ID strin
 			}
 
 			for _, t := range teams {
-				if t.GameNumber == team1.GameNumber-1 && t.TimeFinish.IsZero() {
-					return errors.New("previous game is not finished yet")
+				if t.GameNumber == team1.GameNumber-1 && t.Status != domain.TeamStatusFinished {
+					return domain.FailedPrecondition("previous game is not finished yet")
 				}
 			}
 		}
@@ -1133,14 +1356,24 @@ func (s *eventService) StartTeamGame(ctx context.Context, team1ID, team2ID strin
 // раньше оба проходили проверку "ещё не закончена" и дважды увеличивали
 // game_count.
 func (s *eventService) FinishTeamGame(ctx context.Context, team1ID, team2ID, teamWinnerID string) error {
-	if team1ID == "" || team2ID == "" {
-		return errors.New("must have both team ids")
+	if err := validateID("team1_id", team1ID); err != nil {
+		return err
 	}
+
+	if err := validateID("team2_id", team2ID); err != nil {
+		return err
+	}
+
+	if err := validateID("team_winner_id", teamWinnerID); err != nil {
+		return err
+	}
+
 	if team1ID == team2ID {
-		return errors.New("team1_id and team2_id must be different")
+		return domain.InvalidArgument("team1_id and team2_id must be different")
 	}
+
 	if teamWinnerID != team1ID && teamWinnerID != team2ID {
-		return errors.New("team_winner_id must be either team1_id or team2_id")
+		return domain.InvalidArgument("team_winner_id must be either team1_id or team2_id")
 	}
 
 	eventID, err := s.teamEventID(ctx, team1ID)
@@ -1170,7 +1403,7 @@ func (s *eventService) FinishTeamGame(ctx context.Context, team1ID, team2ID, tea
 			return err
 		}
 		if team1.TeamID == "" {
-			return errors.New("team1 not found")
+			return domain.NotFound("team1 not found")
 		}
 
 		team2, err := s.eventRepo.GetTeamByID(ctx, team2ID)
@@ -1178,26 +1411,26 @@ func (s *eventService) FinishTeamGame(ctx context.Context, team1ID, team2ID, tea
 			return err
 		}
 		if team2.TeamID == "" {
-			return errors.New("team2 not found")
+			return domain.NotFound("team2 not found")
 		}
 
 		if team1.EventID != team2.EventID {
-			return errors.New("team1 and team2 belong to different events")
+			return domain.InvalidArgument("team1 and team2 belong to different events")
 		}
 		if team1.GameNumber != team2.GameNumber {
-			return errors.New("team1 and team2 belong to different games")
+			return domain.InvalidArgument("team1 and team2 belong to different games")
 		}
 
-		if team1.TimeStart.IsZero() || team2.TimeStart.IsZero() {
-			return errors.New("game hasn't started yet")
+		if team1.Status == domain.TeamStatusFinished || team2.Status == domain.TeamStatusFinished {
+			return domain.FailedPrecondition("game already finished")
 		}
 
-		if !team1.TimeFinish.IsZero() || !team2.TimeFinish.IsZero() {
-			return errors.New("game already finished")
+		if team1.Status != domain.TeamStatusInProgress || team2.Status != domain.TeamStatusInProgress {
+			return domain.FailedPrecondition("game hasn't started yet")
 		}
 
 		if event.Status != domain.EventStatusInProgress {
-			return errors.New("event hasn't started yet")
+			return domain.FailedPrecondition("cannot finish game: event status is %s (must be in_progress)", event.Status)
 		}
 
 		now = time.Now()
@@ -1210,14 +1443,10 @@ func (s *eventService) FinishTeamGame(ctx context.Context, team1ID, team2ID, tea
 			return err
 		}
 
-		if newGameCount < event.TargetGameCount {
-			return nil
-		}
-
-		// это была последняя запланированная игра — считаем итог по всем играм
-		// и завершаем ивент целиком. team.side_leader_id — это users.user_event_id,
-		// а не сырой event.user_create_id/enemy_side_leader_id, поэтому сначала
-		// достаём internal id обоих сайд-лидеров, чтобы было с чем сравнивать team.Winner.
+		// Считаем счёт по всем сыгранным играм. team.side_leader_id — это
+		// users.user_event_id, а не сырой event.user_create_id/
+		// enemy_side_leader_id, поэтому сначала достаём internal id обоих
+		// сайд-лидеров, чтобы было с чем сравнивать team.Winner.
 		teams, err := s.eventRepo.GetTeamsByEventID(ctx, eventID)
 		if err != nil {
 			return err
@@ -1244,6 +1473,14 @@ func (s *eventService) FinishTeamGame(ctx context.Context, team1ID, team2ID, tea
 			case enemyUser.UserEventID:
 				enemyWins++
 			}
+		}
+
+		// Серия идёт до большинства побед: при 2:0 из трёх игр третью играть
+		// уже незачем — ивент завершается досрочно, оставшаяся игра не
+		// стартует (статус ивента больше не in_progress).
+		decided := allyWins*2 > int(event.TargetGameCount) || enemyWins*2 > int(event.TargetGameCount)
+		if !decided && newGameCount < event.TargetGameCount {
+			return nil
 		}
 
 		// При чётном target_game_count (2) счёт побед вполне может сойтись
@@ -1287,6 +1524,31 @@ func (s *eventService) FinishTeamGame(ctx context.Context, team1ID, team2ID, tea
 // id, как и везде в API; сервис сам резолвит его в user_event_id по паре
 // (user_id, team_id), клиенту знать user_event_id не нужно.
 func (s *eventService) AddTeamMemberStats(ctx context.Context, teamID, userID string, kills, deaths, points, revival, destroyedVehicles int64) error {
+	if err := validateID("team_id", teamID); err != nil {
+		return err
+	}
+
+	if err := validateID("user_id", userID); err != nil {
+		return err
+	}
+
+	// Статистика уходит в суммарные total_* команды, поэтому мусор в ней
+	// портит итоги всей команды, а не только одну строку.
+	for _, stat := range []struct {
+		field string
+		value int64
+	}{
+		{"kills", kills},
+		{"deaths", deaths},
+		{"points", points},
+		{"revival", revival},
+		{"destroyed_vehicles", destroyedVehicles},
+	} {
+		if err := validateStat(stat.field, stat.value); err != nil {
+			return err
+		}
+	}
+
 	eventID, err := s.teamEventID(ctx, teamID)
 	if err != nil {
 		return err
@@ -1309,8 +1571,8 @@ func (s *eventService) AddTeamMemberStats(ctx context.Context, teamID, userID st
 			return err
 		}
 
-		if team.TimeFinish.IsZero() {
-			return errors.New("game hasn't finished yet: stats can only be added after FinishTeamGame")
+		if team.Status != domain.TeamStatusFinished {
+			return domain.FailedPrecondition("game hasn't finished yet: stats can only be added after FinishTeamGame")
 		}
 
 		userEventID, err = s.eventRepo.GetUserEventIDByUserIDAndTeamID(ctx, userID, teamID)
@@ -1351,6 +1613,10 @@ func (s *eventService) AddTeamMemberStats(ctx context.Context, teamID, userID st
 // на сервере как сумма TeamMember (см. AddTeamMemberStats), чтобы клиенту не
 // пришлось самому суммировать список, если нужен только общий итог.
 func (s *eventService) GetTeamStats(ctx context.Context, teamID string) (domain.Team, []domain.TeamMember, error) {
+	if err := validateID("team_id", teamID); err != nil {
+		return domain.Team{}, nil, err
+	}
+
 	var team domain.Team
 	var stats []domain.TeamMember
 	// Итоги команды и статистика игроков — из одного снимка БД, иначе между
@@ -1364,7 +1630,7 @@ func (s *eventService) GetTeamStats(ctx context.Context, teamID string) (domain.
 		}
 
 		if team.TeamID == "" {
-			return errors.New("team not found")
+			return domain.NotFound("team not found")
 		}
 
 		stats, err = s.eventRepo.GetTeamStats(ctx, teamID)

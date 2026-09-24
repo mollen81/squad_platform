@@ -265,10 +265,14 @@ func (p *Producer) PublishUserLeftTeam(ctx context.Context, teamID, userID, user
 	})
 }
 
-func (p *Producer) PublishUserRoleChanged(ctx context.Context, eventID, userID string, role domain.Role) error {
+// PublishUserRoleChanged — роль назначается внутри команды (одной игры),
+// поэтому в сообщении есть team_id: у одного игрока в разных играх одного
+// ивента роли могут отличаться.
+func (p *Producer) PublishUserRoleChanged(ctx context.Context, eventID, teamID, userID string, role domain.Role) error {
 	data, err := json.Marshal(map[string]interface{}{
 		"type":     "user.role_changed",
 		"event_id": eventID,
+		"team_id":  teamID,
 		"user_id":  userID,
 		"role":     string(role),
 	})

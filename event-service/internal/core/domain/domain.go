@@ -2,12 +2,19 @@ package domain
 
 import "time"
 
+// Role — роль игрока ВНУТРИ команды (team_members), то есть в рамках одной
+// конкретной игры. В ивенте целиком (users) роли нет: один и тот же человек
+// может быть в первой игре сквадным, а во второй — обычным игроком.
 type Role string
 
 const (
-	RolePlayer      Role = "player"
+	// RolePlayer — рядовой игрок
+	RolePlayer Role = "player"
+	// RoleSquadLeader — главный в команде; его получает сайд-лидер стороны
+	// при создании ивента, через SetRole эта роль не выдаётся
 	RoleSquadLeader Role = "squad_leader"
-	RoleSideLeader  Role = "side_leader"
+	// RoleSideLeader — старше рядовых игроков, но ниже squad_leader
+	RoleSideLeader Role = "side_leader"
 )
 
 type EventStatus string
@@ -15,17 +22,33 @@ type EventStatus string
 const (
 	// EventStatusPending — ивент создан, набор участников идёт, проверка на минимум игроков ещё не проводилась
 	EventStatusPending EventStatus = "pending"
-	// EventStatusConfirmed — проверка на минимум игроков прошла успешно, ивент подтверждён, ожидает старта
+	// EventStatusConfirmed — проверка на минимум игроков прошла успешно, ивент подтверждён, ожидает старта.
+	// Состав ивента с этого момента заморожен: ни войти, ни выйти уже нельзя.
 	EventStatusConfirmed EventStatus = "confirmed"
 	// EventStatusInProgress — ивент начался, игры идут
 	EventStatusInProgress EventStatus = "in_progress"
-	// EventStatusFinished — все игры сыграны, ивент завершён
+	// EventStatusFinished — сыграны все игры или победитель определился досрочно, ивент завершён
 	EventStatusFinished EventStatus = "finished"
 	// EventStatusDeclined — автоматически отменён: к контрольной точке не набралось
 	// минимума игроков (см. controlEventTimerDenial)
 	EventStatusDeclined EventStatus = "declined"
 	// EventStatusCanceled — вручную отменён создателем через CancelEvent
 	EventStatusCanceled EventStatus = "canceled"
+)
+
+// TeamStatus — состояние участия команды в её игре. Команда (team) — это и
+// есть участие одной стороны в одной игре, поэтому её статус и есть статус
+// самой игры для этой стороны.
+type TeamStatus string
+
+const (
+	// TeamStatusPending — игра ещё не началась: только в этом статусе можно
+	// менять состав команды (JoinUserToTeam/RemoveUserFromTeam) и роли (SetRole)
+	TeamStatusPending TeamStatus = "pending"
+	// TeamStatusInProgress — игра идёт: состав и роли заморожены
+	TeamStatusInProgress TeamStatus = "in_progress"
+	// TeamStatusFinished — игра закончена: можно заносить статистику игроков
+	TeamStatusFinished TeamStatus = "finished"
 )
 
 type Event struct {
@@ -41,6 +64,9 @@ type Event struct {
 	GameCount       int64
 	Status          EventStatus // pending | confirmed | in_progress | finished | declined | canceled
 	WinnerSide      string      // "" (ещё не решено) | "ally" | "enemy" | "draw"
+	// RentServerSent — сигнал об аренде сервера уже отправлен. Хранится в БД,
+	// а не в памяти, чтобы после рестарта сервиса он не ушёл повторно.
+	RentServerSent bool
 }
 
 type User struct {
@@ -48,9 +74,10 @@ type User struct {
 	UserID      string
 	EventID     string
 	ClanID      string
-	Enemy       bool
-	Role        Role
-	JoinTime    time.Time
+	// Enemy — сторона, за которую игрок вошёл в ивент. Войти в команду
+	// противоположной стороны нельзя (см. JoinUserToTeam).
+	Enemy    bool
+	JoinTime time.Time
 }
 
 type Team struct {
@@ -60,6 +87,7 @@ type Team struct {
 	SideLeaderID           string
 	GameNumber             int64
 	MembersCount           int64
+	Status                 TeamStatus // pending | in_progress | finished
 	TimeStart              time.Time
 	TimeFinish             time.Time
 	TotalKills             int64

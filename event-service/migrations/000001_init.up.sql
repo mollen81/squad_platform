@@ -10,7 +10,11 @@ CREATE TABLE IF NOT EXISTS events (
     target_game_count       INT NOT NULL CHECK (target_game_count BETWEEN 1 AND 3),
     game_count              INT NOT NULL DEFAULT 0,
     status                  TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'in_progress', 'finished', 'declined', 'canceled')),
-    winner_side             TEXT NOT NULL DEFAULT '' CHECK (winner_side IN ('', 'ally', 'enemy', 'draw'))
+    winner_side             TEXT NOT NULL DEFAULT '' CHECK (winner_side IN ('', 'ally', 'enemy', 'draw')),
+
+    -- сигнал об аренде сервера уходит один раз за ивент; флаг хранится в БД,
+    -- а не в памяти, чтобы после рестарта сервиса он не ушёл повторно
+    rent_server_sent        BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_time_start ON events(time_start);
@@ -20,8 +24,11 @@ CREATE TABLE IF NOT EXISTS users (
     user_id              UUID NOT NULL,
     event_id             UUID NOT NULL REFERENCES events(event_id),
     clan_id              UUID NOT NULL,
+    -- сторона, за которую игрок вошёл в ивент: попасть в команду
+    -- противоположной стороны нельзя
     enemy                BOOLEAN NOT NULL,
-    role                 TEXT NOT NULL DEFAULT 'player' CHECK (role IN ('player', 'squad_leader', 'side_leader')),
+    -- роли здесь нет намеренно: она имеет смысл только в рамках конкретной
+    -- игры, поэтому живёт в team_members (см. SetRole)
     join_time            TIMESTAMP NOT NULL DEFAULT now(),
 
     CONSTRAINT uq_users_event_user UNIQUE (event_id, user_id)
@@ -42,6 +49,12 @@ CREATE TABLE IF NOT EXISTS team (
     side_leader_id        UUID NOT NULL REFERENCES users(user_event_id),
     game_number           INT NOT NULL,
     members_count         INT NOT NULL DEFAULT 0,
+
+    -- состояние участия команды в игре:
+    --   pending     — игра не началась (только тогда можно менять состав и роли),
+    --   in_progress — игра идёт,
+    --   finished    — игра закончена (можно заносить статистику игроков)
+    status                TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_progress', 'finished')),
 
     -- пустой time_start => игра ещё не началась, пустой time_finish => ещё не окончена
     time_start              TIMESTAMP,
