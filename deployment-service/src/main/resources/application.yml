@@ -1,0 +1,46 @@
+server:
+  port:
+    8085
+
+spring:
+  application:
+    name:
+      deployment-service
+  threads:
+    virtual:
+      enabled: true
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  jpa:
+    properties:
+      hibernate:
+        ddl-auto: validate
+        show-sql: true
+        default_schema: public
+
+  flyway:
+    enabled: true
+    schemas: public
+    table: flyway_schema_history_stats
+    locations: 'classpath:db/migrations'
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    baseline-version: '0'
+    clean-disabled: true
+
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: stats-workers
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: false
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
