@@ -8,7 +8,6 @@ import (
 	"time"
 
 	domain "event-service/internal/core/domain"
-	kafka "event-service/internal/core/kafka"
 
 	uuid "github.com/google/uuid"
 )
@@ -38,7 +37,7 @@ const (
 //     изменении отправлять нельзя.
 type eventService struct {
 	eventRepo   EventRepository
-	producer    *kafka.Producer
+	producer    EventProducer
 	eventLocks  *eventLocker
 	eventTimers map[string]*eventTimer
 	timersMutex sync.Mutex
@@ -51,7 +50,7 @@ type eventTimer struct {
 	cancel context.CancelFunc
 }
 
-func NewEventService(eventRepo EventRepository, producer *kafka.Producer) EventService {
+func NewEventService(eventRepo EventRepository, producer EventProducer) EventService {
 	return &eventService{
 		eventRepo:   eventRepo,
 		producer:    producer,

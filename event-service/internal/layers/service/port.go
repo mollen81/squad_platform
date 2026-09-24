@@ -46,6 +46,28 @@ type EventService interface {
 	RecoverPendingEvents(ctx context.Context) error
 }
 
+// EventProducer — то, что сервис публикует в Kafka. Интерфейс (а не
+// *kafka.Producer) нужен, чтобы бизнес-логику можно было проверять без
+// брокера: *kafka.Producer реализует его как есть.
+type EventProducer interface {
+	PublishEventCreated(ctx context.Context, event domain.Event) error
+	PublishEventCanceled(ctx context.Context, eventID, userCreateID string) error
+	PublishEventTimeUpdated(ctx context.Context, eventID, userCreateID string, newTimeStart time.Time) error
+	PublishEventConfirmed(ctx context.Context, eventID string) error
+	PublishEventDeclined(ctx context.Context, eventID string) error
+	PublishEventStarted(ctx context.Context, eventID string, timeStart time.Time) error
+	PublishEventFinished(ctx context.Context, eventID string, winnerSide string, timeFinish time.Time) error
+	PublishRentServer(ctx context.Context, eventID string, playersList []string, timeStart time.Time) error
+	PublishUserJoinedEvent(ctx context.Context, eventID, userID, clanID string, enemy bool, joinTime time.Time) error
+	PublishUserLeftEvent(ctx context.Context, eventID, userID string) error
+	PublishUserRoleChanged(ctx context.Context, eventID, teamID, userID string, role domain.Role) error
+	PublishUserJoinedTeam(ctx context.Context, teamID, userID, userEventID string, role domain.Role) error
+	PublishUserLeftTeam(ctx context.Context, teamID, userID, userEventID string) error
+	PublishTeamGameStarted(ctx context.Context, teamID string, gameNumber int64, timeStart time.Time) error
+	PublishTeamGameFinished(ctx context.Context, teamID string, winner bool, timeFinish time.Time) error
+	PublishTeamMemberStatsAdded(ctx context.Context, teamID, userEventID string, kills, deaths, points, revival, destroyedVehicles int64) error
+}
+
 type EventRepository interface {
 	// WithTx выполняет fn в одной SERIALIZABLE-транзакции: все методы
 	// репозитория, вызванные с переданным в fn ctx, идут через неё. При
