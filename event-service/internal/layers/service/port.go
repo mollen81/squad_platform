@@ -16,7 +16,7 @@ type EventService interface {
 	UpdateTimeEvent(ctx context.Context, eventID, userCreateID string, newTimeStart time.Time) error
 	// CancelEvent — ручная отмена ивента создателем, пока тот ещё pending или
 	// confirmed (переводит в статус "canceled"). Для "declined" (не набралось
-	// минимума игроков к контрольной точке) — см. declineEvent, это внутренний,
+	// минимума игроков к контрольной точке) — см. checkMinPlayers, это внутренний,
 	// не ручкой вызываемый путь.
 	CancelEvent(ctx context.Context, eventID, userCreateID string) error
 	JoinToEvent(ctx context.Context, eventID, userID, clanID string, enemy bool) error
@@ -41,6 +41,12 @@ type EventService interface {
 }
 
 type EventRepository interface {
+	// WithTx выполняет fn в одной SERIALIZABLE-транзакции: все методы
+	// репозитория, вызванные с переданным в fn ctx, идут через неё. При
+	// конфликте сериализации/дедлоке fn перезапускается целиком, поэтому
+	// внутри fn — только работа с БД, публикации в Kafka — после WithTx.
+	WithTx(ctx context.Context, fn func(ctx context.Context) error) error
+
 	CreateEvent(ctx context.Context, event domain.Event) error
 	GetEventsByCreatorId(ctx context.Context, userCreateID string) ([]*domain.Event, error)
 	GetLastEventByCreatorId(ctx context.Context, userCreateID string) (*domain.Event, error)
@@ -52,6 +58,9 @@ type EventRepository interface {
 	// чтобы заново расставить таймеры (см. RecoverPendingEvents).
 	GetAllUnfinishedEvents(ctx context.Context) ([]domain.Event, error)
 	GetEventByID(ctx context.Context, eventID string) (domain.Event, error)
+	// GetEventByIDForUpdate блокирует строку ивента (SELECT ... FOR UPDATE)
+	// до конца транзакции — имеет смысл только внутри WithTx.
+	GetEventByIDForUpdate(ctx context.Context, eventID string) (domain.Event, error)
 	UpdateTimeEvent(ctx context.Context, eventID string, newTimeStart time.Time) error
 	UpdateTimeFinishEvent(ctx context.Context, eventID string, newTimeFinish time.Time) error
 	// UpdateEventStatus переводит ивент в один из следующих статусов жизненного
@@ -73,11 +82,12 @@ type EventRepository interface {
 	UpdateUserRole(ctx context.Context, userID, eventID string, role domain.Role) error
 	GetUserByID(ctx context.Context, eventID, userID string) (domain.User, error)
 	GetUserIDsByEventID(ctx context.Context, eventID string) ([]string, error)
-	IncrementEventGameCount(ctx context.Context, eventID string) error
+	// IncrementEventGameCount возвращает game_count после инкремента.
+	IncrementEventGameCount(ctx context.Context, eventID string) (int64, error)
 	// FinishEventDB переводит ивент в статус "finished" и одновременно пишет
 	// time_finish и итоговый winner_side — атомарно, одним UPDATE'ом, а не
 	// отдельным вызовом UpdateEventStatus + отдельным UPDATE на эти поля.
-	FinishEventDB(ctx context.Context, eventID, winnerSide string) error
+	FinishEventDB(ctx context.Context, eventID, winnerSide string, timeFinish time.Time) error
 
 	CreateTeam(ctx context.Context, team domain.Team) error
 	GetTeamsByEventID(ctx context.Context, eventID string) ([]domain.Team, error)

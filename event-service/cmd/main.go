@@ -75,7 +75,7 @@ func main() {
 	eventService := service.NewEventService(eventRepo, producer)
 	grpcHandler := transport.NewGRPCHandler(eventService)
 
-	// eventTimers (controlEventTimerDenial/confirmEvent) живёт только в памяти
+	// eventTimers (цепочки controlEventTimerDenial) живёт только в памяти
 	// процесса, поэтому после каждого рестарта его нужно расставлять заново по
 	// ещё не завершённым ивентам — иначе часть из них зависает навсегда без
 	// проверки на минимум игроков и без старта.

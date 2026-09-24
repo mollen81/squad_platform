@@ -185,7 +185,7 @@ func (t *GRPCTransport) GetEventMembersList(ctx context.Context, req *pb.GetEven
 
 // Публичного StartEvent RPC больше нет: старт ивента и первой игры происходит
 // автоматически по таймеру внутри eventService (controlEventTimerDenial →
-// confirmEvent80 → startEventAndGames), а не по вызову от клиента.
+// checkMinPlayers → startEventAndGames), а не по вызову от клиента.
 
 func (t *GRPCTransport) GetUnfinishedEventsByUserID(ctx context.Context, req *pb.GetUnfinishedEventsByUserIDRequest) (*pb.GetUnfinishedEventsByUserIDResponse, error) {
 	events, err := t.eventService.GetUnfinishedEventsByUserID(ctx, req.GetUserCreateId())
