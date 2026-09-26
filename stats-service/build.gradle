@@ -27,6 +27,12 @@ dependencies {
 
     // Flyway migrations
     implementation 'org.flywaydb:flyway-core'
+
+    // Tests
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:kafka'
 }
 
 protobuf {
