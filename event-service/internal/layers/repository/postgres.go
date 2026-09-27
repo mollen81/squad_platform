@@ -158,7 +158,9 @@ func isRetryableTxError(err error) bool {
 // настоящая дата.
 func scanEvent(row pgx.Row) (domain.Event, error) {
 	var event domain.Event
-	var timeFinish *time.Time
+	// Всё, что в БД может быть NULL, читаем через указатель.
+	var timeFinish, serverDeployedAt, allyReadyAt, enemyReadyAt *time.Time
+	var serverID, serverPassword *string
 
 	err := row.Scan(
 		&event.EventID,
@@ -174,6 +176,11 @@ func scanEvent(row pgx.Row) (domain.Event, error) {
 		&event.GameCount,
 		&event.Status,
 		&event.RentServerSent,
+		&serverID,
+		&serverPassword,
+		&serverDeployedAt,
+		&allyReadyAt,
+		&enemyReadyAt,
 	)
 	if err != nil {
 		return domain.Event{}, err
@@ -181,6 +188,21 @@ func scanEvent(row pgx.Row) (domain.Event, error) {
 
 	if timeFinish != nil {
 		event.TimeFinish = *timeFinish
+	}
+	if serverID != nil {
+		event.ServerID = *serverID
+	}
+	if serverPassword != nil {
+		event.ServerPassword = *serverPassword
+	}
+	if serverDeployedAt != nil {
+		event.ServerDeployedAt = *serverDeployedAt
+	}
+	if allyReadyAt != nil {
+		event.AllyReadyAt = *allyReadyAt
+	}
+	if enemyReadyAt != nil {
+		event.EnemyReadyAt = *enemyReadyAt
 	}
 
 	return event, nil
@@ -208,7 +230,7 @@ func (r *postgresRepository) CreateEvent(ctx context.Context, event domain.Event
 
 func (r *postgresRepository) GetEventsByCreatorId(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_id, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
 		FROM events
 		WHERE user_create_id = $1
 	`
@@ -237,7 +259,7 @@ func (r *postgresRepository) GetEventsByCreatorId(ctx context.Context, userCreat
 
 func (r *postgresRepository) GetLastEventByCreatorId(ctx context.Context, userCreateID string) (*domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_id, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
 		FROM events
 		WHERE user_create_id = $1
 		ORDER BY create_time DESC
@@ -268,9 +290,34 @@ func (r *postgresRepository) GetEventByIDForUpdate(ctx context.Context, eventID 
 	return r.getEventByID(ctx, eventID, "FOR UPDATE")
 }
 
+// GetEventByIDAndServerIDForUpdate — та самая проверка пары из vps.deployed:
+// есть ли ивент с таким event_id, у которого сохранён именно этот server_id
+// (его записал vps.purchased). Пустой результат означает, что сообщение
+// применять нельзя. Строка блокируется до конца транзакции, как и в
+// GetEventByIDForUpdate.
+func (r *postgresRepository) GetEventByIDAndServerIDForUpdate(ctx context.Context, eventID, serverID string) (domain.Event, error) {
+	query := `
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_id, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
+		FROM events
+		WHERE event_id = $1 AND server_id = $2
+		FOR UPDATE
+	`
+
+	event, err := scanEvent(r.db(ctx).QueryRow(ctx, query, eventID, serverID))
+	if err == pgx.ErrNoRows {
+		return domain.Event{}, nil
+	}
+
+	if err != nil {
+		return domain.Event{}, err
+	}
+
+	return event, nil
+}
+
 func (r *postgresRepository) getEventByID(ctx context.Context, eventID, lockClause string) (domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_id, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
 		FROM events
 		WHERE event_id = $1
 	` + lockClause
@@ -318,7 +365,7 @@ func (r *postgresRepository) GetEventMembersList(ctx context.Context, eventID st
 
 func (r *postgresRepository) GetEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_id, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
 		FROM events
 		WHERE name = $1
 	`
@@ -386,16 +433,33 @@ func (r *postgresRepository) UpdateEventStatus(ctx context.Context, eventID stri
 	switch status {
 	case domain.EventStatusConfirmed:
 		fromStatuses = []string{string(domain.EventStatusPending)}
-	case domain.EventStatusInProgress:
+	case domain.EventStatusPurchased:
+		// vps-сервис доложил о покупке сервера
 		fromStatuses = []string{string(domain.EventStatusConfirmed)}
+	case domain.EventStatusDeployed:
+		// vps-сервис доложил, что сервер развёрнут
+		fromStatuses = []string{string(domain.EventStatusPurchased)}
+	case domain.EventStatusReady:
+		// после деплоя прошёл ServerReadyDelay
+		fromStatuses = []string{string(domain.EventStatusDeployed)}
+	case domain.EventStatusInProgress:
+		// стартовать можно только из ready: без готового сервера играть негде
+		fromStatuses = []string{string(domain.EventStatusReady)}
 	case domain.EventStatusDeclined:
 		// декленд бывает только для ивента, который так и остался pending —
 		// не набрал минимум игроков к контрольной точке.
 		fromStatuses = []string{string(domain.EventStatusPending)}
 	case domain.EventStatusCanceled:
-		// отменить вручную (CancelEvent) можно и pending, и уже confirmed —
-		// но не то, что уже in_progress/finished/declined.
-		fromStatuses = []string{string(domain.EventStatusPending), string(domain.EventStatusConfirmed)}
+		// отменить можно всё, что ещё не началось (в том числе автоотменой,
+		// если сервер не задеплоился или лидеры не нажали StartEvent) — но не
+		// то, что уже in_progress/finished/declined.
+		fromStatuses = []string{
+			string(domain.EventStatusPending),
+			string(domain.EventStatusConfirmed),
+			string(domain.EventStatusPurchased),
+			string(domain.EventStatusDeployed),
+			string(domain.EventStatusReady),
+		}
 	default:
 		return fmt.Errorf("UpdateEventStatus: unsupported target status %q", status)
 	}
@@ -676,9 +740,9 @@ func (r *postgresRepository) GetUserIDsByEventID(ctx context.Context, eventID st
 
 func (r *postgresRepository) GetUnfinishedEventsByUserID(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_id, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
 		FROM events
-		WHERE user_create_id = $1 AND status IN ('pending', 'confirmed', 'in_progress')
+		WHERE user_create_id = $1 AND status IN ('pending', 'confirmed', 'purchased', 'deployed', 'ready', 'in_progress')
 	`
 
 	rows, err := r.db(ctx).Query(ctx, query, userCreateID)
@@ -705,9 +769,9 @@ func (r *postgresRepository) GetUnfinishedEventsByUserID(ctx context.Context, us
 
 func (r *postgresRepository) GetUnfinishedEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_id, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
 		FROM events
-		WHERE name = $1 AND status IN ('pending', 'confirmed', 'in_progress')
+		WHERE name = $1 AND status IN ('pending', 'confirmed', 'purchased', 'deployed', 'ready', 'in_progress')
 	`
 	rows, err := r.db(ctx).Query(ctx, query, eventName)
 	if err == pgx.ErrNoRows {
@@ -732,15 +796,16 @@ func (r *postgresRepository) GetUnfinishedEventsByEventName(ctx context.Context,
 }
 
 // GetAllUnfinishedEvents отдаёт все ещё активные ивенты (pending/confirmed/
-// in_progress — не finished, не declined и не canceled) вне
+// purchased/deployed/ready/in_progress — не finished, не declined и не
+// canceled) вне
 // зависимости от создателя — используется только при старте сервиса, чтобы
 // восстановить цепочки таймеров controlEventTimerDenial, потерянные при
 // рестарте (eventTimers — чисто in-memory карта).
 func (r *postgresRepository) GetAllUnfinishedEvents(ctx context.Context) ([]domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_id, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
 		FROM events
-		WHERE status IN ('pending', 'confirmed', 'in_progress')
+		WHERE status IN ('pending', 'confirmed', 'purchased', 'deployed', 'ready', 'in_progress')
 	`
 	rows, err := r.db(ctx).Query(ctx, query)
 	if err == pgx.ErrNoRows {
@@ -800,9 +865,72 @@ func (r *postgresRepository) FinishEventDB(ctx context.Context, eventID, winnerS
 	return nil
 }
 
+// SetServerData сохраняет реквизиты купленного сервера (vps.purchased).
+// Повторное сообщение с теми же данными безвредно: они просто перезаписываются.
+func (r *postgresRepository) SetServerData(ctx context.Context, eventID, serverID, serverPassword string) error {
+	query := `
+		UPDATE events
+		SET server_id = $1, server_password = $2
+		WHERE event_id = $3
+	`
+
+	tag, err := r.db(ctx).Exec(ctx, query, serverID, serverPassword, eventID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return domain.NotFound("event %q not found", eventID)
+	}
+	return nil
+}
+
+// SetServerDeployedAt запоминает момент получения vps.deployed — только если
+// он ещё не был записан: повторная доставка того же сообщения не должна
+// сдвигать момент открытия StartEvent.
+func (r *postgresRepository) SetServerDeployedAt(ctx context.Context, eventID string, deployedAt time.Time) error {
+	query := `
+		UPDATE events
+		SET server_deployed_at = $1
+		WHERE event_id = $2 AND server_deployed_at IS NULL
+	`
+
+	tag, err := r.db(ctx).Exec(ctx, query, deployedAt, eventID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return domain.FailedPrecondition("event %q already has a deployed server", eventID)
+	}
+	return nil
+}
+
+// MarkSideReady отмечает, что сайд-лидер своей стороны нажал StartEvent —
+// только если он ещё не нажимал, чтобы повторное нажатие не двигало время.
+func (r *postgresRepository) MarkSideReady(ctx context.Context, eventID string, enemySide bool, readyAt time.Time) error {
+	column := "ally_ready_at"
+	if enemySide {
+		column = "enemy_ready_at"
+	}
+
+	query := `
+		UPDATE events
+		SET ` + column + ` = $1
+		WHERE event_id = $2 AND ` + column + ` IS NULL
+	`
+
+	tag, err := r.db(ctx).Exec(ctx, query, readyAt, eventID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() != 1 {
+		return domain.FailedPrecondition("side leader has already pressed StartEvent")
+	}
+	return nil
+}
+
 // MarkRentServerSent помечает, что сигнал об аренде сервера уже отправлен —
 // после рестарта сервиса таймер аренды отрабатывает заново, и без этого
-// флага rent.server уходил бы повторно.
+// флага server.rent уходил бы повторно.
 func (r *postgresRepository) MarkRentServerSent(ctx context.Context, eventID string) error {
 	query := `
 		UPDATE events

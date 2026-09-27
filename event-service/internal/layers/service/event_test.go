@@ -111,7 +111,7 @@ func TestCreateEventBuildsFullEvent(t *testing.T) {
 
 func TestCreateEventRollsBackOnFailure(t *testing.T) {
 	svc, repo, producer := newTestService(t)
-	repo.failOn["CreateTeam"] = errors.New("база отказала на создании команды")
+	repo.fail("CreateTeam", errors.New("база отказала на создании команды"))
 
 	err := svc.CreateEvent(context.Background(), newID(), newID(), newID(), newID(), "name", futureStart(), 2)
 	if err == nil {
@@ -471,7 +471,7 @@ func TestGetUnfinishedEventsByEventNameReturnsOnlyActive(t *testing.T) {
 
 func TestCreateEventPublishFailureOnSecondMessage(t *testing.T) {
 	svc, repo, producer := newTestService(t)
-	producer.failOn["user.joined_event"] = errors.New("kafka недоступна")
+	producer.fail("user.joined_event", errors.New("kafka недоступна"))
 
 	err := svc.CreateEvent(context.Background(), newID(), newID(), newID(), newID(), "name", futureStart(), 1)
 	if err == nil {
@@ -516,7 +516,7 @@ func TestMutatingCallsValidateIdentifiers(t *testing.T) {
 
 func TestCreateEventRollsBackWhenSideLeaderCannotJoinTeam(t *testing.T) {
 	svc, repo, producer := newTestService(t)
-	repo.failOn["JoinUserToTeam"] = errDB
+	repo.fail("JoinUserToTeam", errDB)
 
 	requireInternal(t, svc.CreateEvent(context.Background(), newID(), newID(), newID(), newID(), "name", futureStart(), 1))
 
@@ -533,7 +533,7 @@ func TestCreateEventRollsBackWhenSideLeaderCannotJoinTeam(t *testing.T) {
 func TestPublishFailureAfterCommit(t *testing.T) {
 	t.Run("CreateEvent", func(t *testing.T) {
 		svc, repo, producer := newTestService(t)
-		producer.failOn["event.created"] = errors.New("kafka недоступна")
+		producer.fail("event.created", errors.New("kafka недоступна"))
 
 		err := svc.CreateEvent(context.Background(), newID(), newID(), newID(), newID(), "name", futureStart(), 1)
 		if err == nil {
@@ -547,7 +547,7 @@ func TestPublishFailureAfterCommit(t *testing.T) {
 	t.Run("JoinToEvent", func(t *testing.T) {
 		svc, repo, producer := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
-		producer.failOn["user.joined_event"] = errors.New("kafka недоступна")
+		producer.fail("user.joined_event", errors.New("kafka недоступна"))
 
 		if err := svc.JoinToEvent(context.Background(), ev.id, newID(), newID(), false); err == nil {
 			t.Fatal("ошибка публикации должна возвращаться вызывающему")
@@ -573,7 +573,7 @@ func TestNewEventServiceBuildsUsableService(t *testing.T) {
 func TestEventCallsFailOnRepositoryErrors(t *testing.T) {
 	t.Run("CreateEvent", func(t *testing.T) {
 		svc, repo, _ := newTestService(t)
-		repo.failOn["CreateEvent"] = errDB
+		repo.fail("CreateEvent", errDB)
 
 		requireInternal(t, svc.CreateEvent(context.Background(), newID(), newID(), newID(), newID(), "name", futureStart(), 1))
 	})
@@ -581,7 +581,7 @@ func TestEventCallsFailOnRepositoryErrors(t *testing.T) {
 	t.Run("JoinToEvent: проверка участия", func(t *testing.T) {
 		svc, repo, _ := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
-		repo.failOn["IsUserInEvent"] = errDB
+		repo.fail("IsUserInEvent", errDB)
 
 		requireInternal(t, svc.JoinToEvent(context.Background(), ev.id, newID(), newID(), false))
 	})
@@ -589,7 +589,7 @@ func TestEventCallsFailOnRepositoryErrors(t *testing.T) {
 	t.Run("JoinToEvent: вставка участника", func(t *testing.T) {
 		svc, repo, _ := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
-		repo.failOn["JoinToEvent"] = errDB
+		repo.fail("JoinToEvent", errDB)
 
 		requireInternal(t, svc.JoinToEvent(context.Background(), ev.id, newID(), newID(), false))
 	})
@@ -597,7 +597,7 @@ func TestEventCallsFailOnRepositoryErrors(t *testing.T) {
 	t.Run("чтение ивента под блокировкой", func(t *testing.T) {
 		svc, repo, _ := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
-		repo.failOn["GetEventByIDForUpdate"] = errDB
+		repo.fail("GetEventByIDForUpdate", errDB)
 
 		requireInternal(t, svc.CancelEvent(context.Background(), ev.id, ev.creator))
 	})
@@ -605,7 +605,7 @@ func TestEventCallsFailOnRepositoryErrors(t *testing.T) {
 	t.Run("UpdateTimeEvent", func(t *testing.T) {
 		svc, repo, _ := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
-		repo.failOn["UpdateTimeEvent"] = errDB
+		repo.fail("UpdateTimeEvent", errDB)
 
 		requireInternal(t, svc.UpdateTimeEvent(context.Background(), ev.id, ev.creator, futureStart()))
 	})
@@ -613,7 +613,7 @@ func TestEventCallsFailOnRepositoryErrors(t *testing.T) {
 	t.Run("CancelEvent", func(t *testing.T) {
 		svc, repo, _ := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
-		repo.failOn["UpdateEventStatus"] = errDB
+		repo.fail("UpdateEventStatus", errDB)
 
 		requireInternal(t, svc.CancelEvent(context.Background(), ev.id, ev.creator))
 		if _, ok := svc.eventTimers[ev.id]; !ok {
@@ -625,7 +625,7 @@ func TestEventCallsFailOnRepositoryErrors(t *testing.T) {
 		svc, repo, _ := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
 		userID := joinPlayer(t, svc, ev.id, newID(), false)
-		repo.failOn["LeaveEvent"] = errDB
+		repo.fail("LeaveEvent", errDB)
 
 		requireInternal(t, svc.LeaveEvent(context.Background(), userID, ev.id))
 	})
@@ -634,7 +634,7 @@ func TestEventCallsFailOnRepositoryErrors(t *testing.T) {
 		svc, repo, _ := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
 		userID := joinPlayer(t, svc, ev.id, newID(), false)
-		repo.failOn["RemoveUserFromAllTeams"] = errDB
+		repo.fail("RemoveUserFromAllTeams", errDB)
 
 		requireInternal(t, svc.LeaveEvent(context.Background(), userID, ev.id))
 
@@ -650,7 +650,7 @@ func TestEventCallsFailOnRepositoryErrors(t *testing.T) {
 		ally, _ := ev.teams(t, svc, 1)
 		userID := joinPlayer(t, svc, ev.id, newID(), false)
 		requireNoErr(t, svc.JoinUserToTeam(context.Background(), ally, userID, domain.RolePlayer))
-		repo.failOn["CountClanMembersInTeam"] = errDB
+		repo.fail("CountClanMembersInTeam", errDB)
 
 		requireInternal(t, svc.LeaveEvent(context.Background(), userID, ev.id))
 	})
@@ -661,7 +661,7 @@ func TestEventPublishFailuresAreReported(t *testing.T) {
 		svc, _, producer := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
 		userID := joinPlayer(t, svc, ev.id, newID(), false)
-		producer.failOn["user.left_event"] = errKafka
+		producer.fail("user.left_event", errKafka)
 
 		if err := svc.LeaveEvent(context.Background(), userID, ev.id); err == nil {
 			t.Error("ошибка публикации должна возвращаться")
@@ -671,7 +671,7 @@ func TestEventPublishFailuresAreReported(t *testing.T) {
 	t.Run("CancelEvent", func(t *testing.T) {
 		svc, _, producer := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
-		producer.failOn["event.canceled"] = errKafka
+		producer.fail("event.canceled", errKafka)
 
 		if err := svc.CancelEvent(context.Background(), ev.id, ev.creator); err == nil {
 			t.Error("ошибка публикации должна возвращаться")
@@ -681,7 +681,7 @@ func TestEventPublishFailuresAreReported(t *testing.T) {
 	t.Run("UpdateTimeEvent", func(t *testing.T) {
 		svc, _, producer := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
-		producer.failOn["event.time_updated"] = errKafka
+		producer.fail("event.time_updated", errKafka)
 
 		if err := svc.UpdateTimeEvent(context.Background(), ev.id, ev.creator, futureStart()); err == nil {
 			t.Error("ошибка публикации должна возвращаться")

@@ -146,6 +146,7 @@ services:
     command: >
       -c "
       kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic event-service --partitions 3 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:29092 --create --if-not-exists --topic vps-service --partitions 3 --replication-factor 1
       "
 
   migrate-event:
@@ -185,6 +186,9 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=${SPRING_KAFKA_BOOTSTRAP_SERVERS}
       - EVENT_SERVICE_GRPC_PORT=${EVENT_SERVICE_GRPC_PORT}
+      # Топик vps-сервиса: оттуда приходят vps.purchased и vps.deployed
+      - KAFKA_VPS_TOPIC=${KAFKA_VPS_TOPIC:-vps-service}
+      - KAFKA_VPS_GROUP_ID=${KAFKA_VPS_GROUP_ID:-event-service}
     restart: unless-stopped
 
   frontend:

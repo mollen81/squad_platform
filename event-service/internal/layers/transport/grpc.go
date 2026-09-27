@@ -194,6 +194,27 @@ func (t *GRPCTransport) GetTeamStats(ctx context.Context, req *pb.GetTeamStatsRe
 	}, nil
 }
 
+func (t *GRPCTransport) StartEvent(ctx context.Context, req *pb.StartEventRequest) (*pb.StartEventResponse, error) {
+	err := t.eventService.StartEvent(ctx, req.GetEventId(), req.GetUserId())
+	if err != nil {
+		return nil, fail("StartEvent", err)
+	}
+
+	return &pb.StartEventResponse{}, nil
+}
+
+func (t *GRPCTransport) GetServerData(ctx context.Context, req *pb.GetServerDataRequest) (*pb.GetServerDataResponse, error) {
+	serverID, serverPassword, err := t.eventService.GetServerData(ctx, req.GetEventId(), req.GetUserId())
+	if err != nil {
+		return nil, fail("GetServerData", err)
+	}
+
+	return &pb.GetServerDataResponse{
+		ServerId:       serverID,
+		ServerPassword: serverPassword,
+	}, nil
+}
+
 func (t *GRPCTransport) GetEventMembersList(ctx context.Context, req *pb.GetEventMembersListRequest) (*pb.GetEventMembersListResponse, error) {
 	users, err := t.eventService.GetEventMembersList(ctx, req.GetEventId())
 	if err != nil {
@@ -205,9 +226,9 @@ func (t *GRPCTransport) GetEventMembersList(ctx context.Context, req *pb.GetEven
 	}, nil
 }
 
-// Публичного StartEvent RPC больше нет: старт ивента и первой игры происходит
-// автоматически по таймеру внутри eventService (controlEventTimerDenial →
-// checkMinPlayers → startEventAndGames), а не по вызову от клиента.
+// Автоматического старта по TimeStart больше нет: ивент стартует, когда сервер
+// готов и оба сайд-лидера позвали StartEvent (либо когда истёк
+// domain.StartVoteTimeout и нажал хотя бы один).
 
 func (t *GRPCTransport) GetUnfinishedEventsByUserID(ctx context.Context, req *pb.GetUnfinishedEventsByUserIDRequest) (*pb.GetUnfinishedEventsByUserIDResponse, error) {
 	events, err := t.eventService.GetUnfinishedEventsByUserID(ctx, req.GetUserCreateId())

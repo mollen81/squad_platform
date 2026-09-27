@@ -9,12 +9,26 @@ CREATE TABLE IF NOT EXISTS events (
     user_count              INT NOT NULL DEFAULT 0,
     target_game_count       INT NOT NULL CHECK (target_game_count BETWEEN 1 AND 3),
     game_count              INT NOT NULL DEFAULT 0,
-    status                  TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'in_progress', 'finished', 'declined', 'canceled')),
+    status                  TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'confirmed', 'purchased', 'deployed', 'ready', 'in_progress', 'finished', 'declined', 'canceled')),
     winner_side             TEXT NOT NULL DEFAULT '' CHECK (winner_side IN ('', 'ally', 'enemy', 'draw')),
 
     -- сигнал об аренде сервера уходит один раз за ивент; флаг хранится в БД,
     -- а не в памяти, чтобы после рестарта сервиса он не ушёл повторно
-    rent_server_sent        BOOLEAN NOT NULL DEFAULT false
+    rent_server_sent        BOOLEAN NOT NULL DEFAULT false,
+
+    -- реквизиты сервера приходят из vps-сервиса сообщением vps.purchased
+    server_id               UUID,
+    server_password         TEXT,
+
+    -- когда от vps-сервиса пришло vps.deployed. Времени в самом сообщении нет,
+    -- поэтому это момент получения по нашим часам; через ServerReadyDelay
+    -- после него открывается StartEvent, и ивент переходит в статус 'ready'
+    server_deployed_at      TIMESTAMP,
+
+    -- когда каждая из сторон нажала StartEvent; когда заполнены обе, ивент
+    -- стартует (см. StartEvent)
+    ally_ready_at           TIMESTAMP,
+    enemy_ready_at          TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_time_start ON events(time_start);

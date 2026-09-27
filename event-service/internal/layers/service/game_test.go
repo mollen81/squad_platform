@@ -373,11 +373,11 @@ func TestFinishTeamGameFailsWhenSideLeadersUnreadable(t *testing.T) {
 	ally, enemy := ev.teams(t, svc, 1)
 
 	// Итог серии считается по сайд-лидерам: без них ивент не завершить.
-	repo.failOn["GetUserByID"] = errDB
+	repo.fail("GetUserByID", errDB)
 
 	requireInternal(t, svc.FinishTeamGame(context.Background(), ally, enemy, ally))
 
-	delete(repo.failOn, "GetUserByID")
+	repo.unfail("GetUserByID")
 	if got := repo.events[ev.id].GameCount; got != 0 {
 		t.Errorf("после отката game_count=%d, ожидался 0", got)
 	}
@@ -389,7 +389,7 @@ func TestFinishTeamGameFailsWhenTeamsUnreadable(t *testing.T) {
 	startEvent(t, svc, repo, ev)
 	ally, enemy := ev.teams(t, svc, 1)
 
-	repo.failOn["GetTeamsByEventID"] = errDB
+	repo.fail("GetTeamsByEventID", errDB)
 
 	requireInternal(t, svc.FinishTeamGame(context.Background(), ally, enemy, ally))
 }
@@ -414,7 +414,7 @@ func TestFinishTeamGameFailsWhenGameCannotBeClosed(t *testing.T) {
 	startEvent(t, svc, repo, ev)
 	ally, enemy := ev.teams(t, svc, 1)
 
-	repo.failOn["FinishTeamGame"] = errDB
+	repo.fail("FinishTeamGame", errDB)
 	requireInternal(t, svc.FinishTeamGame(context.Background(), ally, enemy, ally))
 }
 
@@ -423,7 +423,7 @@ func TestAddTeamMemberStatsFailsWhenTeamUnreadable(t *testing.T) {
 	ev := createTestEvent(t, svc, 1)
 	ally, _ := ev.teams(t, svc, 1)
 
-	repo.failOn["GetTeamByID"] = errDB
+	repo.fail("GetTeamByID", errDB)
 	requireInternal(t, svc.AddTeamMemberStats(context.Background(), ally, ev.creator, 1, 1, 1, 1, 1))
 }
 
@@ -437,7 +437,7 @@ func TestGameCallsFailOnRepositoryErrors(t *testing.T) {
 		requireNoErr(t, svc.FinishTeamGame(context.Background(), ally1, enemy1, ally1))
 
 		ally2, enemy2 := ev.teams(t, svc, 2)
-		repo.failOn["GetTeamsByEventID"] = errDB
+		repo.fail("GetTeamsByEventID", errDB)
 
 		requireInternal(t, svc.StartTeamGame(context.Background(), ally2, enemy2))
 	})
@@ -447,7 +447,7 @@ func TestGameCallsFailOnRepositoryErrors(t *testing.T) {
 		ev := createTestEvent(t, svc, 1)
 		startEvent(t, svc, repo, ev)
 		ally, enemy := ev.teams(t, svc, 1)
-		repo.failOn["IncrementEventGameCount"] = errDB
+		repo.fail("IncrementEventGameCount", errDB)
 
 		requireInternal(t, svc.FinishTeamGame(context.Background(), ally, enemy, ally))
 
@@ -462,7 +462,7 @@ func TestGameCallsFailOnRepositoryErrors(t *testing.T) {
 		ev := createTestEvent(t, svc, 1)
 		startEvent(t, svc, repo, ev)
 		ally, enemy := ev.teams(t, svc, 1)
-		repo.failOn["FinishEventDB"] = errDB
+		repo.fail("FinishEventDB", errDB)
 
 		requireInternal(t, svc.FinishTeamGame(context.Background(), ally, enemy, ally))
 
@@ -477,7 +477,7 @@ func TestGameCallsFailOnRepositoryErrors(t *testing.T) {
 		startEvent(t, svc, repo, ev)
 		ally, enemy := ev.teams(t, svc, 1)
 		requireNoErr(t, svc.FinishTeamGame(context.Background(), ally, enemy, ally))
-		repo.failOn["AddTeamMemberStats"] = errDB
+		repo.fail("AddTeamMemberStats", errDB)
 
 		requireInternal(t, svc.AddTeamMemberStats(context.Background(), ally, ev.creator, 1, 1, 1, 1, 1))
 	})
@@ -488,7 +488,7 @@ func TestGameCallsFailOnRepositoryErrors(t *testing.T) {
 		startEvent(t, svc, repo, ev)
 		ally, enemy := ev.teams(t, svc, 1)
 		requireNoErr(t, svc.FinishTeamGame(context.Background(), ally, enemy, ally))
-		repo.failOn["SumTeamMemberStats"] = errDB
+		repo.fail("SumTeamMemberStats", errDB)
 
 		requireInternal(t, svc.AddTeamMemberStats(context.Background(), ally, ev.creator, 1, 1, 1, 1, 1))
 	})
@@ -499,7 +499,7 @@ func TestGameCallsFailOnRepositoryErrors(t *testing.T) {
 		startEvent(t, svc, repo, ev)
 		ally, enemy := ev.teams(t, svc, 1)
 		requireNoErr(t, svc.FinishTeamGame(context.Background(), ally, enemy, ally))
-		repo.failOn["UpdateTeamTotals"] = errDB
+		repo.fail("UpdateTeamTotals", errDB)
 
 		requireInternal(t, svc.AddTeamMemberStats(context.Background(), ally, ev.creator, 1, 1, 1, 1, 1))
 	})
@@ -508,7 +508,7 @@ func TestGameCallsFailOnRepositoryErrors(t *testing.T) {
 		svc, repo, _ := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
 		ally, _ := ev.teams(t, svc, 1)
-		repo.failOn["GetTeamStats"] = errDB
+		repo.fail("GetTeamStats", errDB)
 
 		_, _, err := svc.GetTeamStats(context.Background(), ally)
 		requireInternal(t, err)
@@ -525,7 +525,7 @@ func TestGamePublishFailuresAreReported(t *testing.T) {
 		requireNoErr(t, svc.FinishTeamGame(context.Background(), ally1, enemy1, ally1))
 
 		ally2, enemy2 := ev.teams(t, svc, 2)
-		producer.failOn["team_game.started"] = errKafka
+		producer.fail("team_game.started", errKafka)
 
 		if err := svc.StartTeamGame(context.Background(), ally2, enemy2); err == nil {
 			t.Error("ошибка публикации должна возвращаться")
@@ -537,7 +537,7 @@ func TestGamePublishFailuresAreReported(t *testing.T) {
 		ev := createTestEvent(t, svc, 1)
 		startEvent(t, svc, repo, ev)
 		ally, enemy := ev.teams(t, svc, 1)
-		producer.failOn["team_game.finished"] = errKafka
+		producer.fail("team_game.finished", errKafka)
 
 		if err := svc.FinishTeamGame(context.Background(), ally, enemy, ally); err == nil {
 			t.Error("ошибка публикации должна возвращаться")
@@ -549,7 +549,7 @@ func TestGamePublishFailuresAreReported(t *testing.T) {
 		ev := createTestEvent(t, svc, 1)
 		startEvent(t, svc, repo, ev)
 		ally, enemy := ev.teams(t, svc, 1)
-		producer.failOn["event.finished"] = errKafka
+		producer.fail("event.finished", errKafka)
 
 		if err := svc.FinishTeamGame(context.Background(), ally, enemy, ally); err == nil {
 			t.Error("ошибка публикации должна возвращаться")
@@ -567,7 +567,7 @@ func TestGamePublishFailuresAreReported(t *testing.T) {
 		startEvent(t, svc, repo, ev)
 		ally, enemy := ev.teams(t, svc, 1)
 		requireNoErr(t, svc.FinishTeamGame(context.Background(), ally, enemy, ally))
-		producer.failOn["team_member.stats_added"] = errKafka
+		producer.fail("team_member.stats_added", errKafka)
 
 		if err := svc.AddTeamMemberStats(context.Background(), ally, ev.creator, 1, 1, 1, 1, 1); err == nil {
 			t.Error("ошибка публикации должна возвращаться")

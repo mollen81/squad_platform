@@ -380,7 +380,7 @@ func (s *eventService) CancelEvent(ctx context.Context, eventID, userCreateID st
 			return domain.PermissionDenied("you are not admin")
 		}
 
-		if event.Status != domain.EventStatusPending && event.Status != domain.EventStatusConfirmed {
+		if !event.CancelAllowed() {
 			return domain.FailedPrecondition("cannot cancel event: current status is %q", event.Status)
 		}
 
@@ -393,7 +393,7 @@ func (s *eventService) CancelEvent(ctx context.Context, eventID, userCreateID st
 	// Останавливаем всю цепочку таймеров ивента: и контроль, и (если ивент
 	// уже confirmed) аренду сервера со стартом. Раньше последние две
 	// горутины не отменялись, и отменённый ивент в момент старта всё равно
-	// получал rent.server, event.started и запущенную первую игру.
+	// получал server.rent, event.started и запущенную первую игру.
 	s.cancelEventTimer(eventID)
 
 	pubCtx, cancel := publishCtx(ctx)
@@ -430,7 +430,7 @@ func (s *eventService) JoinToEvent(ctx context.Context, eventID, userID, clanID 
 
 		// Присоединиться можно только к pending-ивенту: после подтверждения
 		// состав заморожен — иначе он мог бы упасть ниже минимума уже после
-		// проверки, а список игроков в rent.server устареть.
+		// проверки, а список игроков в server.rent устареть.
 		if event.Status != domain.EventStatusPending {
 			return domain.FailedPrecondition("cannot join: event status is %s (must be pending)", event.Status)
 		}
@@ -742,22 +742,22 @@ func (s *eventService) controlEventTimerDenial(eventID string, timeStart time.Ti
 		}
 
 		if confirmed {
-			s.runRentAndStart(ctx, eventID, timeStart)
+			s.runRentAndWaitServer(ctx, eventID, timeStart)
 		}
 	}()
 }
 
-// scheduleRentAndStart ставит только вторую половину цепочки (аренда
-// сервера и старт) — для RecoverPendingEvents, чтобы после рестарта
-// процесса не публиковать event.confirmed повторно для уже подтверждённого
-// ивента.
-func (s *eventService) scheduleRentAndStart(eventID string, timeStart time.Time) {
+// scheduleRentAndWaitServer ставит только вторую половину цепочки (аренда
+// сервера и ожидание его деплоя) — для RecoverPendingEvents, чтобы после
+// рестарта процесса не публиковать event.confirmed повторно для уже
+// подтверждённого ивента.
+func (s *eventService) scheduleRentAndWaitServer(eventID string, timeStart time.Time) {
 	ctx, t := s.startEventTimer(eventID)
 
 	go func() {
 		defer s.finishEventTimer(eventID, t)
 
-		s.runRentAndStart(ctx, eventID, timeStart)
+		s.runRentAndWaitServer(ctx, eventID, timeStart)
 	}()
 }
 
@@ -812,10 +812,13 @@ func (s *eventService) checkMinPlayers(ctx context.Context, eventID string) (boo
 	return false, nil
 }
 
-// runRentAndStart — вторая половина цепочки подтверждённого ивента: за
-// RentServerTimeBeforeStart до старта — сигнал "пора арендовать сервер", в
-// момент старта — запуск ивента и первой игры.
-func (s *eventService) runRentAndStart(ctx context.Context, eventID string, timeStart time.Time) {
+// runRentAndWaitServer — вторая половина цепочки подтверждённого ивента: за
+// RentServerTimeBeforeStart до старта — сигнал "пора арендовать сервер", а
+// дальше ждём не таймер, а сам сервер: ивент стартует только после
+// vps.deployed (см. ServerDeployed) и нажатия сайд-лидерами StartEvent.
+// Если сервер не доложил о себе и через ServerDeployTimeout после заявленного
+// старта — ивент отменяем, чтобы игроки не ждали впустую.
+func (s *eventService) runRentAndWaitServer(ctx context.Context, eventID string, timeStart time.Time) {
 	if !waitUntil(ctx, timeStart.Add(-RentServerTimeBeforeStart)) {
 		return
 	}
@@ -824,16 +827,191 @@ func (s *eventService) runRentAndStart(ctx context.Context, eventID string, time
 		log.Printf("rentServer(%q): %v", eventID, err)
 	}
 
-	if !waitUntil(ctx, timeStart) {
+	if !waitUntil(ctx, timeStart.Add(domain.ServerDeployTimeout)) {
 		return
 	}
 
-	if err := s.startEventAndGames(ctx, eventID); err != nil {
-		log.Printf("startEventAndGames(%q): %v", eventID, err)
+	if err := s.cancelEventWithoutServer(ctx, eventID); err != nil {
+		log.Printf("cancelEventWithoutServer(%q): %v", eventID, err)
 	}
 }
 
-// rentServer публикует rent.server со списком игроков, если ивент всё ещё
+// scheduleServerGate — цепочка ивента с уже задеплоенным сервером: в момент
+// startAvailableAt открываем StartEvent (статус ready), а через
+// StartVoteTimeout после этого решаем судьбу ивента, если нажали не оба.
+func (s *eventService) scheduleServerGate(eventID string, startAvailableAt time.Time) {
+	ctx, t := s.startEventTimer(eventID)
+
+	go func() {
+		defer s.finishEventTimer(eventID, t)
+
+		if !waitUntil(ctx, startAvailableAt) {
+			return
+		}
+
+		if err := s.openStartGate(ctx, eventID, startAvailableAt); err != nil {
+			log.Printf("openStartGate(%q): %v", eventID, err)
+		}
+
+		s.waitForStartVote(ctx, eventID, startAvailableAt.Add(domain.StartVoteTimeout))
+	}()
+}
+
+// scheduleStartVote — только ожидание нажатий: ивент уже в статусе ready
+// (например, сервис перезапустился после открытия гейта).
+func (s *eventService) scheduleStartVote(eventID string, voteDeadline time.Time) {
+	ctx, t := s.startEventTimer(eventID)
+
+	go func() {
+		defer s.finishEventTimer(eventID, t)
+
+		s.waitForStartVote(ctx, eventID, voteDeadline)
+	}()
+}
+
+func (s *eventService) waitForStartVote(ctx context.Context, eventID string, voteDeadline time.Time) {
+	if !waitUntil(ctx, voteDeadline) {
+		return
+	}
+
+	if err := s.resolveStartVote(ctx, eventID); err != nil {
+		log.Printf("resolveStartVote(%q): %v", eventID, err)
+	}
+}
+
+// openStartGate переводит ивент в ready: сервер готов, сайд-лидеры могут
+// звать StartEvent.
+func (s *eventService) openStartGate(ctx context.Context, eventID string, startAvailableAt time.Time) error {
+	unlock, ok := s.lockForTimerStep(ctx, eventID)
+	if !ok {
+		return nil
+	}
+	defer unlock()
+
+	var opened bool
+	err := s.eventRepo.WithTx(ctx, func(ctx context.Context) error {
+		opened = false
+
+		event, err := s.lockEventRow(ctx, eventID)
+		if err != nil {
+			return err
+		}
+
+		// Ивент мог быть отменён, пока собирался контейнер.
+		if event.Status != domain.EventStatusDeployed {
+			return nil
+		}
+
+		opened = true
+		return s.eventRepo.UpdateEventStatus(ctx, eventID, domain.EventStatusReady)
+	})
+	if err != nil || !opened {
+		return err
+	}
+
+	pubCtx, cancel := publishCtx(ctx)
+	defer cancel()
+
+	return s.producer.PublishEventReady(pubCtx, eventID, startAvailableAt)
+}
+
+// resolveStartVote — истёк StartVoteTimeout. Если нажал хотя бы один
+// сайд-лидер, стартуем сами: сервер оплачен, и срывать сбор из-за одного
+// молчащего лидера незачем. Если не нажал никто — отменяем, играть некому.
+func (s *eventService) resolveStartVote(ctx context.Context, eventID string) error {
+	unlock, ok := s.lockForTimerStep(ctx, eventID)
+	if !ok {
+		return nil
+	}
+	defer unlock()
+
+	var started *startedGame
+	var canceled bool
+	err := s.eventRepo.WithTx(ctx, func(ctx context.Context) error {
+		started, canceled = nil, false
+
+		event, err := s.lockEventRow(ctx, eventID)
+		if err != nil {
+			return err
+		}
+
+		// Ивент уже стартовал (нажали оба) или его отменили — делать нечего.
+		if event.Status != domain.EventStatusReady {
+			return nil
+		}
+
+		if !event.AnySideReady() {
+			canceled = true
+			return s.eventRepo.UpdateEventStatus(ctx, eventID, domain.EventStatusCanceled)
+		}
+
+		game, err := s.startEventTx(ctx, event)
+		if err != nil {
+			return err
+		}
+
+		started = &game
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	pubCtx, cancel := publishCtx(ctx)
+	defer cancel()
+
+	if canceled {
+		log.Printf("resolveStartVote(%q): никто из сайд-лидеров не нажал StartEvent, ивент отменён", eventID)
+		return s.producer.PublishEventCanceled(pubCtx, eventID, "")
+	}
+
+	if started == nil {
+		return nil
+	}
+
+	return s.publishEventStarted(pubCtx, eventID, *started)
+}
+
+// cancelEventWithoutServer — сервер так и не задеплоился: ивент отменяем.
+func (s *eventService) cancelEventWithoutServer(ctx context.Context, eventID string) error {
+	unlock, ok := s.lockForTimerStep(ctx, eventID)
+	if !ok {
+		return nil
+	}
+	defer unlock()
+
+	var canceled bool
+	err := s.eventRepo.WithTx(ctx, func(ctx context.Context) error {
+		canceled = false
+
+		event, err := s.lockEventRow(ctx, eventID)
+		if err != nil {
+			return err
+		}
+
+		// Сервер всё-таки задеплоился (тогда цепочка уже другая) либо ивент
+		// отменён вручную — вмешиваться не нужно. Отменяем и купленный, но так
+		// и не развернувшийся сервер (статус purchased).
+		if event.Status != domain.EventStatusConfirmed && event.Status != domain.EventStatusPurchased {
+			return nil
+		}
+
+		canceled = true
+		return s.eventRepo.UpdateEventStatus(ctx, eventID, domain.EventStatusCanceled)
+	})
+	if err != nil || !canceled {
+		return err
+	}
+
+	log.Printf("cancelEventWithoutServer(%q): сервер не задеплоился, ивент отменён", eventID)
+
+	pubCtx, cancel := publishCtx(ctx)
+	defer cancel()
+
+	return s.producer.PublishEventCanceled(pubCtx, eventID, "")
+}
+
+// rentServer публикует server.rent со списком игроков, если ивент всё ещё
 // confirmed (его могли отменить в последний момент).
 func (s *eventService) rentServer(ctx context.Context, eventID string, timeStart time.Time) error {
 	unlock, ok := s.lockForTimerStep(ctx, eventID)
@@ -881,73 +1059,61 @@ func (s *eventService) rentServer(ctx context.Context, eventID string, timeStart
 // Меняет статус на in_progress и стартует первую по счёту игру
 // (game_number = 1) сразу для обеих сторон; остальные игры стартуют по мере
 // того, как заканчиваются предыдущие (через публичный StartTeamGame).
-func (s *eventService) startEventAndGames(ctx context.Context, eventID string) error {
-	unlock, ok := s.lockForTimerStep(ctx, eventID)
-	if !ok {
-		return nil
+// startedGame — что понадобится опубликовать после коммита старта.
+type startedGame struct {
+	team1ID   string
+	team2ID   string
+	startedAt time.Time
+	timeStart time.Time
+}
+
+// startEventTx переводит ивент в in_progress и стартует первую игру — одной
+// транзакцией: иначе при ошибке между этими шагами ивент оставался бы
+// in_progress без запущенной игры. Вызывается внутри транзакции, в которой
+// строка ивента уже заблокирована.
+func (s *eventService) startEventTx(ctx context.Context, event domain.Event) (startedGame, error) {
+	if event.Status != domain.EventStatusReady {
+		return startedGame{}, domain.FailedPrecondition("cannot start event: status is %q (must be ready)", event.Status)
 	}
-	defer unlock()
 
-	var event domain.Event
-	var team1ID, team2ID string
-	var now time.Time
-	// Статус in_progress и старт первой игры — одной транзакцией: раньше при
-	// ошибке между ними ивент оставался in_progress без запущенной игры.
-	err := s.eventRepo.WithTx(ctx, func(ctx context.Context) error {
-		var err error
-		event, err = s.lockEventRow(ctx, eventID)
-		if err != nil {
-			return err
-		}
+	if err := s.eventRepo.UpdateEventStatus(ctx, event.EventID, domain.EventStatusInProgress); err != nil {
+		return startedGame{}, err
+	}
 
-		if event.Status != domain.EventStatusConfirmed {
-			return domain.FailedPrecondition("cannot start event: status is %q (must be confirmed)", event.Status)
-		}
-
-		if err := s.eventRepo.UpdateEventStatus(ctx, eventID, domain.EventStatusInProgress); err != nil {
-			return err
-		}
-
-		teams, err := s.eventRepo.GetTeamsByEventID(ctx, eventID)
-		if err != nil {
-			return err
-		}
-
-		team1ID, team2ID = "", ""
-		for _, team := range teams {
-			if team.GameNumber != 1 {
-				continue
-			}
-			if team1ID == "" {
-				team1ID = team.TeamID
-			} else {
-				team2ID = team.TeamID
-			}
-		}
-
-		if team1ID == "" || team2ID == "" {
-			return fmt.Errorf("event %q: expected 2 teams for game 1, found team1=%q team2=%q", eventID, team1ID, team2ID)
-		}
-
-		now = time.Now()
-		return s.eventRepo.StartTeamGame(ctx, team1ID, team2ID, now)
-	})
+	teams, err := s.eventRepo.GetTeamsByEventID(ctx, event.EventID)
 	if err != nil {
+		return startedGame{}, err
+	}
+
+	game := startedGame{startedAt: time.Now(), timeStart: event.TimeStart}
+	for _, team := range teams {
+		if team.GameNumber != 1 {
+			continue
+		}
+		if game.team1ID == "" {
+			game.team1ID = team.TeamID
+		} else {
+			game.team2ID = team.TeamID
+		}
+	}
+
+	if game.team1ID == "" || game.team2ID == "" {
+		return startedGame{}, fmt.Errorf("event %q: expected 2 teams for game 1, found team1=%q team2=%q", event.EventID, game.team1ID, game.team2ID)
+	}
+
+	return game, s.eventRepo.StartTeamGame(ctx, game.team1ID, game.team2ID, game.startedAt)
+}
+
+func (s *eventService) publishEventStarted(ctx context.Context, eventID string, game startedGame) error {
+	if err := s.producer.PublishEventStarted(ctx, eventID, game.timeStart); err != nil {
 		return err
 	}
 
-	pubCtx, cancel := publishCtx(ctx)
-	defer cancel()
-
-	if err := s.producer.PublishEventStarted(pubCtx, eventID, event.TimeStart); err != nil {
+	if err := s.producer.PublishTeamGameStarted(ctx, game.team1ID, 1, game.startedAt); err != nil {
 		return err
 	}
 
-	if err := s.producer.PublishTeamGameStarted(pubCtx, team1ID, 1, now); err != nil {
-		return err
-	}
-
-	return s.producer.PublishTeamGameStarted(pubCtx, team2ID, 1, now)
+	return s.producer.PublishTeamGameStarted(ctx, game.team2ID, 1, game.startedAt)
 }
 
 // RecoverPendingEvents переживает рестарт процесса: eventTimers — чисто
@@ -967,11 +1133,18 @@ func (s *eventService) RecoverPendingEvents(ctx context.Context) error {
 		case domain.EventStatusInProgress:
 			// Игры уже идут — своих таймеров это не требует, дальше события
 			// ведутся явными вызовами StartTeamGame/FinishTeamGame.
-		case domain.EventStatusConfirmed:
-			// Проверка на минимум игроков уже пройдена раньше — просто
-			// переставляем оставшиеся таймеры (rent_server / старт), не
-			// публикуя event_confirmed ещё раз.
-			s.scheduleRentAndStart(event.EventID, event.TimeStart)
+		case domain.EventStatusConfirmed, domain.EventStatusPurchased:
+			// Проверка на минимум игроков уже пройдена раньше — публиковать
+			// event.confirmed повторно не нужно. Сервер ещё не задеплоился:
+			// ждём аренду (если не заказана) и сам деплой.
+			s.scheduleRentAndWaitServer(event.EventID, event.TimeStart)
+		case domain.EventStatusDeployed:
+			// Сервер доложил о себе до рестарта — досиживаем остаток
+			// ServerReadyDelay от сохранённого момента, а не заново.
+			s.scheduleServerGate(event.EventID, event.StartAvailableAt())
+		case domain.EventStatusReady:
+			// StartEvent уже открыт: осталось дождаться нажатий сайд-лидеров.
+			s.scheduleStartVote(event.EventID, event.StartAvailableAt().Add(domain.StartVoteTimeout))
 		case domain.EventStatusPending:
 			// Проверка ещё не проходила — ставим её заново. Если controlTime
 			// уже в прошлом (сервис был недоступен дольше, чем оставалось до
@@ -1640,4 +1813,278 @@ func (s *eventService) GetTeamStats(ctx context.Context, teamID string) (domain.
 	}
 
 	return team, stats, nil
+}
+
+// ServerPurchased — сообщение vps.purchased: сервер под ивент куплен, приехали
+// его id и пароль. Ивент переходит confirmed → purchased, и с этого момента
+// участники могут забрать реквизиты через GetServerData. Повторная доставка
+// того же сообщения — no-op.
+func (s *eventService) ServerPurchased(ctx context.Context, eventID, serverID, serverPassword string) error {
+	if err := validateID("event_id", eventID); err != nil {
+		return err
+	}
+
+	if err := validateID("server_id", serverID); err != nil {
+		return err
+	}
+
+	if serverPassword == "" {
+		return domain.InvalidArgument("server_password is required")
+	}
+
+	unlock, err := s.eventLocks.lock(ctx, eventID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	return s.eventRepo.WithTx(ctx, func(ctx context.Context) error {
+		event, err := s.lockEventRow(ctx, eventID)
+		if err != nil {
+			return err
+		}
+
+		// Тот же сервер уже принят — повтор сообщения.
+		if event.ServerID == serverID && event.Status != domain.EventStatusConfirmed {
+			return nil
+		}
+
+		if event.Status != domain.EventStatusConfirmed {
+			return domain.FailedPrecondition("cannot accept purchased server: event status is %s (must be confirmed)", event.Status)
+		}
+
+		if err := s.eventRepo.SetServerData(ctx, eventID, serverID, serverPassword); err != nil {
+			return err
+		}
+
+		return s.eventRepo.UpdateEventStatus(ctx, eventID, domain.EventStatusPurchased)
+	})
+}
+
+// ServerDeployed — сообщение vps.deployed: сервер развёрнут. Времени в
+// сообщении нет, поэтому моментом готовности считаем время его получения; через
+// domain.ServerReadyDelay после этого (внутри него дособирается контейнер)
+// сайд-лидеры смогут звать StartEvent. Повторная доставка ничего не меняет:
+// момент запоминается один раз, иначе открытие StartEvent съезжало бы при
+// каждом ретрае Kafka.
+func (s *eventService) ServerDeployed(ctx context.Context, eventID, serverID string) error {
+	if err := validateID("event_id", eventID); err != nil {
+		return err
+	}
+
+	if err := validateID("server_id", serverID); err != nil {
+		return err
+	}
+
+	unlock, err := s.eventLocks.lock(ctx, eventID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	var accepted bool
+	var startAvailableAt time.Time
+	err = s.eventRepo.WithTx(ctx, func(ctx context.Context) error {
+		accepted = false
+
+		// Ивент ищем сразу по паре (event_id, server_id): сообщение применимо
+		// только к тому ивенту, для которого этот сервер и покупался.
+		event, err := s.eventRepo.GetEventByIDAndServerIDForUpdate(ctx, eventID, serverID)
+		if err != nil {
+			return err
+		}
+
+		if event.EventID == "" {
+			return s.explainUnknownServer(ctx, eventID, serverID)
+		}
+
+		// Тот же деплой уже принят — повтор сообщения.
+		if !event.ServerDeployedAt.IsZero() {
+			return nil
+		}
+
+		if event.Status != domain.EventStatusPurchased {
+			return domain.FailedPrecondition("cannot accept deployed server: event status is %s (must be purchased)", event.Status)
+		}
+
+		// Времени в сообщении нет — считаем готовность с момента получения.
+		deployedAt := time.Now()
+		if err := s.eventRepo.SetServerDeployedAt(ctx, eventID, deployedAt); err != nil {
+			return err
+		}
+
+		if err := s.eventRepo.UpdateEventStatus(ctx, eventID, domain.EventStatusDeployed); err != nil {
+			return err
+		}
+
+		accepted = true
+		startAvailableAt = deployedAt.Add(domain.ServerReadyDelay)
+		return nil
+	})
+	if err != nil || !accepted {
+		return err
+	}
+
+	// Цепочка "ждём сервер" больше не нужна — на её место встаёт ожидание
+	// открытия StartEvent.
+	s.scheduleServerGate(eventID, startAvailableAt)
+
+	return nil
+}
+
+// explainUnknownServer — пары (event_id, server_id) в базе нет. Читаем ивент
+// отдельно, чтобы в логах и в ответе была понятная причина, а не глухое
+// "не найдено".
+func (s *eventService) explainUnknownServer(ctx context.Context, eventID, serverID string) error {
+	event, err := s.eventRepo.GetEventByID(ctx, eventID)
+	if err != nil {
+		return err
+	}
+
+	switch {
+	case event.EventID == "":
+		return domain.NotFound("event %q not found", eventID)
+	case event.ServerID == "":
+		return domain.FailedPrecondition("cannot accept deployed server: event %q has no purchased server", eventID)
+	default:
+		return domain.NotFound("event %q was given server %q, not %q", eventID, event.ServerID, serverID)
+	}
+}
+
+// StartEvent — сайд-лидер подтверждает, что его сторона готова играть.
+// Доступен, когда ивент в статусе ready (сервер задеплоился и выждал
+// domain.ServerReadyDelay). Ивент стартует, как только нажали ОБА
+// сайд-лидера; каждое нажатие уходит в Kafka, чтобы соперник видел готовность.
+func (s *eventService) StartEvent(ctx context.Context, eventID, userID string) error {
+	if err := validateID("event_id", eventID); err != nil {
+		return err
+	}
+
+	if err := validateID("user_id", userID); err != nil {
+		return err
+	}
+
+	unlock, err := s.eventLocks.lock(ctx, eventID)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	var side string
+	var readyAt time.Time
+	var started *startedGame
+	err = s.eventRepo.WithTx(ctx, func(ctx context.Context) error {
+		started = nil
+
+		event, err := s.lockEventRow(ctx, eventID)
+		if err != nil {
+			return err
+		}
+
+		enemySide := event.EnemySideLeader == userID
+		if event.UserCreateID != userID && !enemySide {
+			return domain.PermissionDenied("only side leaders can start the event")
+		}
+
+		if event.Status != domain.EventStatusReady {
+			return startNotAllowedError(event)
+		}
+
+		side = "ally"
+		if enemySide {
+			side = "enemy"
+		}
+
+		readyAt = time.Now()
+		if err := s.eventRepo.MarkSideReady(ctx, eventID, enemySide, readyAt); err != nil {
+			return err
+		}
+
+		// Вторая сторона ещё не нажимала — ждём её.
+		if (enemySide && event.AllyReadyAt.IsZero()) || (!enemySide && event.EnemyReadyAt.IsZero()) {
+			return nil
+		}
+
+		game, err := s.startEventTx(ctx, event)
+		if err != nil {
+			return err
+		}
+
+		started = &game
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	pubCtx, cancel := publishCtx(ctx)
+	defer cancel()
+
+	if err := s.producer.PublishSideReady(pubCtx, eventID, userID, side, readyAt, started != nil); err != nil {
+		return err
+	}
+
+	if started == nil {
+		return nil
+	}
+
+	return s.publishEventStarted(pubCtx, eventID, *started)
+}
+
+// startNotAllowedError объясняет, чего именно не хватает для старта: сервер не
+// куплен, не задеплоен (vps.deployed ещё не приходило) или ещё не выждал
+// ServerReadyDelay.
+func startNotAllowedError(event domain.Event) error {
+	switch event.Status {
+	case domain.EventStatusConfirmed:
+		return domain.FailedPrecondition("cannot start event: server is not purchased yet")
+	case domain.EventStatusPurchased:
+		return domain.FailedPrecondition("cannot start event: server is not deployed yet")
+	case domain.EventStatusDeployed:
+		return domain.FailedPrecondition("cannot start event: server is not ready yet, available at %s", event.StartAvailableAt().UTC().Format(time.RFC3339))
+	default:
+		return domain.FailedPrecondition("cannot start event: event status is %s (must be ready)", event.Status)
+	}
+}
+
+// GetServerData отдаёт реквизиты сервера участнику ивента. user_id приходит из
+// API, которое уже проверило токен, поэтому здесь остаётся проверить только
+// участие в ивенте: пароль от сервера видят лишь те, кто в нём играет.
+func (s *eventService) GetServerData(ctx context.Context, eventID, userID string) (string, string, error) {
+	if err := validateID("event_id", eventID); err != nil {
+		return "", "", err
+	}
+
+	if err := validateID("user_id", userID); err != nil {
+		return "", "", err
+	}
+
+	var serverID, serverPassword string
+	// Ивент и участие читаем из одного снимка БД.
+	err := s.eventRepo.WithTx(ctx, func(ctx context.Context) error {
+		event, err := s.eventRepo.GetEventByID(ctx, eventID)
+		if err != nil {
+			return err
+		}
+
+		if event.EventID == "" {
+			return domain.NotFound("event not found")
+		}
+
+		if _, err := s.eventRepo.GetUserByID(ctx, eventID, userID); err != nil {
+			return err
+		}
+
+		if !event.ServerDataAvailable() {
+			return domain.FailedPrecondition("server data is not available: event status is %s", event.Status)
+		}
+
+		serverID, serverPassword = event.ServerID, event.ServerPassword
+		return nil
+	})
+	if err != nil {
+		return "", "", err
+	}
+
+	return serverID, serverPassword, nil
 }

@@ -50,6 +50,28 @@ done
 
 uuid() { cat /proc/sys/kernel/random/uuid; }
 
+# Сообщения vps-сервиса кладём в Kafka напрямую: самого сервиса ещё нет.
+KAFKA_CONTAINER="${KAFKA_CONTAINER:-squad_kafka}"
+KAFKA_BOOTSTRAP="${KAFKA_BOOTSTRAP:-localhost:9092}"
+VPS_TOPIC="${VPS_TOPIC:-vps-service}"
+
+publish_vps() {
+  docker exec -i "$KAFKA_CONTAINER" kafka-console-producer \
+    --bootstrap-server "$KAFKA_BOOTSTRAP" --topic "$VPS_TOPIC" >/dev/null 2>&1 <<<"$1"
+}
+
+# wait_status <ожидаемый статус> <секунд>
+wait_status() {
+  local want="$1" timeout="$2" status
+  for _ in $(seq "$timeout"); do
+    status=$($GRPC -d "{\"user_create_id\":\"$CREATOR_ID\"}" $HOST event.EventService/GetLastEventByCreatorId 2>&1 | jq -r '.event.status' 2>/dev/null)
+    [ "$status" = "$want" ] && return 0
+    sleep 1
+  done
+  info "последний увиденный статус: ${status:-нет ответа}"
+  return 1
+}
+
 CREATOR_ID=$(uuid); CREATOR_CLAN=$(uuid)
 ENEMY_ID=$(uuid);   ENEMY_CLAN=$(uuid)
 P3_ID=$(uuid);      P3_CLAN=$(uuid)
@@ -294,19 +316,16 @@ RESP=$($GRPC -d \
 check_err "$RESP" "SetRole P3=player (сброс роли)"
 
 # ─────────────────────────────────────────────────────────────────────────────
-section "БЛОК 4 — таймеры: confirmed → in_progress"
+section "БЛОК 4 — сервер и StartEvent: confirmed → purchased → deployed → ready → in_progress"
 # ─────────────────────────────────────────────────────────────────────────────
 
-step "4.1. Ждём controlEventTimerDenial (time_start − 5с)"
+step "4.1. Ждём контрольную точку (time_start − 5с)"
 CONTROL_TIME=$((TIME_START - 5))
 WAIT=$(( CONTROL_TIME - $(date +%s) + 3 ))
 [ "$WAIT" -gt 0 ] && { info "Спим ${WAIT}с..."; sleep "$WAIT"; }
 
 step "4.2. Проверка: status=confirmed"
-EV=$($GRPC -d "{\"user_create_id\":\"$CREATOR_ID\"}" $HOST event.EventService/GetLastEventByCreatorId 2>&1) || true
-STATUS=$(echo "$EV" | jq -r '.event.status')
-info "status=$STATUS"
-[ "$STATUS" = "confirmed" ] && ok "confirmed ✓" || fail "expected confirmed, got $STATUS"
+wait_status confirmed 10 && ok "confirmed ✓" || fail "ожидался confirmed"
 
 step "4.3. После подтверждения состав заморожен"
 RESP=$($GRPC -d \
@@ -316,21 +335,88 @@ expect_err "$RESP" "JoinToEvent после confirmed" FailedPrecondition
 RESP=$($GRPC -d "{\"user_id\":\"$P3_ID\",\"event_id\":\"$EVENT_ID\"}" $HOST event.EventService/LeaveEvent 2>&1) || true
 expect_err "$RESP" "LeaveEvent после confirmed" FailedPrecondition
 
-step "4.4. Ждём старта (time_start)"
-WAIT=$(( TIME_START - $(date +%s) + 3 ))
-[ "$WAIT" -gt 0 ] && { info "Спим ${WAIT}с..."; sleep "$WAIT"; }
+step "4.4. StartEvent до сервера — отказ"
+RESP=$($GRPC -d "{\"event_id\":\"$EVENT_ID\",\"user_id\":\"$CREATOR_ID\"}" $HOST event.EventService/StartEvent 2>&1) || true
+expect_err "$RESP" "StartEvent без сервера" FailedPrecondition
 
-step "4.5. Проверка: status=in_progress, первая игра идёт"
+step "4.5. GetServerData до покупки — отказ"
+RESP=$($GRPC -d "{\"event_id\":\"$EVENT_ID\",\"user_id\":\"$CREATOR_ID\"}" $HOST event.EventService/GetServerData 2>&1) || true
+expect_err "$RESP" "GetServerData до покупки" FailedPrecondition
+
+step "4.6. vps.purchased — реквизиты сервера приехали"
+SERVER_ID=$(uuid)
+SERVER_PASS="pass-$(uuid | cut -c1-8)"
+publish_vps "{\"type\":\"vps.purchased\",\"event_id\":\"$EVENT_ID\",\"server_id\":\"$SERVER_ID\",\"server_password\":\"$SERVER_PASS\"}"
+
+wait_status purchased 20 && ok "status=purchased ✓" || fail "ожидался purchased"
+
+for _ in $(seq 15); do
+  RESP=$($GRPC -d "{\"event_id\":\"$EVENT_ID\",\"user_id\":\"$CREATOR_ID\"}" $HOST event.EventService/GetServerData 2>&1) || true
+  [ "$(echo "$RESP" | jq -r '.serverId' 2>/dev/null)" = "$SERVER_ID" ] && break
+  sleep 1
+done
+[ "$(echo "$RESP" | jq -r '.serverId' 2>/dev/null)" = "$SERVER_ID" ] \
+  && ok "GetServerData → $SERVER_ID ✓" || fail "реквизиты сервера не доехали: $RESP"
+[ "$(echo "$RESP" | jq -r '.serverPassword' 2>/dev/null)" = "$SERVER_PASS" ] \
+  && ok "пароль совпадает ✓" || fail "пароль не совпал"
+
+step "4.7. GetServerData не участнику — отказ"
+RESP=$($GRPC -d "{\"event_id\":\"$EVENT_ID\",\"user_id\":\"$(uuid)\"}" $HOST event.EventService/GetServerData 2>&1) || true
+expect_err "$RESP" "GetServerData не участнику" NotFound
+
+step "4.8. vps.deployed с чужим server_id — не применяется"
+publish_vps "{\"type\":\"vps.deployed\",\"event_id\":\"$EVENT_ID\",\"server_id\":\"$(uuid)\"}"
+sleep 4
 EV=$($GRPC -d "{\"user_create_id\":\"$CREATOR_ID\"}" $HOST event.EventService/GetLastEventByCreatorId 2>&1) || true
-STATUS=$(echo "$EV" | jq -r '.event.status')
-info "status=$STATUS"
-[ "$STATUS" = "in_progress" ] && ok "in_progress ✓" || fail "expected in_progress, got $STATUS"
+[ "$(echo "$EV" | jq -r '.event.status')" = "purchased" ] \
+  && ok "чужой server_id проигнорирован, статус остался purchased ✓" || fail "чужой server_id был применён"
+RESP=$($GRPC -d "{\"event_id\":\"$EVENT_ID\",\"user_id\":\"$CREATOR_ID\"}" $HOST event.EventService/StartEvent 2>&1) || true
+expect_err "$RESP" "StartEvent до deployed" FailedPrecondition
+
+step "4.9. vps.deployed — сервер готов (ServerReadyDelay отсчитывается от получения)"
+publish_vps "{\"type\":\"vps.deployed\",\"event_id\":\"$EVENT_ID\",\"server_id\":\"$SERVER_ID\"}"
+wait_status deployed 20 && ok "status=deployed ✓" || fail "ожидался deployed"
+
+# Скрипт рассчитан на сборку с укороченными константами: в боевой сборке
+# ServerReadyDelay — 15 минут, и ждать ready столько смысла нет.
+wait_status ready 60 && ok "status=ready ✓" || fail "ожидался ready (нужна сборка с укороченным ServerReadyDelay)"
+
+EV=$($GRPC -d "{\"user_create_id\":\"$CREATOR_ID\"}" $HOST event.EventService/GetLastEventByCreatorId 2>&1) || true
+echo "$EV" | jq '{status: .event.status, serverDeployedAt: .event.serverDeployedAt, startAvailableAt: .event.startAvailableAt}'
+
+step "4.10. StartEvent может звать только сайд-лидер"
+RESP=$($GRPC -d "{\"event_id\":\"$EVENT_ID\",\"user_id\":\"$P3_ID\"}" $HOST event.EventService/StartEvent 2>&1) || true
+expect_err "$RESP" "StartEvent обычным игроком" PermissionDenied
+
+step "4.12. StartEvent создателем — ждём вторую сторону"
+RESP=$($GRPC -d "{\"event_id\":\"$EVENT_ID\",\"user_id\":\"$CREATOR_ID\"}" $HOST event.EventService/StartEvent 2>&1) || true
+check_err "$RESP" "StartEvent creator"
+
+EV=$($GRPC -d "{\"user_create_id\":\"$CREATOR_ID\"}" $HOST event.EventService/GetLastEventByCreatorId 2>&1) || true
+[ "$(echo "$EV" | jq -r '.event.status')" = "ready" ] && ok "после одного нажатия всё ещё ready ✓" || fail "ивент стартовал по одному нажатию"
+[ "$(echo "$EV" | jq -r '.event.allyReady')" = "true" ] && ok "allyReady=true ✓" || fail "не отмечена готовность создателя"
+# proto3 не печатает значения по умолчанию: невыставленный флаг приходит как null
+[ "$(echo "$EV" | jq -r '.event.enemyReady // false')" = "false" ] && ok "enemyReady=false ✓" || fail "отмечена чужая готовность"
+
+step "4.13. Повторное нажатие той же стороной — отказ"
+RESP=$($GRPC -d "{\"event_id\":\"$EVENT_ID\",\"user_id\":\"$CREATOR_ID\"}" $HOST event.EventService/StartEvent 2>&1) || true
+expect_err "$RESP" "StartEvent creator повторно" FailedPrecondition
+
+step "4.14. StartEvent лидером второй стороны — ивент стартует"
+RESP=$($GRPC -d "{\"event_id\":\"$EVENT_ID\",\"user_id\":\"$ENEMY_ID\"}" $HOST event.EventService/StartEvent 2>&1) || true
+check_err "$RESP" "StartEvent enemy side leader"
+
+wait_status in_progress 10 && ok "status=in_progress ✓" || fail "ожидался in_progress"
 
 RESP=$($GRPC -d "{\"team_id\":\"$T1G1\"}" $HOST event.EventService/GetTeamByID 2>&1) || true
 ST=$(echo "$RESP" | jq -r '.team.status')
-[ "$ST" = "in_progress" ] && ok "team status=in_progress ✓" || fail "expected in_progress, got $ST"
+[ "$ST" = "in_progress" ] && ok "первая игра идёт ✓" || fail "ожидался in_progress, got $ST"
 
-step "4.6. Состав и роли начавшейся игры заморожены"
+step "4.15. StartEvent после старта — отказ"
+RESP=$($GRPC -d "{\"event_id\":\"$EVENT_ID\",\"user_id\":\"$ENEMY_ID\"}" $HOST event.EventService/StartEvent 2>&1) || true
+expect_err "$RESP" "StartEvent после старта" FailedPrecondition
+
+step "4.16. Состав и роли начавшейся игры заморожены"
 RESP=$($GRPC -d "{\"team_id\":\"$T1G1\",\"user_id\":\"$P3_ID\"}" $HOST event.EventService/RemoveUserFromTeam 2>&1) || true
 expect_err "$RESP" "RemoveUserFromTeam после старта игры" FailedPrecondition
 RESP=$($GRPC -d \

@@ -5,6 +5,19 @@ import "time"
 // Role — роль игрока ВНУТРИ команды (team_members), то есть в рамках одной
 // конкретной игры. В ивенте целиком (users) роли нет: один и тот же человек
 // может быть в первой игре сквадным, а во второй — обычным игроком.
+const (
+	// ServerReadyDelay — сколько ждать после получения vps.deployed, прежде
+	// чем открыть StartEvent: контейнер на сервере дособирается уже после
+	// того, как vps-сервис доложил о деплое.
+	ServerReadyDelay = 15 * time.Minute
+	// StartVoteTimeout — сколько ждать второго сайд-лидера после открытия
+	// StartEvent. Если нажал только один — стартуем сами, сервер уже оплачен.
+	StartVoteTimeout = 15 * time.Minute
+	// ServerDeployTimeout — сколько после заявленного старта ждать сервер,
+	// который так и не задеплоился, прежде чем отменить ивент.
+	ServerDeployTimeout = 30 * time.Minute
+)
+
 type Role string
 
 const (
@@ -25,6 +38,18 @@ const (
 	// EventStatusConfirmed — проверка на минимум игроков прошла успешно, ивент подтверждён, ожидает старта.
 	// Состав ивента с этого момента заморожен: ни войти, ни выйти уже нельзя.
 	EventStatusConfirmed EventStatus = "confirmed"
+	// EventStatusPurchased — vps-сервис доложил, что сервер куплен
+	// (vps.purchased): с этого момента участникам доступен GetServerData, но
+	// сервер ещё разворачивается
+	EventStatusPurchased EventStatus = "purchased"
+	// EventStatusDeployed — vps-сервис доложил, что сервер развёрнут
+	// (vps.deployed). StartEvent пока закрыт: внутри ServerReadyDelay
+	// дособирается докер-контейнер
+	EventStatusDeployed EventStatus = "deployed"
+	// EventStatusReady — после деплоя прошёл ServerReadyDelay: можно звать
+	// StartEvent. Стартует ивент только после того, как его нажали оба
+	// сайд-лидера (или сработал автостарт, см. StartVoteTimeout)
+	EventStatusReady EventStatus = "ready"
 	// EventStatusInProgress — ивент начался, игры идут
 	EventStatusInProgress EventStatus = "in_progress"
 	// EventStatusFinished — сыграны все игры или победитель определился досрочно, ивент завершён
@@ -62,11 +87,68 @@ type Event struct {
 	UserCount       int64
 	TargetGameCount int64
 	GameCount       int64
-	Status          EventStatus // pending | confirmed | in_progress | finished | declined | canceled
+	Status          EventStatus // pending | confirmed | purchased | deployed | ready | in_progress | finished | declined | canceled
 	WinnerSide      string      // "" (ещё не решено) | "ally" | "enemy" | "draw"
 	// RentServerSent — сигнал об аренде сервера уже отправлен. Хранится в БД,
 	// а не в памяти, чтобы после рестарта сервиса он не ушёл повторно.
 	RentServerSent bool
+	// ServerID/ServerPassword приходят из vps-сервиса сообщением
+	// vps.purchased. Пароль отдаётся только участникам ивента (GetServerData).
+	ServerID       string
+	ServerPassword string
+	// ServerDeployedAt — когда пришло vps.deployed. Времени в сообщении нет,
+	// поэтому это момент получения по нашим часам. Пустой, пока сервер не
+	// доложил о себе.
+	ServerDeployedAt time.Time
+	// AllyReadyAt/EnemyReadyAt — когда сайд-лидер своей стороны нажал
+	// StartEvent. Пустые, пока не нажал.
+	AllyReadyAt  time.Time
+	EnemyReadyAt time.Time
+}
+
+// StartAvailableAt — момент, с которого доступен StartEvent: после доклада о
+// деплое надо выждать ServerReadyDelay, внутри которого дособирается
+// докер-контейнер. Пустое время означает, что сервер ещё не доложил о себе.
+func (e Event) StartAvailableAt() time.Time {
+	if e.ServerDeployedAt.IsZero() {
+		return time.Time{}
+	}
+
+	return e.ServerDeployedAt.Add(ServerReadyDelay)
+}
+
+// CancelAllowed — ивент ещё не начался, создатель может его отменить (и тем же
+// путём идут автоотмены: не задеплоился сервер, не нажали StartEvent).
+func (e Event) CancelAllowed() bool {
+	switch e.Status {
+	case EventStatusPending, EventStatusConfirmed, EventStatusPurchased, EventStatusDeployed, EventStatusReady:
+		return true
+	default:
+		return false
+	}
+}
+
+// ServerDataAvailable — реквизиты сервера можно отдавать участникам: он
+// куплен, и ивент не сорвался (отменённый или отклонённый ивент реквизитов не
+// отдаёт — играть на этом сервере уже не будут).
+func (e Event) ServerDataAvailable() bool {
+	switch e.Status {
+	case EventStatusPurchased, EventStatusDeployed, EventStatusReady, EventStatusInProgress, EventStatusFinished:
+		return true
+	default:
+		return false
+	}
+}
+
+// BothSidesReady — обе стороны нажали StartEvent.
+func (e Event) BothSidesReady() bool {
+	return !e.AllyReadyAt.IsZero() && !e.EnemyReadyAt.IsZero()
+}
+
+// AnySideReady — нажала хотя бы одна сторона: только в этом случае имеет
+// смысл автостарт по таймауту, иначе стартовать некому.
+func (e Event) AnySideReady() bool {
+	return !e.AllyReadyAt.IsZero() || !e.EnemyReadyAt.IsZero()
 }
 
 type User struct {

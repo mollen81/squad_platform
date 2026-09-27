@@ -40,6 +40,22 @@ func newFakeRepo() *fakeRepo {
 	}
 }
 
+// fail/unfail — включить и выключить сбой метода. Через них, а не прямой
+// записью в мапу: цепочки таймеров читают её из своих горутин.
+func (f *fakeRepo) fail(method string, err error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	f.failOn[method] = err
+}
+
+func (f *fakeRepo) unfail(method string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	delete(f.failOn, method)
+}
+
 func (f *fakeRepo) check(method string) error {
 	if err, ok := f.failOn[method]; ok {
 		return err
@@ -132,6 +148,22 @@ func (f *fakeRepo) GetEventByIDForUpdate(ctx context.Context, eventID string) (d
 	}
 
 	return f.events[eventID], nil
+}
+
+func (f *fakeRepo) GetEventByIDAndServerIDForUpdate(ctx context.Context, eventID, serverID string) (domain.Event, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if err := f.check("GetEventByIDAndServerIDForUpdate"); err != nil {
+		return domain.Event{}, err
+	}
+
+	event, ok := f.events[eventID]
+	if !ok || event.ServerID != serverID {
+		return domain.Event{}, nil
+	}
+
+	return event, nil
 }
 
 func (f *fakeRepo) GetEventsByCreatorId(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
@@ -243,9 +275,13 @@ func (f *fakeRepo) GetAllUnfinishedEvents(ctx context.Context) ([]domain.Event, 
 }
 
 func isUnfinished(status domain.EventStatus) bool {
-	return status == domain.EventStatusPending ||
-		status == domain.EventStatusConfirmed ||
-		status == domain.EventStatusInProgress
+	switch status {
+	case domain.EventStatusPending, domain.EventStatusConfirmed, domain.EventStatusPurchased,
+		domain.EventStatusDeployed, domain.EventStatusReady, domain.EventStatusInProgress:
+		return true
+	default:
+		return false
+	}
 }
 
 func (f *fakeRepo) sortedEvents() []domain.Event {
@@ -304,9 +340,18 @@ func (f *fakeRepo) UpdateEventStatus(ctx context.Context, eventID string, status
 
 	allowedFrom := map[domain.EventStatus][]domain.EventStatus{
 		domain.EventStatusConfirmed:  {domain.EventStatusPending},
-		domain.EventStatusInProgress: {domain.EventStatusConfirmed},
+		domain.EventStatusPurchased:  {domain.EventStatusConfirmed},
+		domain.EventStatusDeployed:   {domain.EventStatusPurchased},
+		domain.EventStatusReady:      {domain.EventStatusDeployed},
+		domain.EventStatusInProgress: {domain.EventStatusReady},
 		domain.EventStatusDeclined:   {domain.EventStatusPending},
-		domain.EventStatusCanceled:   {domain.EventStatusPending, domain.EventStatusConfirmed},
+		domain.EventStatusCanceled: {
+			domain.EventStatusPending,
+			domain.EventStatusConfirmed,
+			domain.EventStatusPurchased,
+			domain.EventStatusDeployed,
+			domain.EventStatusReady,
+		},
 	}
 
 	from, ok := allowedFrom[status]
@@ -356,6 +401,71 @@ func (f *fakeRepo) IncrementEventGameCount(ctx context.Context, eventID string) 
 	event.GameCount++
 	f.events[eventID] = event
 	return event.GameCount, nil
+}
+
+func (f *fakeRepo) SetServerData(ctx context.Context, eventID, serverID, serverPassword string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if err := f.check("SetServerData"); err != nil {
+		return err
+	}
+
+	event, ok := f.events[eventID]
+	if !ok {
+		return domain.NotFound("event %q not found", eventID)
+	}
+
+	event.ServerID, event.ServerPassword = serverID, serverPassword
+	f.events[eventID] = event
+	return nil
+}
+
+func (f *fakeRepo) SetServerDeployedAt(ctx context.Context, eventID string, deployedAt time.Time) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if err := f.check("SetServerDeployedAt"); err != nil {
+		return err
+	}
+
+	event, ok := f.events[eventID]
+	if !ok || !event.ServerDeployedAt.IsZero() {
+		return domain.FailedPrecondition("event %q already has a deployed server", eventID)
+	}
+
+	event.ServerDeployedAt = deployedAt
+	f.events[eventID] = event
+	return nil
+}
+
+func (f *fakeRepo) MarkSideReady(ctx context.Context, eventID string, enemySide bool, readyAt time.Time) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	if err := f.check("MarkSideReady"); err != nil {
+		return err
+	}
+
+	event, ok := f.events[eventID]
+	if !ok {
+		return domain.NotFound("event %q not found", eventID)
+	}
+
+	if enemySide {
+		if !event.EnemyReadyAt.IsZero() {
+			return domain.FailedPrecondition("side leader has already pressed StartEvent")
+		}
+		event.EnemyReadyAt = readyAt
+	} else {
+		if !event.AllyReadyAt.IsZero() {
+			return domain.FailedPrecondition("side leader has already pressed StartEvent")
+		}
+		event.AllyReadyAt = readyAt
+	}
+
+	f.events[eventID] = event
+	return nil
 }
 
 func (f *fakeRepo) MarkRentServerSent(ctx context.Context, eventID string) error {
@@ -947,6 +1057,13 @@ func newFakeProducer() *fakeProducer {
 	return &fakeProducer{failOn: map[string]error{}}
 }
 
+func (p *fakeProducer) fail(kind string, err error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.failOn[kind] = err
+}
+
 func (p *fakeProducer) record(kind string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -1005,7 +1122,15 @@ func (p *fakeProducer) PublishEventFinished(ctx context.Context, eventID string,
 }
 
 func (p *fakeProducer) PublishRentServer(ctx context.Context, eventID string, playersList []string, timeStart time.Time) error {
-	return p.record("rent.server")
+	return p.record("server.rent")
+}
+
+func (p *fakeProducer) PublishEventReady(ctx context.Context, eventID string, startAvailableAt time.Time) error {
+	return p.record("event.ready")
+}
+
+func (p *fakeProducer) PublishSideReady(ctx context.Context, eventID, userID, side string, readyAt time.Time, bothReady bool) error {
+	return p.record("event.side_ready")
 }
 
 func (p *fakeProducer) PublishUserJoinedEvent(ctx context.Context, eventID, userID, clanID string, enemy bool, joinTime time.Time) error {
@@ -1197,19 +1322,56 @@ func joinPlayer(t *testing.T, svc *eventService, eventID, clanID string, enemy b
 func startEvent(t *testing.T, svc *eventService, repo *fakeRepo, ev testEvent) {
 	t.Helper()
 
-	event := repo.events[ev.id]
-	if event.UserCount < MinPlayersRequired {
-		event.UserCount = MinPlayersRequired
-		repo.events[ev.id] = event
-	}
+	confirmEvent(t, svc, repo, ev)
+
+	// Дальше ивент ждёт сервер: покупка, деплой, открытие StartEvent и
+	// нажатие обоими сайд-лидерами.
+	deployServer(t, svc, repo, ev)
+
+	requireNoErr(t, svc.StartEvent(context.Background(), ev.id, ev.creator))
+	requireNoErr(t, svc.StartEvent(context.Background(), ev.id, ev.enemy))
+}
+
+// confirmEvent проводит ивент через контрольную точку: игроков столько,
+// сколько нужно, значит ивент подтверждается.
+func confirmEvent(t *testing.T, svc *eventService, repo *fakeRepo, ev testEvent) {
+	t.Helper()
+
+	setEventFields(repo, ev.id, func(event *domain.Event) {
+		if event.UserCount < MinPlayersRequired {
+			event.UserCount = MinPlayersRequired
+		}
+	})
 
 	confirmed, err := svc.checkMinPlayers(context.Background(), ev.id)
 	requireNoErr(t, err)
 	if !confirmed {
 		t.Fatal("ивент не подтвердился при достаточном количестве игроков")
 	}
+}
 
-	requireNoErr(t, svc.startEventAndGames(context.Background(), ev.id))
+// deployServer проводит ивент через покупку и деплой сервера до статуса ready:
+// момент деплоя берём в прошлом, чтобы StartEvent открылся сразу.
+func deployServer(t *testing.T, svc *eventService, repo *fakeRepo, ev testEvent) string {
+	t.Helper()
+
+	ctx := context.Background()
+	serverID := newID()
+	requireNoErr(t, svc.ServerPurchased(ctx, ev.id, serverID, "server-secret"))
+	requireNoErr(t, svc.ServerDeployed(ctx, ev.id, serverID))
+
+	// Времени в vps.deployed нет: сервис отсчитывает ServerReadyDelay от
+	// момента получения, поэтому для тестов отодвигаем его в прошлое.
+	setEventFields(repo, ev.id, func(event *domain.Event) {
+		event.ServerDeployedAt = time.Now().Add(-domain.ServerReadyDelay - time.Minute)
+	})
+
+	// Цепочку, поставленную деплоем, глушим: гейт в тестах открываем сами,
+	// чтобы не держать фоновую горутину.
+	svc.cancelEventTimer(ev.id)
+	requireNoErr(t, svc.openStartGate(ctx, ev.id, ev.timeStart))
+
+	return serverID
 }
 
 // playGame доводит одну игру до конца: старт (если ещё не идёт) и финиш с

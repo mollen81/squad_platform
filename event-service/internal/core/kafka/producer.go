@@ -7,7 +7,7 @@ import (
 
 	"event-service/internal/core/domain"
 
-	"github.com/segmentio/kafka-go"
+	kafka "github.com/segmentio/kafka-go"
 )
 
 type Producer struct {
@@ -34,12 +34,12 @@ func NewProducer(brokers []string, topic string) *Producer {
 
 func (p *Producer) PublishEventCreated(ctx context.Context, event domain.Event) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type":            "event.created",
-		"event_id":        event.EventID,
-		"name":            event.Name,
-		"user_create_id":  event.UserCreateID,
-		"time_start":      event.TimeStart,
-		"create_time":     event.CreateTime,
+		"type":           "event.created",
+		"event_id":       event.EventID,
+		"name":           event.Name,
+		"user_create_id": event.UserCreateID,
+		"time_start":     event.TimeStart,
+		"create_time":    event.CreateTime,
 	})
 	if err != nil {
 		return err
@@ -152,8 +152,8 @@ func (p *Producer) PublishTeamGameFinished(ctx context.Context, teamID string, w
 
 func (p *Producer) PublishEventFinished(ctx context.Context, eventID string, winnerSide string, timeFinish time.Time) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type": "event.finished",
-		"event_id": eventID,
+		"type":        "event.finished",
+		"event_id":    eventID,
 		"winner_side": winnerSide,
 		"time_finish": timeFinish,
 	})
@@ -161,7 +161,7 @@ func (p *Producer) PublishEventFinished(ctx context.Context, eventID string, win
 		return err
 	}
 	return p.writer.WriteMessages(ctx, kafka.Message{
-		Key: []byte(eventID),
+		Key:   []byte(eventID),
 		Value: data,
 	})
 }
@@ -232,6 +232,44 @@ func (p *Producer) PublishEventStarted(ctx context.Context, eventID string, time
 	})
 }
 
+// PublishEventReady — сервер готов и выждал domain.ServerReadyDelay: с этого
+// момента сайд-лидеры могут звать StartEvent.
+func (p *Producer) PublishEventReady(ctx context.Context, eventID string, startAvailableAt time.Time) error {
+	data, err := json.Marshal(map[string]interface{}{
+		"type":               "event.ready",
+		"event_id":           eventID,
+		"start_available_at": startAvailableAt,
+	})
+	if err != nil {
+		return err
+	}
+	return p.writer.WriteMessages(ctx, kafka.Message{
+		Key:   []byte(eventID),
+		Value: data,
+	})
+}
+
+// PublishSideReady — сайд-лидер нажал StartEvent. По side вторая сторона
+// понимает, что соперник готов; both_ready означает, что нажали уже оба и
+// ивент стартует.
+func (p *Producer) PublishSideReady(ctx context.Context, eventID, userID, side string, readyAt time.Time, bothReady bool) error {
+	data, err := json.Marshal(map[string]interface{}{
+		"type":       "event.side_ready",
+		"event_id":   eventID,
+		"user_id":    userID,
+		"side":       side,
+		"ready_at":   readyAt,
+		"both_ready": bothReady,
+	})
+	if err != nil {
+		return err
+	}
+	return p.writer.WriteMessages(ctx, kafka.Message{
+		Key:   []byte(eventID),
+		Value: data,
+	})
+}
+
 func (p *Producer) PublishUserJoinedTeam(ctx context.Context, teamID, userID, userEventID string, role domain.Role) error {
 	data, err := json.Marshal(map[string]interface{}{
 		"type":          "user.joined_team",
@@ -291,7 +329,7 @@ func (p *Producer) PublishUserRoleChanged(ctx context.Context, eventID, teamID, 
 
 func (p *Producer) PublishRentServer(ctx context.Context, eventID string, playersList []string, timeStart time.Time) error {
 	data, err := json.Marshal(map[string]interface{}{
-		"type":         "rent.server",
+		"type":         "server.rent",
 		"event_id":     eventID,
 		"players_list": playersList,
 		"time_start":   timeStart,

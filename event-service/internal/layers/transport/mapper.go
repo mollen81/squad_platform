@@ -20,12 +20,21 @@ func toProtoEvent(e domain.Event) *pb.Event {
 		Status:            string(e.Status),
 		TargetGameCount:   e.TargetGameCount,
 		GameCount:         e.GameCount,
+		AllyReady:         !e.AllyReadyAt.IsZero(),
+		EnemyReady:        !e.EnemyReadyAt.IsZero(),
 	}
 
 	// Как и у команды: пока ивент не завершён, time_finish в БД NULL —
 	// поле остаётся пустым, а не превращается в "0001-01-01".
 	if !e.TimeFinish.IsZero() {
 		event.TimeFinish = timestamppb.New(e.TimeFinish)
+	}
+
+	// Пока сервер не доложил о готовности, оба поля пустые: клиенту по ним
+	// видно, что ждать ещё нечего.
+	if !e.ServerDeployedAt.IsZero() {
+		event.ServerDeployedAt = timestamppb.New(e.ServerDeployedAt)
+		event.StartAvailableAt = timestamppb.New(e.StartAvailableAt())
 	}
 
 	return event

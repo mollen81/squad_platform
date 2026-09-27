@@ -316,7 +316,7 @@ func TestSetRoleFailsOnUnreadableData(t *testing.T) {
 		userID := joinPlayer(t, svc, ev.id, newID(), false)
 		requireNoErr(t, svc.JoinUserToTeam(context.Background(), ally, userID, domain.RolePlayer))
 
-		repo.failOn["GetTeamByID"] = errDB
+		repo.fail("GetTeamByID", errDB)
 		requireInternal(t, svc.SetRole(context.Background(), ally, ev.creator, userID, domain.RoleSideLeader))
 	})
 
@@ -327,7 +327,7 @@ func TestSetRoleFailsOnUnreadableData(t *testing.T) {
 		userID := joinPlayer(t, svc, ev.id, newID(), false)
 		requireNoErr(t, svc.JoinUserToTeam(context.Background(), ally, userID, domain.RolePlayer))
 
-		repo.failOn["GetUserByID"] = errDB
+		repo.fail("GetUserByID", errDB)
 		requireInternal(t, svc.SetRole(context.Background(), ally, ev.creator, userID, domain.RoleSideLeader))
 	})
 }
@@ -357,7 +357,7 @@ func TestTeamCallsFailWhenEventRowUnreadable(t *testing.T) {
 			ev := createTestEvent(t, svc, 1)
 			ally, _ := ev.teams(t, svc, 1)
 
-			repo.failOn["GetEventByIDForUpdate"] = errDB
+			repo.fail("GetEventByIDForUpdate", errDB)
 			requireInternal(t, c.call(svc, ev, ally))
 		})
 	}
@@ -399,7 +399,7 @@ func TestTeamCallsFailOnRepositoryErrors(t *testing.T) {
 		ev := createTestEvent(t, svc, 1)
 		ally, _ := ev.teams(t, svc, 1)
 		userID := joinPlayer(t, svc, ev.id, newID(), false)
-		repo.failOn["GetUserByUserEventID"] = errDB
+		repo.fail("GetUserByUserEventID", errDB)
 
 		requireInternal(t, svc.JoinUserToTeam(context.Background(), ally, userID, domain.RolePlayer))
 	})
@@ -409,7 +409,7 @@ func TestTeamCallsFailOnRepositoryErrors(t *testing.T) {
 		ev := createTestEvent(t, svc, 1)
 		ally, _ := ev.teams(t, svc, 1)
 		userID := joinPlayer(t, svc, ev.id, newID(), false)
-		repo.failOn["JoinUserToTeam"] = errDB
+		repo.fail("JoinUserToTeam", errDB)
 
 		requireInternal(t, svc.JoinUserToTeam(context.Background(), ally, userID, domain.RolePlayer))
 	})
@@ -419,7 +419,7 @@ func TestTeamCallsFailOnRepositoryErrors(t *testing.T) {
 		ev := createTestEvent(t, svc, 1)
 		ally, _ := ev.teams(t, svc, 1)
 		userID := joinPlayer(t, svc, ev.id, newID(), false)
-		repo.failOn["CheckSixClanMembers"] = errDB
+		repo.fail("CheckSixClanMembers", errDB)
 
 		requireInternal(t, svc.JoinUserToTeam(context.Background(), ally, userID, domain.RolePlayer))
 
@@ -433,7 +433,7 @@ func TestTeamCallsFailOnRepositoryErrors(t *testing.T) {
 		ev := createTestEvent(t, svc, 1)
 		ally, _ := ev.teams(t, svc, 1)
 		userID := joinPlayer(t, svc, ev.id, newID(), false)
-		repo.failOn["UpdateTeamMemberSixClanMembers"] = errDB
+		repo.fail("UpdateTeamMemberSixClanMembers", errDB)
 
 		requireInternal(t, svc.JoinUserToTeam(context.Background(), ally, userID, domain.RolePlayer))
 	})
@@ -444,7 +444,7 @@ func TestTeamCallsFailOnRepositoryErrors(t *testing.T) {
 		ally, _ := ev.teams(t, svc, 1)
 		userID := joinPlayer(t, svc, ev.id, newID(), false)
 		requireNoErr(t, svc.JoinUserToTeam(context.Background(), ally, userID, domain.RolePlayer))
-		repo.failOn["IsUserInTeam"] = errDB
+		repo.fail("IsUserInTeam", errDB)
 
 		requireInternal(t, svc.RemoveUserFromTeam(context.Background(), ally, userID))
 	})
@@ -455,7 +455,7 @@ func TestTeamCallsFailOnRepositoryErrors(t *testing.T) {
 		ally, _ := ev.teams(t, svc, 1)
 		userID := joinPlayer(t, svc, ev.id, newID(), false)
 		requireNoErr(t, svc.JoinUserToTeam(context.Background(), ally, userID, domain.RolePlayer))
-		repo.failOn["RemoveUserFromTeam"] = errDB
+		repo.fail("RemoveUserFromTeam", errDB)
 
 		requireInternal(t, svc.RemoveUserFromTeam(context.Background(), ally, userID))
 	})
@@ -473,10 +473,10 @@ func TestTeamCallsFailOnRepositoryErrors(t *testing.T) {
 			requireNoErr(t, svc.JoinUserToTeam(context.Background(), ally, userID, domain.RolePlayer))
 		}
 
-		repo.failOn["UpdateSixClanMembersForClanInTeam"] = errDB
+		repo.fail("UpdateSixClanMembersForClanInTeam", errDB)
 		requireInternal(t, svc.RemoveUserFromTeam(context.Background(), ally, players[0]))
 
-		delete(repo.failOn, "UpdateSixClanMembersForClanInTeam")
+		repo.unfail("UpdateSixClanMembersForClanInTeam")
 		if got := repo.teams[ally].MembersCount; got != 7 {
 			t.Errorf("после отката members_count=%d, ожидалось 7", got)
 		}
@@ -488,7 +488,7 @@ func TestTeamCallsFailOnRepositoryErrors(t *testing.T) {
 		ally, _ := ev.teams(t, svc, 1)
 		userID := joinPlayer(t, svc, ev.id, newID(), false)
 		requireNoErr(t, svc.JoinUserToTeam(context.Background(), ally, userID, domain.RolePlayer))
-		repo.failOn["UpdateTeamMemberRole"] = errDB
+		repo.fail("UpdateTeamMemberRole", errDB)
 
 		requireInternal(t, svc.SetRole(context.Background(), ally, ev.creator, userID, domain.RoleSideLeader))
 	})
@@ -500,7 +500,7 @@ func TestTeamPublishFailuresAreReported(t *testing.T) {
 		ev := createTestEvent(t, svc, 1)
 		ally, _ := ev.teams(t, svc, 1)
 		userID := joinPlayer(t, svc, ev.id, newID(), false)
-		producer.failOn["user.joined_team"] = errKafka
+		producer.fail("user.joined_team", errKafka)
 
 		if err := svc.JoinUserToTeam(context.Background(), ally, userID, domain.RolePlayer); err == nil {
 			t.Error("ошибка публикации должна возвращаться")
@@ -513,7 +513,7 @@ func TestTeamPublishFailuresAreReported(t *testing.T) {
 		ally, _ := ev.teams(t, svc, 1)
 		userID := joinPlayer(t, svc, ev.id, newID(), false)
 		requireNoErr(t, svc.JoinUserToTeam(context.Background(), ally, userID, domain.RolePlayer))
-		producer.failOn["user.left_team"] = errKafka
+		producer.fail("user.left_team", errKafka)
 
 		if err := svc.RemoveUserFromTeam(context.Background(), ally, userID); err == nil {
 			t.Error("ошибка публикации должна возвращаться")
@@ -526,7 +526,7 @@ func TestTeamPublishFailuresAreReported(t *testing.T) {
 		ally, _ := ev.teams(t, svc, 1)
 		userID := joinPlayer(t, svc, ev.id, newID(), false)
 		requireNoErr(t, svc.JoinUserToTeam(context.Background(), ally, userID, domain.RolePlayer))
-		producer.failOn["user.role_changed"] = errKafka
+		producer.fail("user.role_changed", errKafka)
 
 		if err := svc.SetRole(context.Background(), ally, ev.creator, userID, domain.RoleSideLeader); err == nil {
 			t.Error("ошибка публикации должна возвращаться")

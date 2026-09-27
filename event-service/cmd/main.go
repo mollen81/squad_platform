@@ -73,9 +73,30 @@ func main() {
 	defer producer.Close()
 	log.Printf("Connected to Kafka brokers: %v, topic: %s", kafkaBrokers, kafkaTopic)
 
+	// Топик vps-сервиса: оттуда приходят vps.purchased и vps.deployed по
+	// серверу, купленному под ивент.
+	vpsTopic := os.Getenv("KAFKA_VPS_TOPIC")
+	if vpsTopic == "" {
+		vpsTopic = "vps-service"
+	}
+
+	vpsGroupID := os.Getenv("KAFKA_VPS_GROUP_ID")
+	if vpsGroupID == "" {
+		vpsGroupID = "event-service"
+	}
+
 	eventRepo := repository.NewPostgresRepository(pool)
 	eventService := service.NewEventService(eventRepo, producer)
 	grpcHandler := transport.NewGRPCHandler(eventService)
+
+	consumer := kafka.NewConsumer(kafkaBrokers, vpsTopic, vpsGroupID)
+	defer consumer.Close()
+
+	consumerCtx, stopConsumer := context.WithCancel(ctx)
+	defer stopConsumer()
+
+	go consumer.Run(consumerCtx, transport.NewKafkaHandler(eventService).Handle)
+	log.Printf("Consuming Kafka topic %s as group %s", vpsTopic, vpsGroupID)
 
 	// eventTimers (цепочки controlEventTimerDenial) живёт только в памяти
 	// процесса, поэтому после каждого рестарта его нужно расставлять заново по
@@ -112,6 +133,7 @@ func main() {
 	<-quit
 
 	log.Println("Shutting down server...")
+	stopConsumer()
 	grpcServer.GracefulStop()
 	log.Println("Server stopped")
 }

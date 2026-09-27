@@ -39,6 +39,26 @@ type EventService interface {
 	AddTeamMemberStats(ctx context.Context, teamID, userID string, kills, deaths, points, revival, destroyedVehicles int64) error
 	GetTeamStats(ctx context.Context, teamID string) (domain.Team, []domain.TeamMember, error)
 
+	// StartEvent — запуск ивента сайд-лидером. Доступен, когда ивент в статусе
+	// ready (сервер задеплоился и выждал domain.ServerReadyDelay). Ивент
+	// стартует, когда нажали ОБА сайд-лидера; если через
+	// domain.StartVoteTimeout нажал только один — стартуем автоматически.
+	// Каждое нажатие публикуется в Kafka, чтобы вторая сторона видела
+	// готовность соперника.
+	StartEvent(ctx context.Context, eventID, userID string) error
+	// GetServerData отдаёт реквизиты сервера любому участнику ивента: user_id
+	// приходит из API, которое уже проверило токен, поэтому здесь проверяется
+	// только участие в ивенте.
+	GetServerData(ctx context.Context, eventID, userID string) (serverID, serverPassword string, err error)
+
+	// ServerPurchased и ServerDeployed вызываются входящим консьюмером на
+	// сообщениях vps.purchased и vps.deployed соответственно (см.
+	// transport/kafka.go): сервер под ивент покупает и разворачивает другой
+	// микросервис. В vps.deployed времени нет — момент готовности сервис
+	// берёт по своим часам.
+	ServerPurchased(ctx context.Context, eventID, serverID, serverPassword string) error
+	ServerDeployed(ctx context.Context, eventID, serverID string) error
+
 	// RecoverPendingEvents переживает рестарт процесса: eventTimers живёт только
 	// в памяти, поэтому при старте нужно заново расставить таймеры контроля/старта
 	// по всем ивентам, которые ещё не завершены. Вызывается один раз из main при
@@ -56,6 +76,11 @@ type EventProducer interface {
 	PublishEventConfirmed(ctx context.Context, eventID string) error
 	PublishEventDeclined(ctx context.Context, eventID string) error
 	PublishEventStarted(ctx context.Context, eventID string, timeStart time.Time) error
+	// PublishEventReady — сервер готов, StartEvent открыт для сайд-лидеров.
+	PublishEventReady(ctx context.Context, eventID string, startAvailableAt time.Time) error
+	// PublishSideReady — сайд-лидер нажал StartEvent. По side вторая сторона
+	// понимает, что соперник готов; bothReady говорит, что ждать больше некого.
+	PublishSideReady(ctx context.Context, eventID, userID, side string, readyAt time.Time, bothReady bool) error
 	PublishEventFinished(ctx context.Context, eventID string, winnerSide string, timeFinish time.Time) error
 	PublishRentServer(ctx context.Context, eventID string, playersList []string, timeStart time.Time) error
 	PublishUserJoinedEvent(ctx context.Context, eventID, userID, clanID string, enemy bool, joinTime time.Time) error
@@ -89,6 +114,10 @@ type EventRepository interface {
 	// GetEventByIDForUpdate блокирует строку ивента (SELECT ... FOR UPDATE)
 	// до конца транзакции — имеет смысл только внутри WithTx.
 	GetEventByIDForUpdate(ctx context.Context, eventID string) (domain.Event, error)
+	// GetEventByIDAndServerIDForUpdate ищет ивент по паре (event_id,
+	// server_id) — проверка сообщения vps.deployed. Пустой результат значит,
+	// что такой пары нет. Блокирует строку, как и GetEventByIDForUpdate.
+	GetEventByIDAndServerIDForUpdate(ctx context.Context, eventID, serverID string) (domain.Event, error)
 	UpdateTimeEvent(ctx context.Context, eventID string, newTimeStart time.Time) error
 	UpdateTimeFinishEvent(ctx context.Context, eventID string, newTimeFinish time.Time) error
 	// UpdateEventStatus переводит ивент в один из следующих статусов жизненного
@@ -114,9 +143,18 @@ type EventRepository interface {
 	GetUserIDsByEventID(ctx context.Context, eventID string) ([]string, error)
 	// IncrementEventGameCount возвращает game_count после инкремента.
 	IncrementEventGameCount(ctx context.Context, eventID string) (int64, error)
+	// SetServerData сохраняет id и пароль купленного сервера (vps.purchased).
+	SetServerData(ctx context.Context, eventID, serverID, serverPassword string) error
+	// SetServerDeployedAt запоминает момент получения vps.deployed.
+	// Отказывает, если момент уже записан: повторная доставка сообщения не
+	// должна сдвигать открытие StartEvent.
+	SetServerDeployedAt(ctx context.Context, eventID string, deployedAt time.Time) error
+	// MarkSideReady отмечает нажатие StartEvent одной стороной. Отказывает,
+	// если эта сторона уже нажимала.
+	MarkSideReady(ctx context.Context, eventID string, enemySide bool, readyAt time.Time) error
 	// MarkRentServerSent помечает, что сигнал об аренде сервера уже ушёл:
 	// после рестарта сервиса таймер аренды отрабатывает заново, и без флага
-	// rent.server публиковался бы повторно.
+	// server.rent публиковался бы повторно.
 	MarkRentServerSent(ctx context.Context, eventID string) error
 	// FinishEventDB переводит ивент в статус "finished" и одновременно пишет
 	// time_finish и итоговый winner_side — атомарно, одним UPDATE'ом, а не

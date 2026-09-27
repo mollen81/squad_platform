@@ -36,8 +36,21 @@ type Event struct {
 	WinnerSide      string `protobuf:"bytes,9,opt,name=winner_side,json=winnerSide,proto3" json:"winner_side,omitempty"`
 	TargetGameCount int64  `protobuf:"varint,12,opt,name=target_game_count,json=targetGameCount,proto3" json:"target_game_count,omitempty"`
 	GameCount       int64  `protobuf:"varint,13,opt,name=game_count,json=gameCount,proto3" json:"game_count,omitempty"`
-	// pending | confirmed | in_progress | finished | declined | canceled
-	Status        string `protobuf:"bytes,14,opt,name=status,proto3" json:"status,omitempty"`
+	// pending | confirmed | purchased | deployed | ready | in_progress |
+	// finished | declined | canceled
+	//
+	//	purchased — сервер куплен, доступен GetServerData
+	//	deployed  — сервер развёрнут, идёт отсчёт 15 минут
+	//	ready     — можно звать StartEvent
+	Status string `protobuf:"bytes,14,opt,name=status,proto3" json:"status,omitempty"`
+	// Когда пришло vps.deployed (по часам сервиса — в сообщении времени нет).
+	// Пусто, пока сервер не доложил о себе.
+	ServerDeployedAt *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=server_deployed_at,json=serverDeployedAt,proto3" json:"server_deployed_at,omitempty"`
+	// С этого момента доступен StartEvent (server_deployed_at + 15 минут).
+	StartAvailableAt *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=start_available_at,json=startAvailableAt,proto3" json:"start_available_at,omitempty"`
+	// Нажал ли StartEvent сайд-лидер соответствующей стороны.
+	AllyReady     bool `protobuf:"varint,17,opt,name=ally_ready,json=allyReady,proto3" json:"ally_ready,omitempty"`
+	EnemyReady    bool `protobuf:"varint,18,opt,name=enemy_ready,json=enemyReady,proto3" json:"enemy_ready,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -154,6 +167,34 @@ func (x *Event) GetStatus() string {
 		return x.Status
 	}
 	return ""
+}
+
+func (x *Event) GetServerDeployedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ServerDeployedAt
+	}
+	return nil
+}
+
+func (x *Event) GetStartAvailableAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartAvailableAt
+	}
+	return nil
+}
+
+func (x *Event) GetAllyReady() bool {
+	if x != nil {
+		return x.AllyReady
+	}
+	return false
+}
+
+func (x *Event) GetEnemyReady() bool {
+	if x != nil {
+		return x.EnemyReady
+	}
+	return false
 }
 
 type User struct {
@@ -514,6 +555,200 @@ func (x *TeamMember) GetSixClanMembers() bool {
 	return false
 }
 
+type StartEventRequest struct {
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	EventId string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	// Сайд-лидер, который подтверждает готовность своей стороны.
+	UserId        string `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartEventRequest) Reset() {
+	*x = StartEventRequest{}
+	mi := &file_event_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartEventRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartEventRequest) ProtoMessage() {}
+
+func (x *StartEventRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_event_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartEventRequest.ProtoReflect.Descriptor instead.
+func (*StartEventRequest) Descriptor() ([]byte, []int) {
+	return file_event_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *StartEventRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *StartEventRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+type StartEventResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StartEventResponse) Reset() {
+	*x = StartEventResponse{}
+	mi := &file_event_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartEventResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartEventResponse) ProtoMessage() {}
+
+func (x *StartEventResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_event_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartEventResponse.ProtoReflect.Descriptor instead.
+func (*StartEventResponse) Descriptor() ([]byte, []int) {
+	return file_event_proto_rawDescGZIP(), []int{5}
+}
+
+type GetServerDataRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	EventId       string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetServerDataRequest) Reset() {
+	*x = GetServerDataRequest{}
+	mi := &file_event_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetServerDataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetServerDataRequest) ProtoMessage() {}
+
+func (x *GetServerDataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_event_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetServerDataRequest.ProtoReflect.Descriptor instead.
+func (*GetServerDataRequest) Descriptor() ([]byte, []int) {
+	return file_event_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GetServerDataRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *GetServerDataRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+type GetServerDataResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// id сервера из vps-сервиса (uuid) и пароль к нему
+	ServerId       string `protobuf:"bytes,1,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
+	ServerPassword string `protobuf:"bytes,2,opt,name=server_password,json=serverPassword,proto3" json:"server_password,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GetServerDataResponse) Reset() {
+	*x = GetServerDataResponse{}
+	mi := &file_event_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetServerDataResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetServerDataResponse) ProtoMessage() {}
+
+func (x *GetServerDataResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_event_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetServerDataResponse.ProtoReflect.Descriptor instead.
+func (*GetServerDataResponse) Descriptor() ([]byte, []int) {
+	return file_event_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetServerDataResponse) GetServerId() string {
+	if x != nil {
+		return x.ServerId
+	}
+	return ""
+}
+
+func (x *GetServerDataResponse) GetServerPassword() string {
+	if x != nil {
+		return x.ServerPassword
+	}
+	return ""
+}
+
 type GetEventMembersListRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
@@ -523,7 +758,7 @@ type GetEventMembersListRequest struct {
 
 func (x *GetEventMembersListRequest) Reset() {
 	*x = GetEventMembersListRequest{}
-	mi := &file_event_proto_msgTypes[4]
+	mi := &file_event_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -535,7 +770,7 @@ func (x *GetEventMembersListRequest) String() string {
 func (*GetEventMembersListRequest) ProtoMessage() {}
 
 func (x *GetEventMembersListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[4]
+	mi := &file_event_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -548,7 +783,7 @@ func (x *GetEventMembersListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventMembersListRequest.ProtoReflect.Descriptor instead.
 func (*GetEventMembersListRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{4}
+	return file_event_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetEventMembersListRequest) GetEventId() string {
@@ -567,7 +802,7 @@ type GetEventMembersListResponse struct {
 
 func (x *GetEventMembersListResponse) Reset() {
 	*x = GetEventMembersListResponse{}
-	mi := &file_event_proto_msgTypes[5]
+	mi := &file_event_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -579,7 +814,7 @@ func (x *GetEventMembersListResponse) String() string {
 func (*GetEventMembersListResponse) ProtoMessage() {}
 
 func (x *GetEventMembersListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[5]
+	mi := &file_event_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -592,7 +827,7 @@ func (x *GetEventMembersListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventMembersListResponse.ProtoReflect.Descriptor instead.
 func (*GetEventMembersListResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{5}
+	return file_event_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetEventMembersListResponse) GetUsers() []*User {
@@ -618,7 +853,7 @@ type CreateEventRequest struct {
 
 func (x *CreateEventRequest) Reset() {
 	*x = CreateEventRequest{}
-	mi := &file_event_proto_msgTypes[6]
+	mi := &file_event_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -630,7 +865,7 @@ func (x *CreateEventRequest) String() string {
 func (*CreateEventRequest) ProtoMessage() {}
 
 func (x *CreateEventRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[6]
+	mi := &file_event_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -643,7 +878,7 @@ func (x *CreateEventRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateEventRequest.ProtoReflect.Descriptor instead.
 func (*CreateEventRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{6}
+	return file_event_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CreateEventRequest) GetUserCreatorId() string {
@@ -703,7 +938,7 @@ type CreateEventResponse struct {
 
 func (x *CreateEventResponse) Reset() {
 	*x = CreateEventResponse{}
-	mi := &file_event_proto_msgTypes[7]
+	mi := &file_event_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -715,7 +950,7 @@ func (x *CreateEventResponse) String() string {
 func (*CreateEventResponse) ProtoMessage() {}
 
 func (x *CreateEventResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[7]
+	mi := &file_event_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -728,7 +963,7 @@ func (x *CreateEventResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateEventResponse.ProtoReflect.Descriptor instead.
 func (*CreateEventResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{7}
+	return file_event_proto_rawDescGZIP(), []int{11}
 }
 
 type GetEventsByCreatorIdRequest struct {
@@ -740,7 +975,7 @@ type GetEventsByCreatorIdRequest struct {
 
 func (x *GetEventsByCreatorIdRequest) Reset() {
 	*x = GetEventsByCreatorIdRequest{}
-	mi := &file_event_proto_msgTypes[8]
+	mi := &file_event_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -752,7 +987,7 @@ func (x *GetEventsByCreatorIdRequest) String() string {
 func (*GetEventsByCreatorIdRequest) ProtoMessage() {}
 
 func (x *GetEventsByCreatorIdRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[8]
+	mi := &file_event_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -765,7 +1000,7 @@ func (x *GetEventsByCreatorIdRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventsByCreatorIdRequest.ProtoReflect.Descriptor instead.
 func (*GetEventsByCreatorIdRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{8}
+	return file_event_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetEventsByCreatorIdRequest) GetUserCreateId() string {
@@ -784,7 +1019,7 @@ type GetEventsByCreatorIdResponse struct {
 
 func (x *GetEventsByCreatorIdResponse) Reset() {
 	*x = GetEventsByCreatorIdResponse{}
-	mi := &file_event_proto_msgTypes[9]
+	mi := &file_event_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -796,7 +1031,7 @@ func (x *GetEventsByCreatorIdResponse) String() string {
 func (*GetEventsByCreatorIdResponse) ProtoMessage() {}
 
 func (x *GetEventsByCreatorIdResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[9]
+	mi := &file_event_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -809,7 +1044,7 @@ func (x *GetEventsByCreatorIdResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventsByCreatorIdResponse.ProtoReflect.Descriptor instead.
 func (*GetEventsByCreatorIdResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{9}
+	return file_event_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetEventsByCreatorIdResponse) GetEvents() []*Event {
@@ -828,7 +1063,7 @@ type GetLastEventByCreatorIdRequest struct {
 
 func (x *GetLastEventByCreatorIdRequest) Reset() {
 	*x = GetLastEventByCreatorIdRequest{}
-	mi := &file_event_proto_msgTypes[10]
+	mi := &file_event_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -840,7 +1075,7 @@ func (x *GetLastEventByCreatorIdRequest) String() string {
 func (*GetLastEventByCreatorIdRequest) ProtoMessage() {}
 
 func (x *GetLastEventByCreatorIdRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[10]
+	mi := &file_event_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -853,7 +1088,7 @@ func (x *GetLastEventByCreatorIdRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLastEventByCreatorIdRequest.ProtoReflect.Descriptor instead.
 func (*GetLastEventByCreatorIdRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{10}
+	return file_event_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *GetLastEventByCreatorIdRequest) GetUserCreateId() string {
@@ -872,7 +1107,7 @@ type GetLastEventByCreatorIdResponse struct {
 
 func (x *GetLastEventByCreatorIdResponse) Reset() {
 	*x = GetLastEventByCreatorIdResponse{}
-	mi := &file_event_proto_msgTypes[11]
+	mi := &file_event_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -884,7 +1119,7 @@ func (x *GetLastEventByCreatorIdResponse) String() string {
 func (*GetLastEventByCreatorIdResponse) ProtoMessage() {}
 
 func (x *GetLastEventByCreatorIdResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[11]
+	mi := &file_event_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -897,7 +1132,7 @@ func (x *GetLastEventByCreatorIdResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetLastEventByCreatorIdResponse.ProtoReflect.Descriptor instead.
 func (*GetLastEventByCreatorIdResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{11}
+	return file_event_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetLastEventByCreatorIdResponse) GetEvent() *Event {
@@ -916,7 +1151,7 @@ type GetEventsByEventNameRequest struct {
 
 func (x *GetEventsByEventNameRequest) Reset() {
 	*x = GetEventsByEventNameRequest{}
-	mi := &file_event_proto_msgTypes[12]
+	mi := &file_event_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -928,7 +1163,7 @@ func (x *GetEventsByEventNameRequest) String() string {
 func (*GetEventsByEventNameRequest) ProtoMessage() {}
 
 func (x *GetEventsByEventNameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[12]
+	mi := &file_event_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -941,7 +1176,7 @@ func (x *GetEventsByEventNameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventsByEventNameRequest.ProtoReflect.Descriptor instead.
 func (*GetEventsByEventNameRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{12}
+	return file_event_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetEventsByEventNameRequest) GetEventName() string {
@@ -960,7 +1195,7 @@ type GetEventsByEventNameResponse struct {
 
 func (x *GetEventsByEventNameResponse) Reset() {
 	*x = GetEventsByEventNameResponse{}
-	mi := &file_event_proto_msgTypes[13]
+	mi := &file_event_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -972,7 +1207,7 @@ func (x *GetEventsByEventNameResponse) String() string {
 func (*GetEventsByEventNameResponse) ProtoMessage() {}
 
 func (x *GetEventsByEventNameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[13]
+	mi := &file_event_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -985,7 +1220,7 @@ func (x *GetEventsByEventNameResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetEventsByEventNameResponse.ProtoReflect.Descriptor instead.
 func (*GetEventsByEventNameResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{13}
+	return file_event_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetEventsByEventNameResponse) GetEvents() []*Event {
@@ -1006,7 +1241,7 @@ type UpdateTimeEventRequest struct {
 
 func (x *UpdateTimeEventRequest) Reset() {
 	*x = UpdateTimeEventRequest{}
-	mi := &file_event_proto_msgTypes[14]
+	mi := &file_event_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1018,7 +1253,7 @@ func (x *UpdateTimeEventRequest) String() string {
 func (*UpdateTimeEventRequest) ProtoMessage() {}
 
 func (x *UpdateTimeEventRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[14]
+	mi := &file_event_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1031,7 +1266,7 @@ func (x *UpdateTimeEventRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTimeEventRequest.ProtoReflect.Descriptor instead.
 func (*UpdateTimeEventRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{14}
+	return file_event_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *UpdateTimeEventRequest) GetEventId() string {
@@ -1063,7 +1298,7 @@ type UpdateTimeEventResponse struct {
 
 func (x *UpdateTimeEventResponse) Reset() {
 	*x = UpdateTimeEventResponse{}
-	mi := &file_event_proto_msgTypes[15]
+	mi := &file_event_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1075,7 +1310,7 @@ func (x *UpdateTimeEventResponse) String() string {
 func (*UpdateTimeEventResponse) ProtoMessage() {}
 
 func (x *UpdateTimeEventResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[15]
+	mi := &file_event_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1088,7 +1323,7 @@ func (x *UpdateTimeEventResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTimeEventResponse.ProtoReflect.Descriptor instead.
 func (*UpdateTimeEventResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{15}
+	return file_event_proto_rawDescGZIP(), []int{19}
 }
 
 // CancelEvent — ручная отмена ивента создателем (пока он ещё pending или
@@ -1105,7 +1340,7 @@ type CancelEventRequest struct {
 
 func (x *CancelEventRequest) Reset() {
 	*x = CancelEventRequest{}
-	mi := &file_event_proto_msgTypes[16]
+	mi := &file_event_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1117,7 +1352,7 @@ func (x *CancelEventRequest) String() string {
 func (*CancelEventRequest) ProtoMessage() {}
 
 func (x *CancelEventRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[16]
+	mi := &file_event_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1130,7 +1365,7 @@ func (x *CancelEventRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelEventRequest.ProtoReflect.Descriptor instead.
 func (*CancelEventRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{16}
+	return file_event_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CancelEventRequest) GetEventId() string {
@@ -1155,7 +1390,7 @@ type CancelEventResponse struct {
 
 func (x *CancelEventResponse) Reset() {
 	*x = CancelEventResponse{}
-	mi := &file_event_proto_msgTypes[17]
+	mi := &file_event_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1167,7 +1402,7 @@ func (x *CancelEventResponse) String() string {
 func (*CancelEventResponse) ProtoMessage() {}
 
 func (x *CancelEventResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[17]
+	mi := &file_event_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1180,7 +1415,7 @@ func (x *CancelEventResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CancelEventResponse.ProtoReflect.Descriptor instead.
 func (*CancelEventResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{17}
+	return file_event_proto_rawDescGZIP(), []int{21}
 }
 
 type JoinToEventRequest struct {
@@ -1195,7 +1430,7 @@ type JoinToEventRequest struct {
 
 func (x *JoinToEventRequest) Reset() {
 	*x = JoinToEventRequest{}
-	mi := &file_event_proto_msgTypes[18]
+	mi := &file_event_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1207,7 +1442,7 @@ func (x *JoinToEventRequest) String() string {
 func (*JoinToEventRequest) ProtoMessage() {}
 
 func (x *JoinToEventRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[18]
+	mi := &file_event_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1220,7 +1455,7 @@ func (x *JoinToEventRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JoinToEventRequest.ProtoReflect.Descriptor instead.
 func (*JoinToEventRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{18}
+	return file_event_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *JoinToEventRequest) GetEventId() string {
@@ -1259,7 +1494,7 @@ type JoinToEventResponse struct {
 
 func (x *JoinToEventResponse) Reset() {
 	*x = JoinToEventResponse{}
-	mi := &file_event_proto_msgTypes[19]
+	mi := &file_event_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1271,7 +1506,7 @@ func (x *JoinToEventResponse) String() string {
 func (*JoinToEventResponse) ProtoMessage() {}
 
 func (x *JoinToEventResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[19]
+	mi := &file_event_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1284,7 +1519,7 @@ func (x *JoinToEventResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JoinToEventResponse.ProtoReflect.Descriptor instead.
 func (*JoinToEventResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{19}
+	return file_event_proto_rawDescGZIP(), []int{23}
 }
 
 type LeaveEventRequest struct {
@@ -1297,7 +1532,7 @@ type LeaveEventRequest struct {
 
 func (x *LeaveEventRequest) Reset() {
 	*x = LeaveEventRequest{}
-	mi := &file_event_proto_msgTypes[20]
+	mi := &file_event_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1309,7 +1544,7 @@ func (x *LeaveEventRequest) String() string {
 func (*LeaveEventRequest) ProtoMessage() {}
 
 func (x *LeaveEventRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[20]
+	mi := &file_event_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1322,7 +1557,7 @@ func (x *LeaveEventRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeaveEventRequest.ProtoReflect.Descriptor instead.
 func (*LeaveEventRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{20}
+	return file_event_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *LeaveEventRequest) GetUserId() string {
@@ -1347,7 +1582,7 @@ type LeaveEventResponse struct {
 
 func (x *LeaveEventResponse) Reset() {
 	*x = LeaveEventResponse{}
-	mi := &file_event_proto_msgTypes[21]
+	mi := &file_event_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1359,7 +1594,7 @@ func (x *LeaveEventResponse) String() string {
 func (*LeaveEventResponse) ProtoMessage() {}
 
 func (x *LeaveEventResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[21]
+	mi := &file_event_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1372,7 +1607,7 @@ func (x *LeaveEventResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeaveEventResponse.ProtoReflect.Descriptor instead.
 func (*LeaveEventResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{21}
+	return file_event_proto_rawDescGZIP(), []int{25}
 }
 
 // SetRole назначает роль внутри одной команды (одной игры), поэтому
@@ -1392,7 +1627,7 @@ type SetRoleRequest struct {
 
 func (x *SetRoleRequest) Reset() {
 	*x = SetRoleRequest{}
-	mi := &file_event_proto_msgTypes[22]
+	mi := &file_event_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1404,7 +1639,7 @@ func (x *SetRoleRequest) String() string {
 func (*SetRoleRequest) ProtoMessage() {}
 
 func (x *SetRoleRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[22]
+	mi := &file_event_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1417,7 +1652,7 @@ func (x *SetRoleRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetRoleRequest.ProtoReflect.Descriptor instead.
 func (*SetRoleRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{22}
+	return file_event_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *SetRoleRequest) GetSideLeaderId() string {
@@ -1456,7 +1691,7 @@ type SetRoleResponse struct {
 
 func (x *SetRoleResponse) Reset() {
 	*x = SetRoleResponse{}
-	mi := &file_event_proto_msgTypes[23]
+	mi := &file_event_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1468,7 +1703,7 @@ func (x *SetRoleResponse) String() string {
 func (*SetRoleResponse) ProtoMessage() {}
 
 func (x *SetRoleResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[23]
+	mi := &file_event_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1481,7 +1716,7 @@ func (x *SetRoleResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetRoleResponse.ProtoReflect.Descriptor instead.
 func (*SetRoleResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{23}
+	return file_event_proto_rawDescGZIP(), []int{27}
 }
 
 type GetTeamsByEventIDRequest struct {
@@ -1493,7 +1728,7 @@ type GetTeamsByEventIDRequest struct {
 
 func (x *GetTeamsByEventIDRequest) Reset() {
 	*x = GetTeamsByEventIDRequest{}
-	mi := &file_event_proto_msgTypes[24]
+	mi := &file_event_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1505,7 +1740,7 @@ func (x *GetTeamsByEventIDRequest) String() string {
 func (*GetTeamsByEventIDRequest) ProtoMessage() {}
 
 func (x *GetTeamsByEventIDRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[24]
+	mi := &file_event_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1518,7 +1753,7 @@ func (x *GetTeamsByEventIDRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTeamsByEventIDRequest.ProtoReflect.Descriptor instead.
 func (*GetTeamsByEventIDRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{24}
+	return file_event_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GetTeamsByEventIDRequest) GetEventId() string {
@@ -1537,7 +1772,7 @@ type GetTeamsByEventIDResponse struct {
 
 func (x *GetTeamsByEventIDResponse) Reset() {
 	*x = GetTeamsByEventIDResponse{}
-	mi := &file_event_proto_msgTypes[25]
+	mi := &file_event_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1549,7 +1784,7 @@ func (x *GetTeamsByEventIDResponse) String() string {
 func (*GetTeamsByEventIDResponse) ProtoMessage() {}
 
 func (x *GetTeamsByEventIDResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[25]
+	mi := &file_event_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1562,7 +1797,7 @@ func (x *GetTeamsByEventIDResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTeamsByEventIDResponse.ProtoReflect.Descriptor instead.
 func (*GetTeamsByEventIDResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{25}
+	return file_event_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetTeamsByEventIDResponse) GetTeams() []*Team {
@@ -1584,7 +1819,7 @@ type StartTeamGameRequest struct {
 
 func (x *StartTeamGameRequest) Reset() {
 	*x = StartTeamGameRequest{}
-	mi := &file_event_proto_msgTypes[26]
+	mi := &file_event_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1596,7 +1831,7 @@ func (x *StartTeamGameRequest) String() string {
 func (*StartTeamGameRequest) ProtoMessage() {}
 
 func (x *StartTeamGameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[26]
+	mi := &file_event_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1609,7 +1844,7 @@ func (x *StartTeamGameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartTeamGameRequest.ProtoReflect.Descriptor instead.
 func (*StartTeamGameRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{26}
+	return file_event_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *StartTeamGameRequest) GetTeam1Id() string {
@@ -1634,7 +1869,7 @@ type StartTeamGameResponse struct {
 
 func (x *StartTeamGameResponse) Reset() {
 	*x = StartTeamGameResponse{}
-	mi := &file_event_proto_msgTypes[27]
+	mi := &file_event_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1646,7 +1881,7 @@ func (x *StartTeamGameResponse) String() string {
 func (*StartTeamGameResponse) ProtoMessage() {}
 
 func (x *StartTeamGameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[27]
+	mi := &file_event_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1659,7 +1894,7 @@ func (x *StartTeamGameResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartTeamGameResponse.ProtoReflect.Descriptor instead.
 func (*StartTeamGameResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{27}
+	return file_event_proto_rawDescGZIP(), []int{31}
 }
 
 // Закрывает ровно одну игру (game_number) внутри ивента — обе её команды
@@ -1680,7 +1915,7 @@ type FinishTeamGameRequest struct {
 
 func (x *FinishTeamGameRequest) Reset() {
 	*x = FinishTeamGameRequest{}
-	mi := &file_event_proto_msgTypes[28]
+	mi := &file_event_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1692,7 +1927,7 @@ func (x *FinishTeamGameRequest) String() string {
 func (*FinishTeamGameRequest) ProtoMessage() {}
 
 func (x *FinishTeamGameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[28]
+	mi := &file_event_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1705,7 +1940,7 @@ func (x *FinishTeamGameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FinishTeamGameRequest.ProtoReflect.Descriptor instead.
 func (*FinishTeamGameRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{28}
+	return file_event_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *FinishTeamGameRequest) GetTeam1Id() string {
@@ -1737,7 +1972,7 @@ type FinishTeamGameResponse struct {
 
 func (x *FinishTeamGameResponse) Reset() {
 	*x = FinishTeamGameResponse{}
-	mi := &file_event_proto_msgTypes[29]
+	mi := &file_event_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1749,7 +1984,7 @@ func (x *FinishTeamGameResponse) String() string {
 func (*FinishTeamGameResponse) ProtoMessage() {}
 
 func (x *FinishTeamGameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[29]
+	mi := &file_event_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1762,7 +1997,7 @@ func (x *FinishTeamGameResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FinishTeamGameResponse.ProtoReflect.Descriptor instead.
 func (*FinishTeamGameResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{29}
+	return file_event_proto_rawDescGZIP(), []int{33}
 }
 
 // Вызывается один раз на игрока, ПОСЛЕ того как FinishTeamGame уже закрыл
@@ -1784,7 +2019,7 @@ type AddTeamMemberStatsRequest struct {
 
 func (x *AddTeamMemberStatsRequest) Reset() {
 	*x = AddTeamMemberStatsRequest{}
-	mi := &file_event_proto_msgTypes[30]
+	mi := &file_event_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1796,7 +2031,7 @@ func (x *AddTeamMemberStatsRequest) String() string {
 func (*AddTeamMemberStatsRequest) ProtoMessage() {}
 
 func (x *AddTeamMemberStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[30]
+	mi := &file_event_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1809,7 +2044,7 @@ func (x *AddTeamMemberStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddTeamMemberStatsRequest.ProtoReflect.Descriptor instead.
 func (*AddTeamMemberStatsRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{30}
+	return file_event_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *AddTeamMemberStatsRequest) GetTeamId() string {
@@ -1869,7 +2104,7 @@ type AddTeamMemberStatsResponse struct {
 
 func (x *AddTeamMemberStatsResponse) Reset() {
 	*x = AddTeamMemberStatsResponse{}
-	mi := &file_event_proto_msgTypes[31]
+	mi := &file_event_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1881,7 +2116,7 @@ func (x *AddTeamMemberStatsResponse) String() string {
 func (*AddTeamMemberStatsResponse) ProtoMessage() {}
 
 func (x *AddTeamMemberStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[31]
+	mi := &file_event_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1894,7 +2129,7 @@ func (x *AddTeamMemberStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddTeamMemberStatsResponse.ProtoReflect.Descriptor instead.
 func (*AddTeamMemberStatsResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{31}
+	return file_event_proto_rawDescGZIP(), []int{35}
 }
 
 type GetTeamStatsRequest struct {
@@ -1906,7 +2141,7 @@ type GetTeamStatsRequest struct {
 
 func (x *GetTeamStatsRequest) Reset() {
 	*x = GetTeamStatsRequest{}
-	mi := &file_event_proto_msgTypes[32]
+	mi := &file_event_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1918,7 +2153,7 @@ func (x *GetTeamStatsRequest) String() string {
 func (*GetTeamStatsRequest) ProtoMessage() {}
 
 func (x *GetTeamStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[32]
+	mi := &file_event_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1931,7 +2166,7 @@ func (x *GetTeamStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTeamStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetTeamStatsRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{32}
+	return file_event_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *GetTeamStatsRequest) GetTeamId() string {
@@ -1957,7 +2192,7 @@ type GetTeamStatsResponse struct {
 
 func (x *GetTeamStatsResponse) Reset() {
 	*x = GetTeamStatsResponse{}
-	mi := &file_event_proto_msgTypes[33]
+	mi := &file_event_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1969,7 +2204,7 @@ func (x *GetTeamStatsResponse) String() string {
 func (*GetTeamStatsResponse) ProtoMessage() {}
 
 func (x *GetTeamStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[33]
+	mi := &file_event_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1982,7 +2217,7 @@ func (x *GetTeamStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTeamStatsResponse.ProtoReflect.Descriptor instead.
 func (*GetTeamStatsResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{33}
+	return file_event_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *GetTeamStatsResponse) GetStats() []*TeamMember {
@@ -2036,7 +2271,7 @@ type GetTeamByIDRequest struct {
 
 func (x *GetTeamByIDRequest) Reset() {
 	*x = GetTeamByIDRequest{}
-	mi := &file_event_proto_msgTypes[34]
+	mi := &file_event_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2048,7 +2283,7 @@ func (x *GetTeamByIDRequest) String() string {
 func (*GetTeamByIDRequest) ProtoMessage() {}
 
 func (x *GetTeamByIDRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[34]
+	mi := &file_event_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2061,7 +2296,7 @@ func (x *GetTeamByIDRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTeamByIDRequest.ProtoReflect.Descriptor instead.
 func (*GetTeamByIDRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{34}
+	return file_event_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *GetTeamByIDRequest) GetTeamId() string {
@@ -2080,7 +2315,7 @@ type GetTeamByIDResponse struct {
 
 func (x *GetTeamByIDResponse) Reset() {
 	*x = GetTeamByIDResponse{}
-	mi := &file_event_proto_msgTypes[35]
+	mi := &file_event_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2092,7 +2327,7 @@ func (x *GetTeamByIDResponse) String() string {
 func (*GetTeamByIDResponse) ProtoMessage() {}
 
 func (x *GetTeamByIDResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[35]
+	mi := &file_event_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2105,7 +2340,7 @@ func (x *GetTeamByIDResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTeamByIDResponse.ProtoReflect.Descriptor instead.
 func (*GetTeamByIDResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{35}
+	return file_event_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *GetTeamByIDResponse) GetTeam() *Team {
@@ -2126,7 +2361,7 @@ type JoinUserToTeamRequest struct {
 
 func (x *JoinUserToTeamRequest) Reset() {
 	*x = JoinUserToTeamRequest{}
-	mi := &file_event_proto_msgTypes[36]
+	mi := &file_event_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2138,7 +2373,7 @@ func (x *JoinUserToTeamRequest) String() string {
 func (*JoinUserToTeamRequest) ProtoMessage() {}
 
 func (x *JoinUserToTeamRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[36]
+	mi := &file_event_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2151,7 +2386,7 @@ func (x *JoinUserToTeamRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JoinUserToTeamRequest.ProtoReflect.Descriptor instead.
 func (*JoinUserToTeamRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{36}
+	return file_event_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *JoinUserToTeamRequest) GetTeamId() string {
@@ -2183,7 +2418,7 @@ type JoinUserToTeamResponse struct {
 
 func (x *JoinUserToTeamResponse) Reset() {
 	*x = JoinUserToTeamResponse{}
-	mi := &file_event_proto_msgTypes[37]
+	mi := &file_event_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2195,7 +2430,7 @@ func (x *JoinUserToTeamResponse) String() string {
 func (*JoinUserToTeamResponse) ProtoMessage() {}
 
 func (x *JoinUserToTeamResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[37]
+	mi := &file_event_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2208,7 +2443,7 @@ func (x *JoinUserToTeamResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JoinUserToTeamResponse.ProtoReflect.Descriptor instead.
 func (*JoinUserToTeamResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{37}
+	return file_event_proto_rawDescGZIP(), []int{41}
 }
 
 type RemoveUserFromTeamRequest struct {
@@ -2221,7 +2456,7 @@ type RemoveUserFromTeamRequest struct {
 
 func (x *RemoveUserFromTeamRequest) Reset() {
 	*x = RemoveUserFromTeamRequest{}
-	mi := &file_event_proto_msgTypes[38]
+	mi := &file_event_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2233,7 +2468,7 @@ func (x *RemoveUserFromTeamRequest) String() string {
 func (*RemoveUserFromTeamRequest) ProtoMessage() {}
 
 func (x *RemoveUserFromTeamRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[38]
+	mi := &file_event_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2246,7 +2481,7 @@ func (x *RemoveUserFromTeamRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveUserFromTeamRequest.ProtoReflect.Descriptor instead.
 func (*RemoveUserFromTeamRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{38}
+	return file_event_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *RemoveUserFromTeamRequest) GetTeamId() string {
@@ -2271,7 +2506,7 @@ type RemoveUserFromTeamResponse struct {
 
 func (x *RemoveUserFromTeamResponse) Reset() {
 	*x = RemoveUserFromTeamResponse{}
-	mi := &file_event_proto_msgTypes[39]
+	mi := &file_event_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2283,7 +2518,7 @@ func (x *RemoveUserFromTeamResponse) String() string {
 func (*RemoveUserFromTeamResponse) ProtoMessage() {}
 
 func (x *RemoveUserFromTeamResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[39]
+	mi := &file_event_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2296,7 +2531,7 @@ func (x *RemoveUserFromTeamResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveUserFromTeamResponse.ProtoReflect.Descriptor instead.
 func (*RemoveUserFromTeamResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{39}
+	return file_event_proto_rawDescGZIP(), []int{43}
 }
 
 type GetUnfinishedEventsByUserIDRequest struct {
@@ -2308,7 +2543,7 @@ type GetUnfinishedEventsByUserIDRequest struct {
 
 func (x *GetUnfinishedEventsByUserIDRequest) Reset() {
 	*x = GetUnfinishedEventsByUserIDRequest{}
-	mi := &file_event_proto_msgTypes[40]
+	mi := &file_event_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2320,7 +2555,7 @@ func (x *GetUnfinishedEventsByUserIDRequest) String() string {
 func (*GetUnfinishedEventsByUserIDRequest) ProtoMessage() {}
 
 func (x *GetUnfinishedEventsByUserIDRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[40]
+	mi := &file_event_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2333,7 +2568,7 @@ func (x *GetUnfinishedEventsByUserIDRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use GetUnfinishedEventsByUserIDRequest.ProtoReflect.Descriptor instead.
 func (*GetUnfinishedEventsByUserIDRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{40}
+	return file_event_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *GetUnfinishedEventsByUserIDRequest) GetUserCreateId() string {
@@ -2352,7 +2587,7 @@ type GetUnfinishedEventsByUserIDResponse struct {
 
 func (x *GetUnfinishedEventsByUserIDResponse) Reset() {
 	*x = GetUnfinishedEventsByUserIDResponse{}
-	mi := &file_event_proto_msgTypes[41]
+	mi := &file_event_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2364,7 +2599,7 @@ func (x *GetUnfinishedEventsByUserIDResponse) String() string {
 func (*GetUnfinishedEventsByUserIDResponse) ProtoMessage() {}
 
 func (x *GetUnfinishedEventsByUserIDResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[41]
+	mi := &file_event_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2377,7 +2612,7 @@ func (x *GetUnfinishedEventsByUserIDResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use GetUnfinishedEventsByUserIDResponse.ProtoReflect.Descriptor instead.
 func (*GetUnfinishedEventsByUserIDResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{41}
+	return file_event_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *GetUnfinishedEventsByUserIDResponse) GetEvents() []*Event {
@@ -2396,7 +2631,7 @@ type GetUnfinishedEventsByEventNameRequest struct {
 
 func (x *GetUnfinishedEventsByEventNameRequest) Reset() {
 	*x = GetUnfinishedEventsByEventNameRequest{}
-	mi := &file_event_proto_msgTypes[42]
+	mi := &file_event_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2408,7 +2643,7 @@ func (x *GetUnfinishedEventsByEventNameRequest) String() string {
 func (*GetUnfinishedEventsByEventNameRequest) ProtoMessage() {}
 
 func (x *GetUnfinishedEventsByEventNameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[42]
+	mi := &file_event_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2421,7 +2656,7 @@ func (x *GetUnfinishedEventsByEventNameRequest) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use GetUnfinishedEventsByEventNameRequest.ProtoReflect.Descriptor instead.
 func (*GetUnfinishedEventsByEventNameRequest) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{42}
+	return file_event_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *GetUnfinishedEventsByEventNameRequest) GetEventName() string {
@@ -2440,7 +2675,7 @@ type GetUnfinishedEventsByEventNameResponse struct {
 
 func (x *GetUnfinishedEventsByEventNameResponse) Reset() {
 	*x = GetUnfinishedEventsByEventNameResponse{}
-	mi := &file_event_proto_msgTypes[43]
+	mi := &file_event_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2452,7 +2687,7 @@ func (x *GetUnfinishedEventsByEventNameResponse) String() string {
 func (*GetUnfinishedEventsByEventNameResponse) ProtoMessage() {}
 
 func (x *GetUnfinishedEventsByEventNameResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_event_proto_msgTypes[43]
+	mi := &file_event_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2465,7 +2700,7 @@ func (x *GetUnfinishedEventsByEventNameResponse) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use GetUnfinishedEventsByEventNameResponse.ProtoReflect.Descriptor instead.
 func (*GetUnfinishedEventsByEventNameResponse) Descriptor() ([]byte, []int) {
-	return file_event_proto_rawDescGZIP(), []int{43}
+	return file_event_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *GetUnfinishedEventsByEventNameResponse) GetEvents() []*Event {
@@ -2479,7 +2714,7 @@ var File_event_proto protoreflect.FileDescriptor
 
 const file_event_proto_rawDesc = "" +
 	"\n" +
-	"\vevent.proto\x12\x05event\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf0\x03\n" +
+	"\vevent.proto\x12\x05event\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc4\x05\n" +
 	"\x05Event\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1d\n" +
 	"\n" +
@@ -2499,7 +2734,13 @@ const file_event_proto_rawDesc = "" +
 	"\x11target_game_count\x18\f \x01(\x03R\x0ftargetGameCount\x12\x1d\n" +
 	"\n" +
 	"game_count\x18\r \x01(\x03R\tgameCount\x12\x16\n" +
-	"\x06status\x18\x0e \x01(\tR\x06status\"\xea\x01\n" +
+	"\x06status\x18\x0e \x01(\tR\x06status\x12H\n" +
+	"\x12server_deployed_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\x10serverDeployedAt\x12H\n" +
+	"\x12start_available_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\x10startAvailableAt\x12\x1d\n" +
+	"\n" +
+	"ally_ready\x18\x11 \x01(\bR\tallyReady\x12\x1f\n" +
+	"\venemy_ready\x18\x12 \x01(\bR\n" +
+	"enemyReady\"\xea\x01\n" +
 	"\x04User\x12\"\n" +
 	"\ruser_event_id\x18\x01 \x01(\tR\vuserEventId\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x19\n" +
@@ -2539,7 +2780,17 @@ const file_event_proto_rawDesc = "" +
 	"\arevival\x18\b \x01(\x03R\arevival\x12-\n" +
 	"\x12destroyed_vehicles\x18\t \x01(\x03R\x11destroyedVehicles\x12(\n" +
 	"\x10six_clan_members\x18\n" +
-	" \x01(\bR\x0esixClanMembers\"7\n" +
+	" \x01(\bR\x0esixClanMembers\"G\n" +
+	"\x11StartEventRequest\x12\x19\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\"\x14\n" +
+	"\x12StartEventResponse\"J\n" +
+	"\x14GetServerDataRequest\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\"]\n" +
+	"\x15GetServerDataResponse\x12\x1b\n" +
+	"\tserver_id\x18\x01 \x01(\tR\bserverId\x12'\n" +
+	"\x0fserver_password\x18\x02 \x01(\tR\x0eserverPassword\"7\n" +
 	"\x1aGetEventMembersListRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\"M\n" +
 	"\x1bGetEventMembersListResponse\x12!\n" +
@@ -2646,7 +2897,7 @@ const file_event_proto_rawDesc = "" +
 	"\n" +
 	"event_name\x18\x01 \x01(\tR\teventName\"[\n" +
 	"&GetUnfinishedEventsByEventNameResponse\x12$\n" +
-	"\x06events\x18\x01 \x03(\v2\f.event.EventR\x06eventsJ\x04\b\x02\x10\x03R\x05error2\xb5\r\n" +
+	"\x06events\x18\x01 \x03(\v2\f.event.EventR\x06eventsJ\x04\b\x02\x10\x03R\x05error2\xc4\x0e\n" +
 	"\fEventService\x12D\n" +
 	"\vCreateEvent\x12\x19.event.CreateEventRequest\x1a\x1a.event.CreateEventResponse\x12_\n" +
 	"\x14GetEventsByCreatorId\x12\".event.GetEventsByCreatorIdRequest\x1a#.event.GetEventsByCreatorIdResponse\x12h\n" +
@@ -2668,7 +2919,10 @@ const file_event_proto_rawDesc = "" +
 	"\fGetTeamStats\x12\x1a.event.GetTeamStatsRequest\x1a\x1b.event.GetTeamStatsResponse\x12D\n" +
 	"\vGetTeamByID\x12\x19.event.GetTeamByIDRequest\x1a\x1a.event.GetTeamByIDResponse\x12M\n" +
 	"\x0eJoinUserToTeam\x12\x1c.event.JoinUserToTeamRequest\x1a\x1d.event.JoinUserToTeamResponse\x12Y\n" +
-	"\x12RemoveUserFromTeam\x12 .event.RemoveUserFromTeamRequest\x1a!.event.RemoveUserFromTeamResponseB#Z!event-service/internal/core/protob\x06proto3"
+	"\x12RemoveUserFromTeam\x12 .event.RemoveUserFromTeamRequest\x1a!.event.RemoveUserFromTeamResponse\x12J\n" +
+	"\rGetServerData\x12\x1b.event.GetServerDataRequest\x1a\x1c.event.GetServerDataResponse\x12A\n" +
+	"\n" +
+	"StartEvent\x12\x18.event.StartEventRequest\x1a\x19.event.StartEventResponseB#Z!event-service/internal/core/protob\x06proto3"
 
 var (
 	file_event_proto_rawDescOnce sync.Once
@@ -2682,117 +2936,127 @@ func file_event_proto_rawDescGZIP() []byte {
 	return file_event_proto_rawDescData
 }
 
-var file_event_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
+var file_event_proto_msgTypes = make([]protoimpl.MessageInfo, 48)
 var file_event_proto_goTypes = []any{
 	(*Event)(nil),                                  // 0: event.Event
 	(*User)(nil),                                   // 1: event.User
 	(*Team)(nil),                                   // 2: event.Team
 	(*TeamMember)(nil),                             // 3: event.TeamMember
-	(*GetEventMembersListRequest)(nil),             // 4: event.GetEventMembersListRequest
-	(*GetEventMembersListResponse)(nil),            // 5: event.GetEventMembersListResponse
-	(*CreateEventRequest)(nil),                     // 6: event.CreateEventRequest
-	(*CreateEventResponse)(nil),                    // 7: event.CreateEventResponse
-	(*GetEventsByCreatorIdRequest)(nil),            // 8: event.GetEventsByCreatorIdRequest
-	(*GetEventsByCreatorIdResponse)(nil),           // 9: event.GetEventsByCreatorIdResponse
-	(*GetLastEventByCreatorIdRequest)(nil),         // 10: event.GetLastEventByCreatorIdRequest
-	(*GetLastEventByCreatorIdResponse)(nil),        // 11: event.GetLastEventByCreatorIdResponse
-	(*GetEventsByEventNameRequest)(nil),            // 12: event.GetEventsByEventNameRequest
-	(*GetEventsByEventNameResponse)(nil),           // 13: event.GetEventsByEventNameResponse
-	(*UpdateTimeEventRequest)(nil),                 // 14: event.UpdateTimeEventRequest
-	(*UpdateTimeEventResponse)(nil),                // 15: event.UpdateTimeEventResponse
-	(*CancelEventRequest)(nil),                     // 16: event.CancelEventRequest
-	(*CancelEventResponse)(nil),                    // 17: event.CancelEventResponse
-	(*JoinToEventRequest)(nil),                     // 18: event.JoinToEventRequest
-	(*JoinToEventResponse)(nil),                    // 19: event.JoinToEventResponse
-	(*LeaveEventRequest)(nil),                      // 20: event.LeaveEventRequest
-	(*LeaveEventResponse)(nil),                     // 21: event.LeaveEventResponse
-	(*SetRoleRequest)(nil),                         // 22: event.SetRoleRequest
-	(*SetRoleResponse)(nil),                        // 23: event.SetRoleResponse
-	(*GetTeamsByEventIDRequest)(nil),               // 24: event.GetTeamsByEventIDRequest
-	(*GetTeamsByEventIDResponse)(nil),              // 25: event.GetTeamsByEventIDResponse
-	(*StartTeamGameRequest)(nil),                   // 26: event.StartTeamGameRequest
-	(*StartTeamGameResponse)(nil),                  // 27: event.StartTeamGameResponse
-	(*FinishTeamGameRequest)(nil),                  // 28: event.FinishTeamGameRequest
-	(*FinishTeamGameResponse)(nil),                 // 29: event.FinishTeamGameResponse
-	(*AddTeamMemberStatsRequest)(nil),              // 30: event.AddTeamMemberStatsRequest
-	(*AddTeamMemberStatsResponse)(nil),             // 31: event.AddTeamMemberStatsResponse
-	(*GetTeamStatsRequest)(nil),                    // 32: event.GetTeamStatsRequest
-	(*GetTeamStatsResponse)(nil),                   // 33: event.GetTeamStatsResponse
-	(*GetTeamByIDRequest)(nil),                     // 34: event.GetTeamByIDRequest
-	(*GetTeamByIDResponse)(nil),                    // 35: event.GetTeamByIDResponse
-	(*JoinUserToTeamRequest)(nil),                  // 36: event.JoinUserToTeamRequest
-	(*JoinUserToTeamResponse)(nil),                 // 37: event.JoinUserToTeamResponse
-	(*RemoveUserFromTeamRequest)(nil),              // 38: event.RemoveUserFromTeamRequest
-	(*RemoveUserFromTeamResponse)(nil),             // 39: event.RemoveUserFromTeamResponse
-	(*GetUnfinishedEventsByUserIDRequest)(nil),     // 40: event.GetUnfinishedEventsByUserIDRequest
-	(*GetUnfinishedEventsByUserIDResponse)(nil),    // 41: event.GetUnfinishedEventsByUserIDResponse
-	(*GetUnfinishedEventsByEventNameRequest)(nil),  // 42: event.GetUnfinishedEventsByEventNameRequest
-	(*GetUnfinishedEventsByEventNameResponse)(nil), // 43: event.GetUnfinishedEventsByEventNameResponse
-	(*timestamppb.Timestamp)(nil),                  // 44: google.protobuf.Timestamp
+	(*StartEventRequest)(nil),                      // 4: event.StartEventRequest
+	(*StartEventResponse)(nil),                     // 5: event.StartEventResponse
+	(*GetServerDataRequest)(nil),                   // 6: event.GetServerDataRequest
+	(*GetServerDataResponse)(nil),                  // 7: event.GetServerDataResponse
+	(*GetEventMembersListRequest)(nil),             // 8: event.GetEventMembersListRequest
+	(*GetEventMembersListResponse)(nil),            // 9: event.GetEventMembersListResponse
+	(*CreateEventRequest)(nil),                     // 10: event.CreateEventRequest
+	(*CreateEventResponse)(nil),                    // 11: event.CreateEventResponse
+	(*GetEventsByCreatorIdRequest)(nil),            // 12: event.GetEventsByCreatorIdRequest
+	(*GetEventsByCreatorIdResponse)(nil),           // 13: event.GetEventsByCreatorIdResponse
+	(*GetLastEventByCreatorIdRequest)(nil),         // 14: event.GetLastEventByCreatorIdRequest
+	(*GetLastEventByCreatorIdResponse)(nil),        // 15: event.GetLastEventByCreatorIdResponse
+	(*GetEventsByEventNameRequest)(nil),            // 16: event.GetEventsByEventNameRequest
+	(*GetEventsByEventNameResponse)(nil),           // 17: event.GetEventsByEventNameResponse
+	(*UpdateTimeEventRequest)(nil),                 // 18: event.UpdateTimeEventRequest
+	(*UpdateTimeEventResponse)(nil),                // 19: event.UpdateTimeEventResponse
+	(*CancelEventRequest)(nil),                     // 20: event.CancelEventRequest
+	(*CancelEventResponse)(nil),                    // 21: event.CancelEventResponse
+	(*JoinToEventRequest)(nil),                     // 22: event.JoinToEventRequest
+	(*JoinToEventResponse)(nil),                    // 23: event.JoinToEventResponse
+	(*LeaveEventRequest)(nil),                      // 24: event.LeaveEventRequest
+	(*LeaveEventResponse)(nil),                     // 25: event.LeaveEventResponse
+	(*SetRoleRequest)(nil),                         // 26: event.SetRoleRequest
+	(*SetRoleResponse)(nil),                        // 27: event.SetRoleResponse
+	(*GetTeamsByEventIDRequest)(nil),               // 28: event.GetTeamsByEventIDRequest
+	(*GetTeamsByEventIDResponse)(nil),              // 29: event.GetTeamsByEventIDResponse
+	(*StartTeamGameRequest)(nil),                   // 30: event.StartTeamGameRequest
+	(*StartTeamGameResponse)(nil),                  // 31: event.StartTeamGameResponse
+	(*FinishTeamGameRequest)(nil),                  // 32: event.FinishTeamGameRequest
+	(*FinishTeamGameResponse)(nil),                 // 33: event.FinishTeamGameResponse
+	(*AddTeamMemberStatsRequest)(nil),              // 34: event.AddTeamMemberStatsRequest
+	(*AddTeamMemberStatsResponse)(nil),             // 35: event.AddTeamMemberStatsResponse
+	(*GetTeamStatsRequest)(nil),                    // 36: event.GetTeamStatsRequest
+	(*GetTeamStatsResponse)(nil),                   // 37: event.GetTeamStatsResponse
+	(*GetTeamByIDRequest)(nil),                     // 38: event.GetTeamByIDRequest
+	(*GetTeamByIDResponse)(nil),                    // 39: event.GetTeamByIDResponse
+	(*JoinUserToTeamRequest)(nil),                  // 40: event.JoinUserToTeamRequest
+	(*JoinUserToTeamResponse)(nil),                 // 41: event.JoinUserToTeamResponse
+	(*RemoveUserFromTeamRequest)(nil),              // 42: event.RemoveUserFromTeamRequest
+	(*RemoveUserFromTeamResponse)(nil),             // 43: event.RemoveUserFromTeamResponse
+	(*GetUnfinishedEventsByUserIDRequest)(nil),     // 44: event.GetUnfinishedEventsByUserIDRequest
+	(*GetUnfinishedEventsByUserIDResponse)(nil),    // 45: event.GetUnfinishedEventsByUserIDResponse
+	(*GetUnfinishedEventsByEventNameRequest)(nil),  // 46: event.GetUnfinishedEventsByEventNameRequest
+	(*GetUnfinishedEventsByEventNameResponse)(nil), // 47: event.GetUnfinishedEventsByEventNameResponse
+	(*timestamppb.Timestamp)(nil),                  // 48: google.protobuf.Timestamp
 }
 var file_event_proto_depIdxs = []int32{
-	44, // 0: event.Event.time_start:type_name -> google.protobuf.Timestamp
-	44, // 1: event.Event.time_finish:type_name -> google.protobuf.Timestamp
-	44, // 2: event.Event.create_time:type_name -> google.protobuf.Timestamp
-	44, // 3: event.User.join_time:type_name -> google.protobuf.Timestamp
-	44, // 4: event.Team.time_start:type_name -> google.protobuf.Timestamp
-	44, // 5: event.Team.time_finish:type_name -> google.protobuf.Timestamp
-	1,  // 6: event.GetEventMembersListResponse.users:type_name -> event.User
-	44, // 7: event.CreateEventRequest.time_start:type_name -> google.protobuf.Timestamp
-	0,  // 8: event.GetEventsByCreatorIdResponse.events:type_name -> event.Event
-	0,  // 9: event.GetLastEventByCreatorIdResponse.event:type_name -> event.Event
-	0,  // 10: event.GetEventsByEventNameResponse.events:type_name -> event.Event
-	44, // 11: event.UpdateTimeEventRequest.new_time_start:type_name -> google.protobuf.Timestamp
-	2,  // 12: event.GetTeamsByEventIDResponse.teams:type_name -> event.Team
-	3,  // 13: event.GetTeamStatsResponse.stats:type_name -> event.TeamMember
-	2,  // 14: event.GetTeamByIDResponse.team:type_name -> event.Team
-	0,  // 15: event.GetUnfinishedEventsByUserIDResponse.events:type_name -> event.Event
-	0,  // 16: event.GetUnfinishedEventsByEventNameResponse.events:type_name -> event.Event
-	6,  // 17: event.EventService.CreateEvent:input_type -> event.CreateEventRequest
-	8,  // 18: event.EventService.GetEventsByCreatorId:input_type -> event.GetEventsByCreatorIdRequest
-	10, // 19: event.EventService.GetLastEventByCreatorId:input_type -> event.GetLastEventByCreatorIdRequest
-	12, // 20: event.EventService.GetEventsByEventName:input_type -> event.GetEventsByEventNameRequest
-	40, // 21: event.EventService.GetUnfinishedEventsByUserID:input_type -> event.GetUnfinishedEventsByUserIDRequest
-	42, // 22: event.EventService.GetUnfinishedEventsByEventName:input_type -> event.GetUnfinishedEventsByEventNameRequest
-	14, // 23: event.EventService.UpdateTimeEvent:input_type -> event.UpdateTimeEventRequest
-	16, // 24: event.EventService.CancelEvent:input_type -> event.CancelEventRequest
-	18, // 25: event.EventService.JoinToEvent:input_type -> event.JoinToEventRequest
-	20, // 26: event.EventService.LeaveEvent:input_type -> event.LeaveEventRequest
-	22, // 27: event.EventService.SetRole:input_type -> event.SetRoleRequest
-	4,  // 28: event.EventService.GetEventMembersList:input_type -> event.GetEventMembersListRequest
-	24, // 29: event.EventService.GetTeamsByEventID:input_type -> event.GetTeamsByEventIDRequest
-	26, // 30: event.EventService.StartTeamGame:input_type -> event.StartTeamGameRequest
-	28, // 31: event.EventService.FinishTeamGame:input_type -> event.FinishTeamGameRequest
-	30, // 32: event.EventService.AddTeamMemberStats:input_type -> event.AddTeamMemberStatsRequest
-	32, // 33: event.EventService.GetTeamStats:input_type -> event.GetTeamStatsRequest
-	34, // 34: event.EventService.GetTeamByID:input_type -> event.GetTeamByIDRequest
-	36, // 35: event.EventService.JoinUserToTeam:input_type -> event.JoinUserToTeamRequest
-	38, // 36: event.EventService.RemoveUserFromTeam:input_type -> event.RemoveUserFromTeamRequest
-	7,  // 37: event.EventService.CreateEvent:output_type -> event.CreateEventResponse
-	9,  // 38: event.EventService.GetEventsByCreatorId:output_type -> event.GetEventsByCreatorIdResponse
-	11, // 39: event.EventService.GetLastEventByCreatorId:output_type -> event.GetLastEventByCreatorIdResponse
-	13, // 40: event.EventService.GetEventsByEventName:output_type -> event.GetEventsByEventNameResponse
-	41, // 41: event.EventService.GetUnfinishedEventsByUserID:output_type -> event.GetUnfinishedEventsByUserIDResponse
-	43, // 42: event.EventService.GetUnfinishedEventsByEventName:output_type -> event.GetUnfinishedEventsByEventNameResponse
-	15, // 43: event.EventService.UpdateTimeEvent:output_type -> event.UpdateTimeEventResponse
-	17, // 44: event.EventService.CancelEvent:output_type -> event.CancelEventResponse
-	19, // 45: event.EventService.JoinToEvent:output_type -> event.JoinToEventResponse
-	21, // 46: event.EventService.LeaveEvent:output_type -> event.LeaveEventResponse
-	23, // 47: event.EventService.SetRole:output_type -> event.SetRoleResponse
-	5,  // 48: event.EventService.GetEventMembersList:output_type -> event.GetEventMembersListResponse
-	25, // 49: event.EventService.GetTeamsByEventID:output_type -> event.GetTeamsByEventIDResponse
-	27, // 50: event.EventService.StartTeamGame:output_type -> event.StartTeamGameResponse
-	29, // 51: event.EventService.FinishTeamGame:output_type -> event.FinishTeamGameResponse
-	31, // 52: event.EventService.AddTeamMemberStats:output_type -> event.AddTeamMemberStatsResponse
-	33, // 53: event.EventService.GetTeamStats:output_type -> event.GetTeamStatsResponse
-	35, // 54: event.EventService.GetTeamByID:output_type -> event.GetTeamByIDResponse
-	37, // 55: event.EventService.JoinUserToTeam:output_type -> event.JoinUserToTeamResponse
-	39, // 56: event.EventService.RemoveUserFromTeam:output_type -> event.RemoveUserFromTeamResponse
-	37, // [37:57] is the sub-list for method output_type
-	17, // [17:37] is the sub-list for method input_type
-	17, // [17:17] is the sub-list for extension type_name
-	17, // [17:17] is the sub-list for extension extendee
-	0,  // [0:17] is the sub-list for field type_name
+	48, // 0: event.Event.time_start:type_name -> google.protobuf.Timestamp
+	48, // 1: event.Event.time_finish:type_name -> google.protobuf.Timestamp
+	48, // 2: event.Event.create_time:type_name -> google.protobuf.Timestamp
+	48, // 3: event.Event.server_deployed_at:type_name -> google.protobuf.Timestamp
+	48, // 4: event.Event.start_available_at:type_name -> google.protobuf.Timestamp
+	48, // 5: event.User.join_time:type_name -> google.protobuf.Timestamp
+	48, // 6: event.Team.time_start:type_name -> google.protobuf.Timestamp
+	48, // 7: event.Team.time_finish:type_name -> google.protobuf.Timestamp
+	1,  // 8: event.GetEventMembersListResponse.users:type_name -> event.User
+	48, // 9: event.CreateEventRequest.time_start:type_name -> google.protobuf.Timestamp
+	0,  // 10: event.GetEventsByCreatorIdResponse.events:type_name -> event.Event
+	0,  // 11: event.GetLastEventByCreatorIdResponse.event:type_name -> event.Event
+	0,  // 12: event.GetEventsByEventNameResponse.events:type_name -> event.Event
+	48, // 13: event.UpdateTimeEventRequest.new_time_start:type_name -> google.protobuf.Timestamp
+	2,  // 14: event.GetTeamsByEventIDResponse.teams:type_name -> event.Team
+	3,  // 15: event.GetTeamStatsResponse.stats:type_name -> event.TeamMember
+	2,  // 16: event.GetTeamByIDResponse.team:type_name -> event.Team
+	0,  // 17: event.GetUnfinishedEventsByUserIDResponse.events:type_name -> event.Event
+	0,  // 18: event.GetUnfinishedEventsByEventNameResponse.events:type_name -> event.Event
+	10, // 19: event.EventService.CreateEvent:input_type -> event.CreateEventRequest
+	12, // 20: event.EventService.GetEventsByCreatorId:input_type -> event.GetEventsByCreatorIdRequest
+	14, // 21: event.EventService.GetLastEventByCreatorId:input_type -> event.GetLastEventByCreatorIdRequest
+	16, // 22: event.EventService.GetEventsByEventName:input_type -> event.GetEventsByEventNameRequest
+	44, // 23: event.EventService.GetUnfinishedEventsByUserID:input_type -> event.GetUnfinishedEventsByUserIDRequest
+	46, // 24: event.EventService.GetUnfinishedEventsByEventName:input_type -> event.GetUnfinishedEventsByEventNameRequest
+	18, // 25: event.EventService.UpdateTimeEvent:input_type -> event.UpdateTimeEventRequest
+	20, // 26: event.EventService.CancelEvent:input_type -> event.CancelEventRequest
+	22, // 27: event.EventService.JoinToEvent:input_type -> event.JoinToEventRequest
+	24, // 28: event.EventService.LeaveEvent:input_type -> event.LeaveEventRequest
+	26, // 29: event.EventService.SetRole:input_type -> event.SetRoleRequest
+	8,  // 30: event.EventService.GetEventMembersList:input_type -> event.GetEventMembersListRequest
+	28, // 31: event.EventService.GetTeamsByEventID:input_type -> event.GetTeamsByEventIDRequest
+	30, // 32: event.EventService.StartTeamGame:input_type -> event.StartTeamGameRequest
+	32, // 33: event.EventService.FinishTeamGame:input_type -> event.FinishTeamGameRequest
+	34, // 34: event.EventService.AddTeamMemberStats:input_type -> event.AddTeamMemberStatsRequest
+	36, // 35: event.EventService.GetTeamStats:input_type -> event.GetTeamStatsRequest
+	38, // 36: event.EventService.GetTeamByID:input_type -> event.GetTeamByIDRequest
+	40, // 37: event.EventService.JoinUserToTeam:input_type -> event.JoinUserToTeamRequest
+	42, // 38: event.EventService.RemoveUserFromTeam:input_type -> event.RemoveUserFromTeamRequest
+	6,  // 39: event.EventService.GetServerData:input_type -> event.GetServerDataRequest
+	4,  // 40: event.EventService.StartEvent:input_type -> event.StartEventRequest
+	11, // 41: event.EventService.CreateEvent:output_type -> event.CreateEventResponse
+	13, // 42: event.EventService.GetEventsByCreatorId:output_type -> event.GetEventsByCreatorIdResponse
+	15, // 43: event.EventService.GetLastEventByCreatorId:output_type -> event.GetLastEventByCreatorIdResponse
+	17, // 44: event.EventService.GetEventsByEventName:output_type -> event.GetEventsByEventNameResponse
+	45, // 45: event.EventService.GetUnfinishedEventsByUserID:output_type -> event.GetUnfinishedEventsByUserIDResponse
+	47, // 46: event.EventService.GetUnfinishedEventsByEventName:output_type -> event.GetUnfinishedEventsByEventNameResponse
+	19, // 47: event.EventService.UpdateTimeEvent:output_type -> event.UpdateTimeEventResponse
+	21, // 48: event.EventService.CancelEvent:output_type -> event.CancelEventResponse
+	23, // 49: event.EventService.JoinToEvent:output_type -> event.JoinToEventResponse
+	25, // 50: event.EventService.LeaveEvent:output_type -> event.LeaveEventResponse
+	27, // 51: event.EventService.SetRole:output_type -> event.SetRoleResponse
+	9,  // 52: event.EventService.GetEventMembersList:output_type -> event.GetEventMembersListResponse
+	29, // 53: event.EventService.GetTeamsByEventID:output_type -> event.GetTeamsByEventIDResponse
+	31, // 54: event.EventService.StartTeamGame:output_type -> event.StartTeamGameResponse
+	33, // 55: event.EventService.FinishTeamGame:output_type -> event.FinishTeamGameResponse
+	35, // 56: event.EventService.AddTeamMemberStats:output_type -> event.AddTeamMemberStatsResponse
+	37, // 57: event.EventService.GetTeamStats:output_type -> event.GetTeamStatsResponse
+	39, // 58: event.EventService.GetTeamByID:output_type -> event.GetTeamByIDResponse
+	41, // 59: event.EventService.JoinUserToTeam:output_type -> event.JoinUserToTeamResponse
+	43, // 60: event.EventService.RemoveUserFromTeam:output_type -> event.RemoveUserFromTeamResponse
+	7,  // 61: event.EventService.GetServerData:output_type -> event.GetServerDataResponse
+	5,  // 62: event.EventService.StartEvent:output_type -> event.StartEventResponse
+	41, // [41:63] is the sub-list for method output_type
+	19, // [19:41] is the sub-list for method input_type
+	19, // [19:19] is the sub-list for extension type_name
+	19, // [19:19] is the sub-list for extension extendee
+	0,  // [0:19] is the sub-list for field type_name
 }
 
 func init() { file_event_proto_init() }
@@ -2806,7 +3070,7 @@ func file_event_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_event_proto_rawDesc), len(file_event_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   44,
+			NumMessages:   48,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -27,6 +27,11 @@ service EventService {
     rpc GetTeamByID(GetTeamByIDRequest) returns (GetTeamByIDResponse);
     rpc JoinUserToTeam(JoinUserToTeamRequest) returns (JoinUserToTeamResponse);
     rpc RemoveUserFromTeam(RemoveUserFromTeamRequest) returns (RemoveUserFromTeamResponse);
+    rpc GetServerData(GetServerDataRequest) returns (GetServerDataResponse);
+    // StartEvent зовут ОБА сайд-лидера, когда сервер готов (статус ивента
+    // ready). Ивент стартует после второго нажатия; если второй лидер молчит
+    // слишком долго, сервис стартует ивент сам.
+    rpc StartEvent(StartEventRequest) returns (StartEventResponse);
 }
 
 message Event {
@@ -42,8 +47,20 @@ message Event {
     string winner_side = 9;
     int64 target_game_count = 12;
     int64 game_count = 13;
-    // pending | confirmed | in_progress | finished | declined | canceled
+    // pending | confirmed | purchased | deployed | ready | in_progress |
+    // finished | declined | canceled
+    //   purchased — сервер куплен, доступен GetServerData
+    //   deployed  — сервер развёрнут, идёт отсчёт 15 минут
+    //   ready     — можно звать StartEvent
     string status = 14;
+    // Когда пришло vps.deployed (по часам сервиса — в сообщении времени нет).
+    // Пусто, пока сервер не доложил о себе.
+    google.protobuf.Timestamp server_deployed_at = 15;
+    // С этого момента доступен StartEvent (server_deployed_at + 15 минут).
+    google.protobuf.Timestamp start_available_at = 16;
+    // Нажал ли StartEvent сайд-лидер соответствующей стороны.
+    bool ally_ready = 17;
+    bool enemy_ready = 18;
 }
 
 message User {
@@ -97,6 +114,25 @@ message TeamMember {
     // проигнорировать (false). Считается по клану внутри команды, не по
     // всему ивенту (см. JoinUserToTeam).
     bool six_clan_members = 10;
+}
+
+message StartEventRequest {
+    string event_id = 1;
+    // Сайд-лидер, который подтверждает готовность своей стороны.
+    string user_id = 2;
+}
+
+message StartEventResponse {}
+
+message GetServerDataRequest {
+    string user_id = 1;
+    string event_id = 2;
+}
+
+message GetServerDataResponse {
+    // id сервера из vps-сервиса (uuid) и пароль к нему
+    string server_id = 1;
+    string server_password = 2;
 }
 
 message GetEventMembersListRequest {

@@ -95,8 +95,8 @@ func TestRentServerPublishesOnlyOnce(t *testing.T) {
 
 	requireNoErr(t, svc.rentServer(context.Background(), ev.id, ev.timeStart))
 
-	if producer.count("rent.server") != 1 {
-		t.Fatalf("сообщений об аренде %d, ожидалось 1", producer.count("rent.server"))
+	if producer.count("server.rent") != 1 {
+		t.Fatalf("сообщений об аренде %d, ожидалось 1", producer.count("server.rent"))
 	}
 	if !repo.events[ev.id].RentServerSent {
 		t.Error("после отправки должен ставиться флаг rent_server_sent")
@@ -105,8 +105,8 @@ func TestRentServerPublishesOnlyOnce(t *testing.T) {
 	// Повторный проход цепочки (например, после рестарта сервиса) второй раз
 	// аренду не заказывает.
 	requireNoErr(t, svc.rentServer(context.Background(), ev.id, ev.timeStart))
-	if producer.count("rent.server") != 1 {
-		t.Errorf("после рестарта аренда ушла повторно: %d сообщений", producer.count("rent.server"))
+	if producer.count("server.rent") != 1 {
+		t.Errorf("после рестарта аренда ушла повторно: %d сообщений", producer.count("server.rent"))
 	}
 }
 
@@ -116,14 +116,14 @@ func TestRentServerSkipsUnconfirmedEvent(t *testing.T) {
 
 	// Ивент ещё pending.
 	requireNoErr(t, svc.rentServer(context.Background(), ev.id, ev.timeStart))
-	if producer.count("rent.server") != 0 {
+	if producer.count("server.rent") != 0 {
 		t.Error("для неподтверждённого ивента аренда не заказывается")
 	}
 
 	requireNoErr(t, svc.CancelEvent(context.Background(), ev.id, ev.creator))
 	requireNoErr(t, svc.rentServer(context.Background(), ev.id, ev.timeStart))
 
-	if producer.count("rent.server") != 0 {
+	if producer.count("server.rent") != 0 {
 		t.Error("для отменённого ивента аренда не заказывается")
 	}
 	if repo.events[ev.id].RentServerSent {
@@ -138,7 +138,7 @@ func TestRentServerKeepsFlagUnsetWhenPublishFails(t *testing.T) {
 	event := repo.events[ev.id]
 	event.Status = domain.EventStatusConfirmed
 	repo.events[ev.id] = event
-	producer.failOn["rent.server"] = errors.New("kafka недоступна")
+	producer.fail("server.rent", errors.New("kafka недоступна"))
 
 	if err := svc.rentServer(context.Background(), ev.id, ev.timeStart); err == nil {
 		t.Fatal("ошибка публикации должна возвращаться")
@@ -151,108 +151,9 @@ func TestRentServerKeepsFlagUnsetWhenPublishFails(t *testing.T) {
 	}
 }
 
-func TestStartEventAndGamesStartsFirstGame(t *testing.T) {
-	svc, repo, producer := newTestService(t)
-	ev := createTestEvent(t, svc, 2)
-
-	event := repo.events[ev.id]
-	event.Status = domain.EventStatusConfirmed
-	repo.events[ev.id] = event
-
-	requireNoErr(t, svc.startEventAndGames(context.Background(), ev.id))
-
-	if got := repo.events[ev.id].Status; got != domain.EventStatusInProgress {
-		t.Errorf("статус ивента %s, ожидался in_progress", got)
-	}
-
-	ally1, enemy1 := ev.teams(t, svc, 1)
-	for _, teamID := range []string{ally1, enemy1} {
-		if got := repo.teams[teamID].Status; got != domain.TeamStatusInProgress {
-			t.Errorf("команда первой игры в статусе %s, ожидался in_progress", got)
-		}
-	}
-
-	ally2, _ := ev.teams(t, svc, 2)
-	if got := repo.teams[ally2].Status; got != domain.TeamStatusPending {
-		t.Errorf("вторая игра не должна стартовать вместе с ивентом, статус %s", got)
-	}
-
-	if producer.count("event.started") != 1 {
-		t.Error("не опубликован старт ивента")
-	}
-	if producer.count("team_game.started") != 2 {
-		t.Errorf("сообщений о старте команд %d, ожидалось 2", producer.count("team_game.started"))
-	}
-}
-
-func TestStartEventAndGamesRequiresConfirmedEvent(t *testing.T) {
-	svc, repo, producer := newTestService(t)
-	ev := createTestEvent(t, svc, 1)
-
-	// Ивент отменили до старта — цепочка таймеров не должна его запустить.
-	requireNoErr(t, svc.CancelEvent(context.Background(), ev.id, ev.creator))
-	before := len(producer.kinds())
-
-	err := svc.startEventAndGames(context.Background(), ev.id)
-	requireKind(t, err, domain.KindFailedPrecondition)
-
-	if got := repo.events[ev.id].Status; got != domain.EventStatusCanceled {
-		t.Errorf("статус %s, ожидался canceled", got)
-	}
-
-	ally, _ := ev.teams(t, svc, 1)
-	if got := repo.teams[ally].Status; got != domain.TeamStatusPending {
-		t.Errorf("у отменённого ивента игра ушла в статус %s", got)
-	}
-	if len(producer.kinds()) != before {
-		t.Errorf("по отменённому ивенту ушли лишние сообщения: %v", producer.kinds()[before:])
-	}
-}
-
-func TestRecoverPendingEventsReschedulesTimers(t *testing.T) {
-	svc, repo, _ := newTestService(t)
-
-	pending := createTestEvent(t, svc, 1)
-	confirmed := createTestEvent(t, svc, 1)
-	running := createTestEvent(t, svc, 1)
-	finished := createTestEvent(t, svc, 1)
-
-	setStatus := func(ev testEvent, status domain.EventStatus) {
-		event := repo.events[ev.id]
-		event.Status = status
-		repo.events[ev.id] = event
-	}
-	setStatus(confirmed, domain.EventStatusConfirmed)
-	setStatus(running, domain.EventStatusInProgress)
-	setStatus(finished, domain.EventStatusFinished)
-
-	// Рестарт процесса: все таймеры в памяти потеряны.
-	for _, ev := range []testEvent{pending, confirmed, running, finished} {
-		svc.cancelEventTimer(ev.id)
-	}
-	if len(svc.eventTimers) != 0 {
-		t.Fatalf("перед восстановлением таймеров быть не должно, есть %d", len(svc.eventTimers))
-	}
-
-	requireNoErr(t, svc.RecoverPendingEvents(context.Background()))
-
-	if _, ok := svc.eventTimers[pending.id]; !ok {
-		t.Error("для pending-ивента не восстановлена проверка минимума игроков")
-	}
-	if _, ok := svc.eventTimers[confirmed.id]; !ok {
-		t.Error("для confirmed-ивента не восстановлены аренда и старт")
-	}
-	if _, ok := svc.eventTimers[running.id]; ok {
-		t.Error("для идущего ивента таймеры не нужны")
-	}
-	if _, ok := svc.eventTimers[finished.id]; ok {
-		t.Error("для завершённого ивента таймеры не нужны")
-	}
-}
-
 func TestRecoverPendingEventsReportsRepositoryFailure(t *testing.T) {
 	svc, repo, _ := newTestService(t)
-	repo.failOn["GetAllUnfinishedEvents"] = errors.New("база недоступна")
+	repo.fail("GetAllUnfinishedEvents", errors.New("база недоступна"))
 
 	if err := svc.RecoverPendingEvents(context.Background()); err == nil {
 		t.Fatal("ошибка чтения незавершённых ивентов должна возвращаться")
@@ -353,240 +254,9 @@ func TestTimerChainDeclinesEventWithoutPlayers(t *testing.T) {
 		return producer.count("event.declined") == 1
 	}, "отказ должен быть опубликован")
 
-	if producer.count("rent.server") != 0 || producer.count("event.started") != 0 {
+	if producer.count("server.rent") != 0 || producer.count("event.started") != 0 {
 		t.Error("у отклонённого ивента не должно быть ни аренды, ни старта")
 	}
-}
-
-// Полный проход цепочки: контроль → аренда сервера → старт ивента и первой игры.
-func TestTimerChainRunsWholeLifecycle(t *testing.T) {
-	svc, repo, producer := newTestService(t)
-	ev := createTestEvent(t, svc, 2)
-
-	setEventFields(repo, ev.id, func(event *domain.Event) {
-		event.UserCount = MinPlayersRequired
-	})
-
-	svc.controlEventTimerDenial(ev.id, time.Now().Add(-time.Hour))
-
-	waitFor(t, func() bool {
-		return eventStatus(repo, ev.id) == domain.EventStatusInProgress
-	}, "ивент должен пройти путь до in_progress")
-
-	waitFor(t, func() bool {
-		return producer.count("event.started") == 1
-	}, "старт ивента должен быть опубликован")
-
-	for _, kind := range []string{"event.confirmed", "rent.server", "event.started"} {
-		if producer.count(kind) != 1 {
-			t.Errorf("сообщений %s: %d, ожидалось 1", kind, producer.count(kind))
-		}
-	}
-
-	repo.mu.Lock()
-	rentSent := repo.events[ev.id].RentServerSent
-	repo.mu.Unlock()
-	if !rentSent {
-		t.Error("после отправки аренды должен стоять флаг rent_server_sent")
-	}
-
-	ally1, enemy1 := ev.teams(t, svc, 1)
-	for _, teamID := range []string{ally1, enemy1} {
-		repo.mu.Lock()
-		status := repo.teams[teamID].Status
-		repo.mu.Unlock()
-
-		if status != domain.TeamStatusInProgress {
-			t.Errorf("команда первой игры в статусе %s, ожидался in_progress", status)
-		}
-	}
-}
-
-// Вторая половина цепочки после рестарта: подтверждение не публикуется заново.
-func TestScheduleRentAndStartResumesConfirmedEvent(t *testing.T) {
-	svc, repo, producer := newTestService(t)
-	ev := createTestEvent(t, svc, 1)
-
-	setEventFields(repo, ev.id, func(event *domain.Event) {
-		event.Status = domain.EventStatusConfirmed
-		event.UserCount = MinPlayersRequired
-	})
-
-	svc.scheduleRentAndStart(ev.id, time.Now().Add(-time.Hour))
-
-	waitFor(t, func() bool {
-		return eventStatus(repo, ev.id) == domain.EventStatusInProgress
-	}, "подтверждённый ивент должен стартовать после восстановления")
-
-	if producer.count("event.confirmed") != 0 {
-		t.Error("для уже подтверждённого ивента подтверждение не публикуется повторно")
-	}
-	if producer.count("rent.server") != 1 {
-		t.Errorf("сообщений об аренде %d, ожидалось 1", producer.count("rent.server"))
-	}
-}
-
-// Отмена ивента гасит всю цепочку: ни аренды, ни старта быть не должно.
-func TestCancelStopsTimerChainBeforeStart(t *testing.T) {
-	svc, repo, producer := newTestService(t)
-	ev := createTestEvent(t, svc, 1)
-
-	setEventFields(repo, ev.id, func(event *domain.Event) {
-		event.Status = domain.EventStatusConfirmed
-		event.UserCount = MinPlayersRequired
-	})
-
-	// Цепочка ждёт момента старта, который наступит нескоро.
-	svc.scheduleRentAndStart(ev.id, time.Now().Add(time.Hour))
-	requireNoErr(t, svc.CancelEvent(context.Background(), ev.id, ev.creator))
-
-	time.Sleep(50 * time.Millisecond)
-
-	if got := eventStatus(repo, ev.id); got != domain.EventStatusCanceled {
-		t.Errorf("статус %s, ожидался canceled", got)
-	}
-	if producer.count("event.started") != 0 {
-		t.Error("отменённый ивент не должен стартовать")
-	}
-
-	ally, _ := ev.teams(t, svc, 1)
-	repo.mu.Lock()
-	status := repo.teams[ally].Status
-	repo.mu.Unlock()
-	if status != domain.TeamStatusPending {
-		t.Errorf("у отменённого ивента игра ушла в статус %s", status)
-	}
-}
-
-// Шаг цепочки, проснувшийся после отмены, не должен ничего делать.
-func TestTimerStepsSkipCanceledChain(t *testing.T) {
-	svc, repo, producer := newTestService(t)
-	ev := createTestEvent(t, svc, 1)
-
-	setEventFields(repo, ev.id, func(event *domain.Event) {
-		event.Status = domain.EventStatusConfirmed
-		event.UserCount = MinPlayersRequired
-	})
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	confirmed, err := svc.checkMinPlayers(ctx, ev.id)
-	requireNoErr(t, err)
-	if confirmed {
-		t.Error("отменённая цепочка не должна подтверждать ивент")
-	}
-
-	requireNoErr(t, svc.rentServer(ctx, ev.id, ev.timeStart))
-	requireNoErr(t, svc.startEventAndGames(ctx, ev.id))
-
-	if got := eventStatus(repo, ev.id); got != domain.EventStatusConfirmed {
-		t.Errorf("статус изменился на %s, хотя цепочка отменена", got)
-	}
-	if len(producer.kinds()) != 3 {
-		t.Errorf("по отменённой цепочке ушли лишние сообщения: %v", producer.kinds())
-	}
-}
-
-func TestRunRentAndStartStopsWhenChainCanceled(t *testing.T) {
-	svc, repo, producer := newTestService(t)
-	ev := createTestEvent(t, svc, 1)
-
-	setEventFields(repo, ev.id, func(event *domain.Event) {
-		event.Status = domain.EventStatusConfirmed
-		event.UserCount = MinPlayersRequired
-	})
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	svc.runRentAndStart(ctx, ev.id, time.Now().Add(-time.Hour))
-
-	if got := eventStatus(repo, ev.id); got != domain.EventStatusConfirmed {
-		t.Errorf("статус %s, ожидался confirmed: отменённая цепочка ничего не делает", got)
-	}
-	if producer.count("rent.server") != 0 || producer.count("event.started") != 0 {
-		t.Errorf("отменённая цепочка опубликовала %v", producer.kinds())
-	}
-}
-
-func TestRunRentAndStartContinuesAfterRentFailure(t *testing.T) {
-	svc, repo, producer := newTestService(t)
-	ev := createTestEvent(t, svc, 1)
-
-	setEventFields(repo, ev.id, func(event *domain.Event) {
-		event.Status = domain.EventStatusConfirmed
-		event.UserCount = MinPlayersRequired
-	})
-	producer.failOn["rent.server"] = errors.New("kafka недоступна")
-
-	// Аренда не ушла, но ивент всё равно должен стартовать.
-	svc.runRentAndStart(context.Background(), ev.id, time.Now().Add(-time.Hour))
-
-	if got := eventStatus(repo, ev.id); got != domain.EventStatusInProgress {
-		t.Errorf("статус %s, ожидался in_progress несмотря на сбой аренды", got)
-	}
-	if producer.count("event.started") != 1 {
-		t.Error("старт ивента должен быть опубликован")
-	}
-}
-
-func TestStartEventAndGamesFailsWithoutTeams(t *testing.T) {
-	svc, repo, _ := newTestService(t)
-	ev := createTestEvent(t, svc, 1)
-
-	setEventFields(repo, ev.id, func(event *domain.Event) {
-		event.Status = domain.EventStatusConfirmed
-	})
-
-	// Команд нет — стартовать нечего, и статус меняться не должен.
-	repo.mu.Lock()
-	for teamID, team := range repo.teams {
-		if team.EventID == ev.id {
-			delete(repo.teams, teamID)
-		}
-	}
-	repo.mu.Unlock()
-
-	if err := svc.startEventAndGames(context.Background(), ev.id); err == nil {
-		t.Fatal("без команд ивент стартовать не может")
-	}
-
-	if got := eventStatus(repo, ev.id); got != domain.EventStatusConfirmed {
-		t.Errorf("статус %s, ожидался confirmed после отката", got)
-	}
-}
-
-func TestRunRentAndStartLogsStartFailure(t *testing.T) {
-	svc, repo, producer := newTestService(t)
-	ev := createTestEvent(t, svc, 1)
-
-	setEventFields(repo, ev.id, func(event *domain.Event) {
-		event.Status = domain.EventStatusConfirmed
-	})
-	repo.failOn["StartTeamGame"] = errDB
-
-	// Сбой старта не должен ронять цепочку — он только логируется.
-	svc.runRentAndStart(context.Background(), ev.id, time.Now().Add(-time.Hour))
-
-	if producer.count("rent.server") != 1 {
-		t.Errorf("аренда должна была уйти до сбоя старта, сообщений %d", producer.count("rent.server"))
-	}
-	if got := eventStatus(repo, ev.id); got != domain.EventStatusConfirmed {
-		t.Errorf("статус %s, ожидался confirmed", got)
-	}
-}
-
-func TestStartEventAndGamesFailsOnStatusUpdate(t *testing.T) {
-	svc, repo, _ := newTestService(t)
-	ev := createTestEvent(t, svc, 1)
-
-	setEventFields(repo, ev.id, func(event *domain.Event) {
-		event.Status = domain.EventStatusConfirmed
-	})
-	repo.failOn["UpdateEventStatus"] = errDB
-
-	requireInternal(t, svc.startEventAndGames(context.Background(), ev.id))
 }
 
 func TestWaitUntilWaitsForFutureMoment(t *testing.T) {
@@ -601,7 +271,77 @@ func TestWaitUntilWaitsForFutureMoment(t *testing.T) {
 	}
 }
 
-func TestRunRentAndStartStopsBetweenRentAndStart(t *testing.T) {
+// ── цепочка: аренда сервера и ожидание его деплоя ───────────────────────────
+
+func TestRunRentAndWaitServerOrdersServerAndWaits(t *testing.T) {
+	svc, repo, producer := newTestService(t)
+	ev := createTestEvent(t, svc, 1)
+
+	setEventFields(repo, ev.id, func(event *domain.Event) {
+		event.Status = domain.EventStatusConfirmed
+		event.UserCount = MinPlayersRequired
+		// Старт по расписанию давно прошёл, сервера так и нет.
+		event.TimeStart = time.Now().Add(-domain.ServerDeployTimeout - time.Hour)
+	})
+
+	svc.runRentAndWaitServer(context.Background(), ev.id, time.Now().Add(-domain.ServerDeployTimeout-time.Hour))
+
+	if producer.count("server.rent") != 1 {
+		t.Errorf("сообщений об аренде %d, ожидалось 1", producer.count("server.rent"))
+	}
+
+	// Сервер не приехал — ивент отменён, а не завис в confirmed.
+	if got := eventStatus(repo, ev.id); got != domain.EventStatusCanceled {
+		t.Errorf("статус %s, ожидался canceled", got)
+	}
+	if producer.count("event.canceled") != 1 {
+		t.Error("не опубликована отмена ивента без сервера")
+	}
+	if producer.count("event.started") != 0 {
+		t.Error("ивент без сервера стартовать не должен")
+	}
+}
+
+func TestRunRentAndWaitServerKeepsEventWhenServerArrived(t *testing.T) {
+	svc, repo, producer := newTestService(t)
+	ev := createTestEvent(t, svc, 1)
+
+	setEventFields(repo, ev.id, func(event *domain.Event) {
+		// Сервер уже доложил о себе (статус deployed) — отменять нечего.
+		event.Status = domain.EventStatusDeployed
+		event.UserCount = MinPlayersRequired
+		event.ServerDeployedAt = time.Now()
+	})
+
+	svc.runRentAndWaitServer(context.Background(), ev.id, time.Now().Add(-domain.ServerDeployTimeout-time.Hour))
+
+	if got := eventStatus(repo, ev.id); got != domain.EventStatusDeployed {
+		t.Errorf("статус %s, ожидался deployed: сервер приехал, отменять нечего", got)
+	}
+	if producer.count("event.canceled") != 0 {
+		t.Error("ивент с сервером отменён по таймауту деплоя")
+	}
+}
+
+func TestRunRentAndWaitServerContinuesAfterRentFailure(t *testing.T) {
+	svc, repo, producer := newTestService(t)
+	ev := createTestEvent(t, svc, 1)
+
+	setEventFields(repo, ev.id, func(event *domain.Event) {
+		event.Status = domain.EventStatusConfirmed
+		event.UserCount = MinPlayersRequired
+	})
+	producer.fail("server.rent", errKafka)
+
+	// Аренда не ушла, но цепочка обязана дойти до таймаута деплоя.
+	svc.runRentAndWaitServer(context.Background(), ev.id, time.Now().Add(-domain.ServerDeployTimeout-time.Hour))
+
+	if got := eventStatus(repo, ev.id); got != domain.EventStatusCanceled {
+		t.Errorf("статус %s, ожидался canceled", got)
+	}
+}
+
+func TestRunRentAndWaitServerStopsWhenChainCanceled(t *testing.T) {
 	svc, repo, producer := newTestService(t)
 	ev := createTestEvent(t, svc, 1)
 
@@ -610,97 +350,248 @@ func TestRunRentAndStartStopsBetweenRentAndStart(t *testing.T) {
 		event.UserCount = MinPlayersRequired
 	})
 
-	// Аренда — почти сразу, старт — нескоро: цепочку отменяем в промежутке.
-	timeStart := time.Now().Add(RentServerTimeBeforeStart + 50*time.Millisecond)
 	ctx, cancel := context.WithCancel(context.Background())
-
-	done := make(chan struct{})
-	go func() {
-		svc.runRentAndStart(ctx, ev.id, timeStart)
-		close(done)
-	}()
-
-	waitFor(t, func() bool { return producer.count("rent.server") == 1 }, "аренда должна уйти")
 	cancel()
 
-	select {
-	case <-done:
-	case <-time.After(3 * time.Second):
-		t.Fatal("цепочка не остановилась после отмены")
+	svc.runRentAndWaitServer(ctx, ev.id, time.Now().Add(-time.Hour))
+
+	if producer.count("server.rent") != 0 {
+		t.Error("отменённая цепочка заказала сервер")
+	}
+	if got := eventStatus(repo, ev.id); got != domain.EventStatusConfirmed {
+		t.Errorf("статус %s, ожидался confirmed", got)
+	}
+}
+
+func TestScheduleRentAndWaitServerResumesConfirmedEvent(t *testing.T) {
+	svc, repo, producer := newTestService(t)
+	ev := createTestEvent(t, svc, 1)
+
+	setEventFields(repo, ev.id, func(event *domain.Event) {
+		event.Status = domain.EventStatusConfirmed
+		event.UserCount = MinPlayersRequired
+	})
+
+	svc.scheduleRentAndWaitServer(ev.id, time.Now().Add(-time.Hour))
+
+	waitFor(t, func() bool { return producer.count("server.rent") == 1 }, "аренда должна уйти после восстановления")
+
+	if producer.count("event.confirmed") != 0 {
+		t.Error("для уже подтверждённого ивента подтверждение не публикуется повторно")
+	}
+}
+
+// ── цепочка: гейт StartEvent и ожидание нажатий ─────────────────────────────
+
+func TestServerGateChainOpensStartEvent(t *testing.T) {
+	svc, repo, producer := newTestService(t)
+	ev := createTestEvent(t, svc, 1)
+
+	setEventFields(repo, ev.id, func(event *domain.Event) {
+		event.Status = domain.EventStatusDeployed
+		event.ServerDeployedAt = time.Now().Add(-domain.ServerReadyDelay - time.Minute)
+	})
+
+	// Гейт уже должен быть открыт, а до автостарта ещё есть время.
+	svc.scheduleServerGate(ev.id, time.Now().Add(-time.Minute))
+
+	waitFor(t, func() bool { return eventStatus(repo, ev.id) == domain.EventStatusReady }, "ивент должен перейти в ready")
+
+	if producer.count("event.ready") != 1 {
+		t.Errorf("сообщений event.ready %d, ожидалось 1", producer.count("event.ready"))
+	}
+}
+
+func TestOpenStartGateSkipsCanceledEvent(t *testing.T) {
+	svc, repo, producer := newTestService(t)
+	ev := createTestEvent(t, svc, 1)
+
+	setEventFields(repo, ev.id, func(event *domain.Event) {
+		event.ServerDeployedAt = time.Now()
+	})
+	requireNoErr(t, svc.CancelEvent(context.Background(), ev.id, ev.creator))
+	// Отменённый ивент гейт не открывает.
+
+	requireNoErr(t, svc.openStartGate(context.Background(), ev.id, ev.timeStart))
+
+	if got := eventStatus(repo, ev.id); got != domain.EventStatusCanceled {
+		t.Errorf("статус %s, ожидался canceled", got)
+	}
+	if producer.count("event.ready") != 0 {
+		t.Error("для отменённого ивента StartEvent открываться не должен")
+	}
+}
+
+func TestResolveStartVoteStartsWithOneSideReady(t *testing.T) {
+	svc, repo, producer := newTestService(t)
+	ev := createTestEvent(t, svc, 2)
+	confirmEvent(t, svc, repo, ev)
+	deployServer(t, svc, repo, ev)
+
+	// Нажал только создатель — второго лидера ждать не будем.
+	requireNoErr(t, svc.StartEvent(context.Background(), ev.id, ev.creator))
+	if got := eventStatus(repo, ev.id); got != domain.EventStatusReady {
+		t.Fatalf("после одного нажатия статус %s, ожидался ready", got)
 	}
 
-	if got := eventStatus(repo, ev.id); got != domain.EventStatusConfirmed {
-		t.Errorf("статус %s: отменённая цепочка не должна стартовать ивент", got)
+	requireNoErr(t, svc.resolveStartVote(context.Background(), ev.id))
+
+	if got := eventStatus(repo, ev.id); got != domain.EventStatusInProgress {
+		t.Errorf("статус %s, ожидался in_progress", got)
+	}
+	if producer.count("event.started") != 1 {
+		t.Error("не опубликован старт ивента")
+	}
+
+	ally1, enemy1 := ev.teams(t, svc, 1)
+	for _, teamID := range []string{ally1, enemy1} {
+		repo.mu.Lock()
+		status := repo.teams[teamID].Status
+		repo.mu.Unlock()
+
+		if status != domain.TeamStatusInProgress {
+			t.Errorf("команда первой игры в статусе %s, ожидался in_progress", status)
+		}
+	}
+}
+
+func TestResolveStartVoteCancelsWhenNobodyReady(t *testing.T) {
+	svc, repo, producer := newTestService(t)
+	ev := createTestEvent(t, svc, 1)
+	confirmEvent(t, svc, repo, ev)
+	deployServer(t, svc, repo, ev)
+
+	requireNoErr(t, svc.resolveStartVote(context.Background(), ev.id))
+
+	if got := eventStatus(repo, ev.id); got != domain.EventStatusCanceled {
+		t.Errorf("статус %s, ожидался canceled: играть некому", got)
+	}
+	if producer.count("event.canceled") != 1 {
+		t.Error("не опубликована отмена ивента")
 	}
 	if producer.count("event.started") != 0 {
-		t.Error("отменённая цепочка опубликовала старт ивента")
+		t.Error("ивент без готовых сторон стартовать не должен")
 	}
 }
 
-func TestTimerStepsFailOnRepositoryErrors(t *testing.T) {
-	t.Run("startEventAndGames: старт первой игры", func(t *testing.T) {
-		svc, repo, _ := newTestService(t)
-		ev := createTestEvent(t, svc, 1)
+func TestResolveStartVoteIgnoresAlreadyStartedEvent(t *testing.T) {
+	svc, repo, producer := newTestService(t)
+	ev := createTestEvent(t, svc, 1)
+	startEvent(t, svc, repo, ev)
 
-		setEventFields(repo, ev.id, func(event *domain.Event) {
-			event.Status = domain.EventStatusConfirmed
-		})
-		repo.failOn["StartTeamGame"] = errDB
+	before := len(producer.kinds())
+	requireNoErr(t, svc.resolveStartVote(context.Background(), ev.id))
 
-		requireInternal(t, svc.startEventAndGames(context.Background(), ev.id))
-
-		// Статус и старт игры меняются одной транзакцией: ивент не должен
-		// остаться in_progress без запущенной игры.
-		if got := eventStatus(repo, ev.id); got != domain.EventStatusConfirmed {
-			t.Errorf("статус ивента %s, ожидался confirmed после отката", got)
-		}
-	})
-
-	t.Run("rentServer: список игроков", func(t *testing.T) {
-		svc, repo, _ := newTestService(t)
-		ev := createTestEvent(t, svc, 1)
-
-		setEventFields(repo, ev.id, func(event *domain.Event) {
-			event.Status = domain.EventStatusConfirmed
-		})
-		repo.failOn["GetUserIDsByEventID"] = errDB
-
-		requireInternal(t, svc.rentServer(context.Background(), ev.id, ev.timeStart))
-	})
+	if got := eventStatus(repo, ev.id); got != domain.EventStatusInProgress {
+		t.Errorf("статус %s, ожидался in_progress", got)
+	}
+	if len(producer.kinds()) != before {
+		t.Errorf("по уже стартовавшему ивенту ушли лишние сообщения: %v", producer.kinds()[before:])
+	}
 }
 
-func TestTimerStepsPublishFailuresAreReported(t *testing.T) {
-	t.Run("startEventAndGames", func(t *testing.T) {
-		svc, repo, producer := newTestService(t)
-		ev := createTestEvent(t, svc, 1)
+func TestStartVoteChainStartsEventOnTimeout(t *testing.T) {
+	svc, repo, producer := newTestService(t)
+	ev := createTestEvent(t, svc, 1)
+	confirmEvent(t, svc, repo, ev)
+	deployServer(t, svc, repo, ev)
+	requireNoErr(t, svc.StartEvent(context.Background(), ev.id, ev.enemy))
 
-		setEventFields(repo, ev.id, func(event *domain.Event) {
-			event.Status = domain.EventStatusConfirmed
-		})
-		producer.failOn["event.started"] = errKafka
+	// Дедлайн голосования уже прошёл — цепочка должна стартовать сама.
+	svc.scheduleStartVote(ev.id, time.Now().Add(-time.Minute))
 
-		if err := svc.startEventAndGames(context.Background(), ev.id); err == nil {
-			t.Error("ошибка публикации должна возвращаться")
-		}
+	waitFor(t, func() bool { return eventStatus(repo, ev.id) == domain.EventStatusInProgress }, "ивент должен стартовать по таймауту")
+
+	if producer.count("event.started") != 1 {
+		t.Errorf("сообщений о старте %d, ожидалось 1", producer.count("event.started"))
+	}
+}
+
+func TestTimerStepsSkipCanceledChain(t *testing.T) {
+	svc, repo, producer := newTestService(t)
+	ev := createTestEvent(t, svc, 1)
+
+	setEventFields(repo, ev.id, func(event *domain.Event) {
+		event.Status = domain.EventStatusConfirmed
+		event.UserCount = MinPlayersRequired
+		event.ServerDeployedAt = time.Now().Add(-domain.ServerReadyDelay - time.Minute)
 	})
 
-	t.Run("checkMinPlayers", func(t *testing.T) {
-		svc, repo, producer := newTestService(t)
-		ev := createTestEvent(t, svc, 1)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
 
-		setEventFields(repo, ev.id, func(event *domain.Event) {
-			event.UserCount = MinPlayersRequired
-		})
-		producer.failOn["event.confirmed"] = errKafka
+	confirmed, err := svc.checkMinPlayers(ctx, ev.id)
+	requireNoErr(t, err)
+	if confirmed {
+		t.Error("отменённая цепочка не должна подтверждать ивент")
+	}
 
-		// Подтверждение уже записано в базу, поэтому цепочка обязана идти
-		// дальше даже при сбое публикации.
-		confirmed, err := svc.checkMinPlayers(context.Background(), ev.id)
-		if err == nil {
-			t.Error("ошибка публикации должна возвращаться")
-		}
-		if !confirmed {
-			t.Error("при сбое публикации цепочка всё равно должна продолжиться: ивент подтверждён")
-		}
+	requireNoErr(t, svc.rentServer(ctx, ev.id, ev.timeStart))
+	requireNoErr(t, svc.openStartGate(ctx, ev.id, ev.timeStart))
+	requireNoErr(t, svc.resolveStartVote(ctx, ev.id))
+	requireNoErr(t, svc.cancelEventWithoutServer(ctx, ev.id))
+
+	if got := eventStatus(repo, ev.id); got != domain.EventStatusConfirmed {
+		t.Errorf("статус изменился на %s, хотя цепочка отменена", got)
+	}
+	if len(producer.kinds()) != 3 {
+		t.Errorf("по отменённой цепочке ушли лишние сообщения: %v", producer.kinds())
+	}
+}
+
+func TestRecoverPendingEventsReschedulesTimers(t *testing.T) {
+	svc, repo, _ := newTestService(t)
+
+	pending := createTestEvent(t, svc, 1)
+	awaitingServer := createTestEvent(t, svc, 1)
+	deployed := createTestEvent(t, svc, 1)
+	ready := createTestEvent(t, svc, 1)
+	running := createTestEvent(t, svc, 1)
+	finished := createTestEvent(t, svc, 1)
+
+	setEventFields(repo, awaitingServer.id, func(event *domain.Event) {
+		event.Status = domain.EventStatusConfirmed
 	})
+	setEventFields(repo, deployed.id, func(event *domain.Event) {
+		event.Status = domain.EventStatusConfirmed
+		event.ServerDeployedAt = time.Now().Add(time.Hour)
+	})
+	setEventFields(repo, ready.id, func(event *domain.Event) {
+		event.Status = domain.EventStatusReady
+		event.ServerDeployedAt = time.Now().Add(time.Hour)
+	})
+	setEventFields(repo, running.id, func(event *domain.Event) {
+		event.Status = domain.EventStatusInProgress
+	})
+	setEventFields(repo, finished.id, func(event *domain.Event) {
+		event.Status = domain.EventStatusFinished
+	})
+
+	// Рестарт процесса: все таймеры в памяти потеряны.
+	for _, ev := range []testEvent{pending, awaitingServer, deployed, ready, running, finished} {
+		svc.cancelEventTimer(ev.id)
+	}
+	if len(svc.eventTimers) != 0 {
+		t.Fatalf("перед восстановлением таймеров быть не должно, есть %d", len(svc.eventTimers))
+	}
+
+	requireNoErr(t, svc.RecoverPendingEvents(context.Background()))
+
+	for _, c := range []struct {
+		name string
+		ev   testEvent
+		want bool
+	}{
+		{"pending — проверка минимума игроков", pending, true},
+		{"confirmed без сервера — аренда и ожидание деплоя", awaitingServer, true},
+		{"confirmed с сервером — ожидание открытия StartEvent", deployed, true},
+		{"ready — ожидание нажатий сайд-лидеров", ready, true},
+		{"in_progress — таймеры не нужны", running, false},
+		{"finished — таймеры не нужны", finished, false},
+	} {
+		_, ok := svc.eventTimers[c.ev.id]
+		if ok != c.want {
+			t.Errorf("%s: цепочка таймеров %v, ожидалось %v", c.name, ok, c.want)
+		}
+	}
 }

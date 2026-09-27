@@ -39,6 +39,8 @@ const (
 	EventService_GetTeamByID_FullMethodName                    = "/event.EventService/GetTeamByID"
 	EventService_JoinUserToTeam_FullMethodName                 = "/event.EventService/JoinUserToTeam"
 	EventService_RemoveUserFromTeam_FullMethodName             = "/event.EventService/RemoveUserFromTeam"
+	EventService_GetServerData_FullMethodName                  = "/event.EventService/GetServerData"
+	EventService_StartEvent_FullMethodName                     = "/event.EventService/StartEvent"
 )
 
 // EventServiceClient is the client API for EventService service.
@@ -65,6 +67,11 @@ type EventServiceClient interface {
 	GetTeamByID(ctx context.Context, in *GetTeamByIDRequest, opts ...grpc.CallOption) (*GetTeamByIDResponse, error)
 	JoinUserToTeam(ctx context.Context, in *JoinUserToTeamRequest, opts ...grpc.CallOption) (*JoinUserToTeamResponse, error)
 	RemoveUserFromTeam(ctx context.Context, in *RemoveUserFromTeamRequest, opts ...grpc.CallOption) (*RemoveUserFromTeamResponse, error)
+	GetServerData(ctx context.Context, in *GetServerDataRequest, opts ...grpc.CallOption) (*GetServerDataResponse, error)
+	// StartEvent зовут ОБА сайд-лидера, когда сервер готов (статус ивента
+	// ready). Ивент стартует после второго нажатия; если второй лидер молчит
+	// слишком долго, сервис стартует ивент сам.
+	StartEvent(ctx context.Context, in *StartEventRequest, opts ...grpc.CallOption) (*StartEventResponse, error)
 }
 
 type eventServiceClient struct {
@@ -275,6 +282,26 @@ func (c *eventServiceClient) RemoveUserFromTeam(ctx context.Context, in *RemoveU
 	return out, nil
 }
 
+func (c *eventServiceClient) GetServerData(ctx context.Context, in *GetServerDataRequest, opts ...grpc.CallOption) (*GetServerDataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetServerDataResponse)
+	err := c.cc.Invoke(ctx, EventService_GetServerData_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *eventServiceClient) StartEvent(ctx context.Context, in *StartEventRequest, opts ...grpc.CallOption) (*StartEventResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StartEventResponse)
+	err := c.cc.Invoke(ctx, EventService_StartEvent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // EventServiceServer is the server API for EventService service.
 // All implementations must embed UnimplementedEventServiceServer
 // for forward compatibility.
@@ -299,6 +326,11 @@ type EventServiceServer interface {
 	GetTeamByID(context.Context, *GetTeamByIDRequest) (*GetTeamByIDResponse, error)
 	JoinUserToTeam(context.Context, *JoinUserToTeamRequest) (*JoinUserToTeamResponse, error)
 	RemoveUserFromTeam(context.Context, *RemoveUserFromTeamRequest) (*RemoveUserFromTeamResponse, error)
+	GetServerData(context.Context, *GetServerDataRequest) (*GetServerDataResponse, error)
+	// StartEvent зовут ОБА сайд-лидера, когда сервер готов (статус ивента
+	// ready). Ивент стартует после второго нажатия; если второй лидер молчит
+	// слишком долго, сервис стартует ивент сам.
+	StartEvent(context.Context, *StartEventRequest) (*StartEventResponse, error)
 	mustEmbedUnimplementedEventServiceServer()
 }
 
@@ -368,6 +400,12 @@ func (UnimplementedEventServiceServer) JoinUserToTeam(context.Context, *JoinUser
 }
 func (UnimplementedEventServiceServer) RemoveUserFromTeam(context.Context, *RemoveUserFromTeamRequest) (*RemoveUserFromTeamResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RemoveUserFromTeam not implemented")
+}
+func (UnimplementedEventServiceServer) GetServerData(context.Context, *GetServerDataRequest) (*GetServerDataResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetServerData not implemented")
+}
+func (UnimplementedEventServiceServer) StartEvent(context.Context, *StartEventRequest) (*StartEventResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method StartEvent not implemented")
 }
 func (UnimplementedEventServiceServer) mustEmbedUnimplementedEventServiceServer() {}
 func (UnimplementedEventServiceServer) testEmbeddedByValue()                      {}
@@ -750,6 +788,42 @@ func _EventService_RemoveUserFromTeam_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _EventService_GetServerData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetServerDataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).GetServerData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_GetServerData_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).GetServerData(ctx, req.(*GetServerDataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EventService_StartEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartEventRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).StartEvent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_StartEvent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).StartEvent(ctx, req.(*StartEventRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // EventService_ServiceDesc is the grpc.ServiceDesc for EventService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -836,6 +910,14 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RemoveUserFromTeam",
 			Handler:    _EventService_RemoveUserFromTeam_Handler,
+		},
+		{
+			MethodName: "GetServerData",
+			Handler:    _EventService_GetServerData_Handler,
+		},
+		{
+			MethodName: "StartEvent",
+			Handler:    _EventService_StartEvent_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
