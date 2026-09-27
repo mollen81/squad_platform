@@ -29,16 +29,17 @@ func NewKafkaHandler(eventService service.EventService) *KafkaHandler {
 
 // vpsMessage — общий вид сообщений vps-сервиса:
 //
-//	{"type":"vps.purchased","event_id":"…","server_id":"…","server_password":"…"}
-//	{"type":"vps.deployed","event_id":"…","server_id":"…"}
+//	{"type":"vps.purchased","event_id":"…","server_ip":"…","server_password":"…"}
+//	{"type":"vps.deployed","event_id":"…","server_ip":"…"}
 //
 // Привязка к ивенту идёт по event_id (vps-сервис получает его из нашего
-// server.rent), server_id в vps.deployed нужен только для сверки. Времени в
+// server.rent), server_ip в vps.deployed нужен только для сверки с купленным.
+// Времени в
 // vps.deployed нет — моментом готовности сервис считает время получения.
 type vpsMessage struct {
 	Type           string `json:"type"`
 	EventID        string `json:"event_id"`
-	ServerID       string `json:"server_id"`
+	ServerIP       string `json:"server_ip"`
 	ServerPassword string `json:"server_password"`
 }
 
@@ -53,10 +54,10 @@ func (h *KafkaHandler) Handle(ctx context.Context, value []byte) error {
 
 	switch message.Type {
 	case messageTypeVPSPurchased:
-		return h.eventService.ServerPurchased(ctx, message.EventID, message.ServerID, message.ServerPassword)
+		return h.eventService.ServerPurchased(ctx, message.EventID, message.ServerIP, message.ServerPassword)
 
 	case messageTypeVPSDeployed:
-		return h.eventService.ServerDeployed(ctx, message.EventID, message.ServerID)
+		return h.eventService.ServerDeployed(ctx, message.EventID, message.ServerIP)
 
 	default:
 		// Чужое сообщение в том же топике — не наша забота.

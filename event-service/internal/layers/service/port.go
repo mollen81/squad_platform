@@ -49,15 +49,15 @@ type EventService interface {
 	// GetServerData отдаёт реквизиты сервера любому участнику ивента: user_id
 	// приходит из API, которое уже проверило токен, поэтому здесь проверяется
 	// только участие в ивенте.
-	GetServerData(ctx context.Context, eventID, userID string) (serverID, serverPassword string, err error)
+	GetServerData(ctx context.Context, eventID, userID string) (serverIP, serverPassword string, err error)
 
 	// ServerPurchased и ServerDeployed вызываются входящим консьюмером на
 	// сообщениях vps.purchased и vps.deployed соответственно (см.
 	// transport/kafka.go): сервер под ивент покупает и разворачивает другой
 	// микросервис. В vps.deployed времени нет — момент готовности сервис
 	// берёт по своим часам.
-	ServerPurchased(ctx context.Context, eventID, serverID, serverPassword string) error
-	ServerDeployed(ctx context.Context, eventID, serverID string) error
+	ServerPurchased(ctx context.Context, eventID, serverIP, serverPassword string) error
+	ServerDeployed(ctx context.Context, eventID, serverIP string) error
 
 	// RecoverPendingEvents переживает рестарт процесса: eventTimers живёт только
 	// в памяти, поэтому при старте нужно заново расставить таймеры контроля/старта
@@ -114,10 +114,10 @@ type EventRepository interface {
 	// GetEventByIDForUpdate блокирует строку ивента (SELECT ... FOR UPDATE)
 	// до конца транзакции — имеет смысл только внутри WithTx.
 	GetEventByIDForUpdate(ctx context.Context, eventID string) (domain.Event, error)
-	// GetEventByIDAndServerIDForUpdate ищет ивент по паре (event_id,
-	// server_id) — проверка сообщения vps.deployed. Пустой результат значит,
+	// GetEventByIDAndServerIPForUpdate ищет ивент по паре (event_id,
+	// server_ip) — проверка сообщения vps.deployed. Пустой результат значит,
 	// что такой пары нет. Блокирует строку, как и GetEventByIDForUpdate.
-	GetEventByIDAndServerIDForUpdate(ctx context.Context, eventID, serverID string) (domain.Event, error)
+	GetEventByIDAndServerIPForUpdate(ctx context.Context, eventID, serverIP string) (domain.Event, error)
 	UpdateTimeEvent(ctx context.Context, eventID string, newTimeStart time.Time) error
 	UpdateTimeFinishEvent(ctx context.Context, eventID string, newTimeFinish time.Time) error
 	// UpdateEventStatus переводит ивент в один из следующих статусов жизненного
@@ -143,8 +143,8 @@ type EventRepository interface {
 	GetUserIDsByEventID(ctx context.Context, eventID string) ([]string, error)
 	// IncrementEventGameCount возвращает game_count после инкремента.
 	IncrementEventGameCount(ctx context.Context, eventID string) (int64, error)
-	// SetServerData сохраняет id и пароль купленного сервера (vps.purchased).
-	SetServerData(ctx context.Context, eventID, serverID, serverPassword string) error
+	// SetServerData сохраняет адрес и пароль купленного сервера (vps.purchased).
+	SetServerData(ctx context.Context, eventID, serverIP, serverPassword string) error
 	// SetServerDeployedAt запоминает момент получения vps.deployed.
 	// Отказывает, если момент уже записан: повторная доставка сообщения не
 	// должна сдвигать открытие StartEvent.

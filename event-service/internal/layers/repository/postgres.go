@@ -160,7 +160,7 @@ func scanEvent(row pgx.Row) (domain.Event, error) {
 	var event domain.Event
 	// Всё, что в БД может быть NULL, читаем через указатель.
 	var timeFinish, serverDeployedAt, allyReadyAt, enemyReadyAt *time.Time
-	var serverID, serverPassword *string
+	var serverIP, serverPassword *string
 
 	err := row.Scan(
 		&event.EventID,
@@ -176,7 +176,7 @@ func scanEvent(row pgx.Row) (domain.Event, error) {
 		&event.GameCount,
 		&event.Status,
 		&event.RentServerSent,
-		&serverID,
+		&serverIP,
 		&serverPassword,
 		&serverDeployedAt,
 		&allyReadyAt,
@@ -189,8 +189,8 @@ func scanEvent(row pgx.Row) (domain.Event, error) {
 	if timeFinish != nil {
 		event.TimeFinish = *timeFinish
 	}
-	if serverID != nil {
-		event.ServerID = *serverID
+	if serverIP != nil {
+		event.ServerIP = *serverIP
 	}
 	if serverPassword != nil {
 		event.ServerPassword = *serverPassword
@@ -230,7 +230,7 @@ func (r *postgresRepository) CreateEvent(ctx context.Context, event domain.Event
 
 func (r *postgresRepository) GetEventsByCreatorId(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_id, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_ip, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
 		FROM events
 		WHERE user_create_id = $1
 	`
@@ -259,7 +259,7 @@ func (r *postgresRepository) GetEventsByCreatorId(ctx context.Context, userCreat
 
 func (r *postgresRepository) GetLastEventByCreatorId(ctx context.Context, userCreateID string) (*domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_id, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_ip, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
 		FROM events
 		WHERE user_create_id = $1
 		ORDER BY create_time DESC
@@ -290,20 +290,20 @@ func (r *postgresRepository) GetEventByIDForUpdate(ctx context.Context, eventID 
 	return r.getEventByID(ctx, eventID, "FOR UPDATE")
 }
 
-// GetEventByIDAndServerIDForUpdate — та самая проверка пары из vps.deployed:
-// есть ли ивент с таким event_id, у которого сохранён именно этот server_id
+// GetEventByIDAndServerIPForUpdate — та самая проверка пары из vps.deployed:
+// есть ли ивент с таким event_id, у которого сохранён именно этот server_ip
 // (его записал vps.purchased). Пустой результат означает, что сообщение
 // применять нельзя. Строка блокируется до конца транзакции, как и в
 // GetEventByIDForUpdate.
-func (r *postgresRepository) GetEventByIDAndServerIDForUpdate(ctx context.Context, eventID, serverID string) (domain.Event, error) {
+func (r *postgresRepository) GetEventByIDAndServerIPForUpdate(ctx context.Context, eventID, serverIP string) (domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_id, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_ip, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
 		FROM events
-		WHERE event_id = $1 AND server_id = $2
+		WHERE event_id = $1 AND server_ip = $2
 		FOR UPDATE
 	`
 
-	event, err := scanEvent(r.db(ctx).QueryRow(ctx, query, eventID, serverID))
+	event, err := scanEvent(r.db(ctx).QueryRow(ctx, query, eventID, serverIP))
 	if err == pgx.ErrNoRows {
 		return domain.Event{}, nil
 	}
@@ -317,7 +317,7 @@ func (r *postgresRepository) GetEventByIDAndServerIDForUpdate(ctx context.Contex
 
 func (r *postgresRepository) getEventByID(ctx context.Context, eventID, lockClause string) (domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_id, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_ip, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
 		FROM events
 		WHERE event_id = $1
 	` + lockClause
@@ -365,7 +365,7 @@ func (r *postgresRepository) GetEventMembersList(ctx context.Context, eventID st
 
 func (r *postgresRepository) GetEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_id, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_ip, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
 		FROM events
 		WHERE name = $1
 	`
@@ -740,7 +740,7 @@ func (r *postgresRepository) GetUserIDsByEventID(ctx context.Context, eventID st
 
 func (r *postgresRepository) GetUnfinishedEventsByUserID(ctx context.Context, userCreateID string) ([]*domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_id, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_ip, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
 		FROM events
 		WHERE user_create_id = $1 AND status IN ('pending', 'confirmed', 'purchased', 'deployed', 'ready', 'in_progress')
 	`
@@ -769,7 +769,7 @@ func (r *postgresRepository) GetUnfinishedEventsByUserID(ctx context.Context, us
 
 func (r *postgresRepository) GetUnfinishedEventsByEventName(ctx context.Context, eventName string) ([]domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_id, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_ip, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
 		FROM events
 		WHERE name = $1 AND status IN ('pending', 'confirmed', 'purchased', 'deployed', 'ready', 'in_progress')
 	`
@@ -803,7 +803,7 @@ func (r *postgresRepository) GetUnfinishedEventsByEventName(ctx context.Context,
 // рестарте (eventTimers — чисто in-memory карта).
 func (r *postgresRepository) GetAllUnfinishedEvents(ctx context.Context) ([]domain.Event, error) {
 	query := `
-		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_id, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
+		SELECT event_id, name, user_create_id, enemy_side_leader_id, user_count, time_start, time_finish, create_time, winner_side, target_game_count, game_count, status, rent_server_sent, server_ip, server_password, server_deployed_at, ally_ready_at, enemy_ready_at
 		FROM events
 		WHERE status IN ('pending', 'confirmed', 'purchased', 'deployed', 'ready', 'in_progress')
 	`
@@ -867,14 +867,14 @@ func (r *postgresRepository) FinishEventDB(ctx context.Context, eventID, winnerS
 
 // SetServerData сохраняет реквизиты купленного сервера (vps.purchased).
 // Повторное сообщение с теми же данными безвредно: они просто перезаписываются.
-func (r *postgresRepository) SetServerData(ctx context.Context, eventID, serverID, serverPassword string) error {
+func (r *postgresRepository) SetServerData(ctx context.Context, eventID, serverIP, serverPassword string) error {
 	query := `
 		UPDATE events
-		SET server_id = $1, server_password = $2
+		SET server_ip = $1, server_password = $2
 		WHERE event_id = $3
 	`
 
-	tag, err := r.db(ctx).Exec(ctx, query, serverID, serverPassword, eventID)
+	tag, err := r.db(ctx).Exec(ctx, query, serverIP, serverPassword, eventID)
 	if err != nil {
 		return err
 	}

@@ -130,8 +130,9 @@ message GetServerDataRequest {
 }
 
 message GetServerDataResponse {
-    // id сервера из vps-сервиса (uuid) и пароль к нему
-    string server_id = 1;
+    // Адрес сервера строкой, как его присылает vps-сервис (IPv4, IPv6 или
+    // адрес с портом), и пароль к нему.
+    string server_ip = 1;
     string server_password = 2;
 }
 

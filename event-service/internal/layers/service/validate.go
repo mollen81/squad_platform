@@ -15,6 +15,8 @@ const (
 	// Потолок для одного показателя статистики за игру — защита от опечаток
 	// и мусора: столько не набивают даже за очень длинную игру
 	maxStatValue = 100000
+	// Максимальная длина адреса сервера: с запасом на IPv6 и порт
+	maxServerIPLength = 64
 )
 
 // Проверки запроса живут в сервисном слое, а не полагаются на БД: иначе
@@ -59,6 +61,25 @@ func validateSearchName(name string) error {
 	}
 
 	return nil
+}
+
+// normalizeServerIP — адрес сервера из vps-сервиса. Это просто строка (IPv4,
+// IPv6, возможно с портом), поэтому проверяем только непустоту и разумную
+// длину: разбирать формат здесь — значит рисковать отказом на адресе, который
+// для vps-сервиса валиден. Обрезка по краям нужна, чтобы адрес из
+// vps.purchased и vps.deployed сравнивался одинаково.
+func normalizeServerIP(value string) (string, error) {
+	value = strings.TrimSpace(value)
+
+	if value == "" {
+		return "", domain.InvalidArgument("server_ip is required")
+	}
+
+	if utf8.RuneCountInString(value) > maxServerIPLength {
+		return "", domain.InvalidArgument("server_ip must be at most %d characters", maxServerIPLength)
+	}
+
+	return value, nil
 }
 
 // validateStat — один показатель статистики игрока за игру.

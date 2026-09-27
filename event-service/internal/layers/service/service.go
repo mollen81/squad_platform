@@ -1816,15 +1816,16 @@ func (s *eventService) GetTeamStats(ctx context.Context, teamID string) (domain.
 }
 
 // ServerPurchased — сообщение vps.purchased: сервер под ивент куплен, приехали
-// его id и пароль. Ивент переходит confirmed → purchased, и с этого момента
+// его адрес и пароль. Ивент переходит confirmed → purchased, и с этого момента
 // участники могут забрать реквизиты через GetServerData. Повторная доставка
 // того же сообщения — no-op.
-func (s *eventService) ServerPurchased(ctx context.Context, eventID, serverID, serverPassword string) error {
+func (s *eventService) ServerPurchased(ctx context.Context, eventID, serverIP, serverPassword string) error {
 	if err := validateID("event_id", eventID); err != nil {
 		return err
 	}
 
-	if err := validateID("server_id", serverID); err != nil {
+	serverIP, err := normalizeServerIP(serverIP)
+	if err != nil {
 		return err
 	}
 
@@ -1845,7 +1846,7 @@ func (s *eventService) ServerPurchased(ctx context.Context, eventID, serverID, s
 		}
 
 		// Тот же сервер уже принят — повтор сообщения.
-		if event.ServerID == serverID && event.Status != domain.EventStatusConfirmed {
+		if event.ServerIP == serverIP && event.Status != domain.EventStatusConfirmed {
 			return nil
 		}
 
@@ -1853,7 +1854,7 @@ func (s *eventService) ServerPurchased(ctx context.Context, eventID, serverID, s
 			return domain.FailedPrecondition("cannot accept purchased server: event status is %s (must be confirmed)", event.Status)
 		}
 
-		if err := s.eventRepo.SetServerData(ctx, eventID, serverID, serverPassword); err != nil {
+		if err := s.eventRepo.SetServerData(ctx, eventID, serverIP, serverPassword); err != nil {
 			return err
 		}
 
@@ -1867,12 +1868,13 @@ func (s *eventService) ServerPurchased(ctx context.Context, eventID, serverID, s
 // сайд-лидеры смогут звать StartEvent. Повторная доставка ничего не меняет:
 // момент запоминается один раз, иначе открытие StartEvent съезжало бы при
 // каждом ретрае Kafka.
-func (s *eventService) ServerDeployed(ctx context.Context, eventID, serverID string) error {
+func (s *eventService) ServerDeployed(ctx context.Context, eventID, serverIP string) error {
 	if err := validateID("event_id", eventID); err != nil {
 		return err
 	}
 
-	if err := validateID("server_id", serverID); err != nil {
+	serverIP, err := normalizeServerIP(serverIP)
+	if err != nil {
 		return err
 	}
 
@@ -1887,15 +1889,15 @@ func (s *eventService) ServerDeployed(ctx context.Context, eventID, serverID str
 	err = s.eventRepo.WithTx(ctx, func(ctx context.Context) error {
 		accepted = false
 
-		// Ивент ищем сразу по паре (event_id, server_id): сообщение применимо
+		// Ивент ищем сразу по паре (event_id, server_ip): сообщение применимо
 		// только к тому ивенту, для которого этот сервер и покупался.
-		event, err := s.eventRepo.GetEventByIDAndServerIDForUpdate(ctx, eventID, serverID)
+		event, err := s.eventRepo.GetEventByIDAndServerIPForUpdate(ctx, eventID, serverIP)
 		if err != nil {
 			return err
 		}
 
 		if event.EventID == "" {
-			return s.explainUnknownServer(ctx, eventID, serverID)
+			return s.explainUnknownServer(ctx, eventID, serverIP)
 		}
 
 		// Тот же деплой уже принят — повтор сообщения.
@@ -1932,10 +1934,10 @@ func (s *eventService) ServerDeployed(ctx context.Context, eventID, serverID str
 	return nil
 }
 
-// explainUnknownServer — пары (event_id, server_id) в базе нет. Читаем ивент
+// explainUnknownServer — пары (event_id, server_ip) в базе нет. Читаем ивент
 // отдельно, чтобы в логах и в ответе была понятная причина, а не глухое
 // "не найдено".
-func (s *eventService) explainUnknownServer(ctx context.Context, eventID, serverID string) error {
+func (s *eventService) explainUnknownServer(ctx context.Context, eventID, serverIP string) error {
 	event, err := s.eventRepo.GetEventByID(ctx, eventID)
 	if err != nil {
 		return err
@@ -1944,10 +1946,10 @@ func (s *eventService) explainUnknownServer(ctx context.Context, eventID, server
 	switch {
 	case event.EventID == "":
 		return domain.NotFound("event %q not found", eventID)
-	case event.ServerID == "":
+	case event.ServerIP == "":
 		return domain.FailedPrecondition("cannot accept deployed server: event %q has no purchased server", eventID)
 	default:
-		return domain.NotFound("event %q was given server %q, not %q", eventID, event.ServerID, serverID)
+		return domain.NotFound("event %q was given server %q, not %q", eventID, event.ServerIP, serverIP)
 	}
 }
 
@@ -2047,7 +2049,7 @@ func startNotAllowedError(event domain.Event) error {
 	}
 }
 
-// GetServerData отдаёт реквизиты сервера участнику ивента. user_id приходит из
+// GetServerData отдаёт адрес и пароль сервера участнику ивента. user_id приходит из
 // API, которое уже проверило токен, поэтому здесь остаётся проверить только
 // участие в ивенте: пароль от сервера видят лишь те, кто в нём играет.
 func (s *eventService) GetServerData(ctx context.Context, eventID, userID string) (string, string, error) {
@@ -2059,7 +2061,7 @@ func (s *eventService) GetServerData(ctx context.Context, eventID, userID string
 		return "", "", err
 	}
 
-	var serverID, serverPassword string
+	var serverIP, serverPassword string
 	// Ивент и участие читаем из одного снимка БД.
 	err := s.eventRepo.WithTx(ctx, func(ctx context.Context) error {
 		event, err := s.eventRepo.GetEventByID(ctx, eventID)
@@ -2079,12 +2081,12 @@ func (s *eventService) GetServerData(ctx context.Context, eventID, userID string
 			return domain.FailedPrecondition("server data is not available: event status is %s", event.Status)
 		}
 
-		serverID, serverPassword = event.ServerID, event.ServerPassword
+		serverIP, serverPassword = event.ServerIP, event.ServerPassword
 		return nil
 	})
 	if err != nil {
 		return "", "", err
 	}
 
-	return serverID, serverPassword, nil
+	return serverIP, serverPassword, nil
 }

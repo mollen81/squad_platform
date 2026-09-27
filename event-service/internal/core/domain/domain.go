@@ -92,9 +92,10 @@ type Event struct {
 	// RentServerSent — сигнал об аренде сервера уже отправлен. Хранится в БД,
 	// а не в памяти, чтобы после рестарта сервиса он не ушёл повторно.
 	RentServerSent bool
-	// ServerID/ServerPassword приходят из vps-сервиса сообщением
-	// vps.purchased. Пароль отдаётся только участникам ивента (GetServerData).
-	ServerID       string
+	// ServerIP/ServerPassword приходят из vps-сервиса сообщением
+	// vps.purchased. ServerIP — адрес сервера строкой, как его присылает
+	// vps-сервис. Пароль отдаётся только участникам ивента (GetServerData).
+	ServerIP       string
 	ServerPassword string
 	// ServerDeployedAt — когда пришло vps.deployed. Времени в сообщении нет,
 	// поэтому это момент получения по нашим часам. Пустой, пока сервер не

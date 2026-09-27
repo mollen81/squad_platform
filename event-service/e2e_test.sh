@@ -344,19 +344,20 @@ RESP=$($GRPC -d "{\"event_id\":\"$EVENT_ID\",\"user_id\":\"$CREATOR_ID\"}" $HOST
 expect_err "$RESP" "GetServerData до покупки" FailedPrecondition
 
 step "4.6. vps.purchased — реквизиты сервера приехали"
-SERVER_ID=$(uuid)
+# Адрес сервера — обычная строка, а не uuid.
+SERVER_IP="10.$((RANDOM % 256)).$((RANDOM % 256)).$((RANDOM % 256)):27015"
 SERVER_PASS="pass-$(uuid | cut -c1-8)"
-publish_vps "{\"type\":\"vps.purchased\",\"event_id\":\"$EVENT_ID\",\"server_id\":\"$SERVER_ID\",\"server_password\":\"$SERVER_PASS\"}"
+publish_vps "{\"type\":\"vps.purchased\",\"event_id\":\"$EVENT_ID\",\"server_ip\":\"$SERVER_IP\",\"server_password\":\"$SERVER_PASS\"}"
 
 wait_status purchased 20 && ok "status=purchased ✓" || fail "ожидался purchased"
 
 for _ in $(seq 15); do
   RESP=$($GRPC -d "{\"event_id\":\"$EVENT_ID\",\"user_id\":\"$CREATOR_ID\"}" $HOST event.EventService/GetServerData 2>&1) || true
-  [ "$(echo "$RESP" | jq -r '.serverId' 2>/dev/null)" = "$SERVER_ID" ] && break
+  [ "$(echo "$RESP" | jq -r '.serverIp' 2>/dev/null)" = "$SERVER_IP" ] && break
   sleep 1
 done
-[ "$(echo "$RESP" | jq -r '.serverId' 2>/dev/null)" = "$SERVER_ID" ] \
-  && ok "GetServerData → $SERVER_ID ✓" || fail "реквизиты сервера не доехали: $RESP"
+[ "$(echo "$RESP" | jq -r '.serverIp' 2>/dev/null)" = "$SERVER_IP" ] \
+  && ok "GetServerData → $SERVER_IP ✓" || fail "реквизиты сервера не доехали: $RESP"
 [ "$(echo "$RESP" | jq -r '.serverPassword' 2>/dev/null)" = "$SERVER_PASS" ] \
   && ok "пароль совпадает ✓" || fail "пароль не совпал"
 
@@ -364,17 +365,17 @@ step "4.7. GetServerData не участнику — отказ"
 RESP=$($GRPC -d "{\"event_id\":\"$EVENT_ID\",\"user_id\":\"$(uuid)\"}" $HOST event.EventService/GetServerData 2>&1) || true
 expect_err "$RESP" "GetServerData не участнику" NotFound
 
-step "4.8. vps.deployed с чужим server_id — не применяется"
-publish_vps "{\"type\":\"vps.deployed\",\"event_id\":\"$EVENT_ID\",\"server_id\":\"$(uuid)\"}"
+step "4.8. vps.deployed с чужим server_ip — не применяется"
+publish_vps "{\"type\":\"vps.deployed\",\"event_id\":\"$EVENT_ID\",\"server_ip\":\"192.0.2.99\"}"
 sleep 4
 EV=$($GRPC -d "{\"user_create_id\":\"$CREATOR_ID\"}" $HOST event.EventService/GetLastEventByCreatorId 2>&1) || true
 [ "$(echo "$EV" | jq -r '.event.status')" = "purchased" ] \
-  && ok "чужой server_id проигнорирован, статус остался purchased ✓" || fail "чужой server_id был применён"
+  && ok "чужой server_ip проигнорирован, статус остался purchased ✓" || fail "чужой server_ip был применён"
 RESP=$($GRPC -d "{\"event_id\":\"$EVENT_ID\",\"user_id\":\"$CREATOR_ID\"}" $HOST event.EventService/StartEvent 2>&1) || true
 expect_err "$RESP" "StartEvent до deployed" FailedPrecondition
 
 step "4.9. vps.deployed — сервер готов (ServerReadyDelay отсчитывается от получения)"
-publish_vps "{\"type\":\"vps.deployed\",\"event_id\":\"$EVENT_ID\",\"server_id\":\"$SERVER_ID\"}"
+publish_vps "{\"type\":\"vps.deployed\",\"event_id\":\"$EVENT_ID\",\"server_ip\":\"$SERVER_IP\"}"
 wait_status deployed 20 && ok "status=deployed ✓" || fail "ожидался deployed"
 
 # Скрипт рассчитан на сборку с укороченными константами: в боевой сборке

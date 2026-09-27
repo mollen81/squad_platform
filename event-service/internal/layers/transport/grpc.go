@@ -204,13 +204,13 @@ func (t *GRPCTransport) StartEvent(ctx context.Context, req *pb.StartEventReques
 }
 
 func (t *GRPCTransport) GetServerData(ctx context.Context, req *pb.GetServerDataRequest) (*pb.GetServerDataResponse, error) {
-	serverID, serverPassword, err := t.eventService.GetServerData(ctx, req.GetEventId(), req.GetUserId())
+	serverIP, serverPassword, err := t.eventService.GetServerData(ctx, req.GetEventId(), req.GetUserId())
 	if err != nil {
 		return nil, fail("GetServerData", err)
 	}
 
 	return &pb.GetServerDataResponse{
-		ServerId:       serverID,
+		ServerIp:       serverIP,
 		ServerPassword: serverPassword,
 	}, nil
 }

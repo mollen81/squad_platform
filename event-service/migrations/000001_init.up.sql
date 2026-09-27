@@ -16,8 +16,10 @@ CREATE TABLE IF NOT EXISTS events (
     -- а не в памяти, чтобы после рестарта сервиса он не ушёл повторно
     rent_server_sent        BOOLEAN NOT NULL DEFAULT false,
 
-    -- реквизиты сервера приходят из vps-сервиса сообщением vps.purchased
-    server_id               UUID,
+    -- реквизиты сервера приходят из vps-сервиса сообщением vps.purchased.
+    -- server_ip — строка (IPv4, IPv6 или адрес с портом), а не UUID: формат
+    -- задаёт vps-сервис, и разбирать его здесь незачем
+    server_ip               TEXT,
     server_password         TEXT,
 
     -- когда от vps-сервиса пришло vps.deployed. Времени в самом сообщении нет,

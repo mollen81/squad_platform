@@ -14,9 +14,12 @@ func TestServerPurchased(t *testing.T) {
 		svc, _, _ := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
 
-		requireKind(t, svc.ServerPurchased(context.Background(), "не-uuid", newID(), "pass"), domain.KindInvalidArgument)
-		requireKind(t, svc.ServerPurchased(context.Background(), ev.id, "не-uuid", "pass"), domain.KindInvalidArgument)
-		requireKind(t, svc.ServerPurchased(context.Background(), ev.id, newID(), ""), domain.KindInvalidArgument)
+		requireKind(t, svc.ServerPurchased(context.Background(), "не-uuid", newServerIP(), "pass"), domain.KindInvalidArgument)
+		// Адрес сервера — строка, но пустой или неприлично длинный не принимается.
+		requireKind(t, svc.ServerPurchased(context.Background(), ev.id, "", "pass"), domain.KindInvalidArgument)
+		requireKind(t, svc.ServerPurchased(context.Background(), ev.id, "   ", "pass"), domain.KindInvalidArgument)
+		requireKind(t, svc.ServerPurchased(context.Background(), ev.id, strings.Repeat("9", maxServerIPLength+1), "pass"), domain.KindInvalidArgument)
+		requireKind(t, svc.ServerPurchased(context.Background(), ev.id, newServerIP(), ""), domain.KindInvalidArgument)
 	})
 
 	t.Run("несуществующий ивент", func(t *testing.T) {
@@ -40,17 +43,17 @@ func TestServerPurchased(t *testing.T) {
 		svc, repo, _ := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
 		confirmEvent(t, svc, repo, ev)
-		serverID := newID()
+		serverIP := newServerIP()
 
-		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverID, "secret"))
+		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverIP, "secret"))
 		expectStatus(t, repo, ev.id, domain.EventStatusPurchased)
 
 		repo.mu.Lock()
 		event := repo.events[ev.id]
 		repo.mu.Unlock()
 
-		if event.ServerID != serverID || event.ServerPassword != "secret" {
-			t.Errorf("реквизиты сервера не сохранились: %q / %q", event.ServerID, event.ServerPassword)
+		if event.ServerIP != serverIP || event.ServerPassword != "secret" {
+			t.Errorf("реквизиты сервера не сохранились: %q / %q", event.ServerIP, event.ServerPassword)
 		}
 	})
 
@@ -58,17 +61,17 @@ func TestServerPurchased(t *testing.T) {
 		svc, repo, _ := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
 		confirmEvent(t, svc, repo, ev)
-		serverID := newID()
+		serverIP := newServerIP()
 
-		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverID, "secret"))
-		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverID, "secret"))
+		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverIP, "secret"))
+		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverIP, "secret"))
 
 		repo.mu.Lock()
 		event := repo.events[ev.id]
 		repo.mu.Unlock()
 
-		if event.ServerID != serverID {
-			t.Errorf("id сервера %q", event.ServerID)
+		if event.ServerIP != serverIP {
+			t.Errorf("id сервера %q", event.ServerIP)
 		}
 		expectStatus(t, repo, ev.id, domain.EventStatusPurchased)
 	})
@@ -77,8 +80,8 @@ func TestServerPurchased(t *testing.T) {
 		svc, repo, _ := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
 		confirmEvent(t, svc, repo, ev)
-		serverID := newID()
-		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverID, "secret"))
+		serverIP := newServerIP()
+		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverIP, "secret"))
 
 		requireKind(t, svc.ServerPurchased(context.Background(), ev.id, newID(), "secret"), domain.KindFailedPrecondition)
 
@@ -86,8 +89,8 @@ func TestServerPurchased(t *testing.T) {
 		event := repo.events[ev.id]
 		repo.mu.Unlock()
 
-		if event.ServerID != serverID {
-			t.Errorf("id сервера подменился на %q", event.ServerID)
+		if event.ServerIP != serverIP {
+			t.Errorf("id сервера подменился на %q", event.ServerIP)
 		}
 	})
 }
@@ -97,8 +100,9 @@ func TestServerDeployed(t *testing.T) {
 		svc, _, _ := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
 
-		requireKind(t, svc.ServerDeployed(context.Background(), "не-uuid", newID()), domain.KindInvalidArgument)
-		requireKind(t, svc.ServerDeployed(context.Background(), ev.id, "не-uuid"), domain.KindInvalidArgument)
+		requireKind(t, svc.ServerDeployed(context.Background(), "не-uuid", newServerIP()), domain.KindInvalidArgument)
+		requireKind(t, svc.ServerDeployed(context.Background(), ev.id, ""), domain.KindInvalidArgument)
+		requireKind(t, svc.ServerDeployed(context.Background(), ev.id, strings.Repeat("9", maxServerIPLength+1)), domain.KindInvalidArgument)
 	})
 
 	t.Run("только для купленного сервера", func(t *testing.T) {
@@ -109,19 +113,19 @@ func TestServerDeployed(t *testing.T) {
 		// Сервер ещё не покупался — применять сообщение не к чему.
 		requireKind(t, svc.ServerDeployed(context.Background(), ev.id, newID()), domain.KindFailedPrecondition)
 
-		serverID := newID()
-		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverID, "secret"))
-		requireNoErr(t, svc.ServerDeployed(context.Background(), ev.id, serverID))
+		serverIP := newServerIP()
+		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverIP, "secret"))
+		requireNoErr(t, svc.ServerDeployed(context.Background(), ev.id, serverIP))
 		expectStatus(t, repo, ev.id, domain.EventStatusDeployed)
 	})
 
-	t.Run("чужой server_id отклоняется", func(t *testing.T) {
+	t.Run("чужой server_ip отклоняется", func(t *testing.T) {
 		svc, repo, _ := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
 		confirmEvent(t, svc, repo, ev)
 		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, newID(), "secret"))
 
-		// Пары (event_id, server_id) в базе нет — сообщение не про этот ивент.
+		// Пары (event_id, server_ip) в базе нет — сообщение не про этот ивент.
 		requireKind(t, svc.ServerDeployed(context.Background(), ev.id, newID()), domain.KindNotFound)
 		expectStatus(t, repo, ev.id, domain.EventStatusPurchased)
 	})
@@ -135,11 +139,11 @@ func TestServerDeployed(t *testing.T) {
 		svc, repo, _ := newTestService(t)
 		ev := createTestEvent(t, svc, 1)
 		confirmEvent(t, svc, repo, ev)
-		serverID := newID()
-		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverID, "secret"))
+		serverIP := newServerIP()
+		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverIP, "secret"))
 
 		before := time.Now()
-		requireNoErr(t, svc.ServerDeployed(context.Background(), ev.id, serverID))
+		requireNoErr(t, svc.ServerDeployed(context.Background(), ev.id, serverIP))
 		after := time.Now()
 
 		repo.mu.Lock()
@@ -163,16 +167,16 @@ func TestServerDeployed(t *testing.T) {
 		ev := createTestEvent(t, svc, 1)
 		confirmEvent(t, svc, repo, ev)
 
-		serverID := newID()
-		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverID, "secret"))
-		requireNoErr(t, svc.ServerDeployed(context.Background(), ev.id, serverID))
+		serverIP := newServerIP()
+		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverIP, "secret"))
+		requireNoErr(t, svc.ServerDeployed(context.Background(), ev.id, serverIP))
 
 		repo.mu.Lock()
 		first := repo.events[ev.id].ServerDeployedAt
 		repo.mu.Unlock()
 
 		time.Sleep(5 * time.Millisecond)
-		requireNoErr(t, svc.ServerDeployed(context.Background(), ev.id, serverID))
+		requireNoErr(t, svc.ServerDeployed(context.Background(), ev.id, serverIP))
 
 		repo.mu.Lock()
 		second := repo.events[ev.id].ServerDeployedAt
@@ -217,12 +221,12 @@ func TestStartEvent(t *testing.T) {
 		expectStartError(t, svc, ev, "server is not purchased yet")
 
 		// Куплен, но vps.deployed ещё не приходило.
-		serverID := newID()
-		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverID, "secret"))
+		serverIP := newServerIP()
+		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverIP, "secret"))
 		expectStartError(t, svc, ev, "server is not deployed yet")
 
 		// Задеплоился, но ServerReadyDelay ещё не прошёл: гейт закрыт.
-		requireNoErr(t, svc.ServerDeployed(context.Background(), ev.id, serverID))
+		requireNoErr(t, svc.ServerDeployed(context.Background(), ev.id, serverIP))
 		expectStartError(t, svc, ev, "server is not ready yet")
 	})
 
@@ -391,14 +395,14 @@ func TestGetServerData(t *testing.T) {
 		ev := createTestEvent(t, svc, 1)
 		player := joinPlayer(t, svc, ev.id, newID(), true)
 		confirmEvent(t, svc, repo, ev)
-		serverID := newID()
-		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverID, "secret"))
+		serverIP := newServerIP()
+		requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverIP, "secret"))
 
 		for _, userID := range []string{ev.creator, ev.enemy, player} {
 			gotID, password, err := svc.GetServerData(context.Background(), ev.id, userID)
 			requireNoErr(t, err)
 
-			if gotID != serverID || password != "secret" {
+			if gotID != serverIP || password != "secret" {
 				t.Errorf("участник %s получил %q / %q", userID, gotID, password)
 			}
 		}
@@ -523,11 +527,11 @@ func TestServerDeployedFailsOnRepositoryErrors(t *testing.T) {
 	// неудачном деплое она не должна подмениться цепочкой ожидания StartEvent.
 	before := svc.eventTimers[ev.id]
 
-	serverID := newID()
-	requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverID, "secret"))
+	serverIP := newServerIP()
+	requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverIP, "secret"))
 
 	repo.fail("SetServerDeployedAt", errDB)
-	requireInternal(t, svc.ServerDeployed(context.Background(), ev.id, serverID))
+	requireInternal(t, svc.ServerDeployed(context.Background(), ev.id, serverIP))
 
 	if svc.eventTimers[ev.id] != before {
 		t.Error("при неудачном деплое цепочка таймеров не должна переставляться")
@@ -569,22 +573,22 @@ func TestServerDeployedFailsWhenPairLookupBroken(t *testing.T) {
 	svc, repo, _ := newTestService(t)
 	ev := createTestEvent(t, svc, 1)
 	confirmEvent(t, svc, repo, ev)
-	serverID := newID()
-	requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverID, "secret"))
+	serverIP := newServerIP()
+	requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverIP, "secret"))
 
-	repo.fail("GetEventByIDAndServerIDForUpdate", errDB)
-	requireInternal(t, svc.ServerDeployed(context.Background(), ev.id, serverID))
+	repo.fail("GetEventByIDAndServerIPForUpdate", errDB)
+	requireInternal(t, svc.ServerDeployed(context.Background(), ev.id, serverIP))
 }
 
 func TestServerDeployedFailsWhenStatusUpdateBroken(t *testing.T) {
 	svc, repo, _ := newTestService(t)
 	ev := createTestEvent(t, svc, 1)
 	confirmEvent(t, svc, repo, ev)
-	serverID := newID()
-	requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverID, "secret"))
+	serverIP := newServerIP()
+	requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverIP, "secret"))
 
 	repo.fail("UpdateEventStatus", errDB)
-	requireInternal(t, svc.ServerDeployed(context.Background(), ev.id, serverID))
+	requireInternal(t, svc.ServerDeployed(context.Background(), ev.id, serverIP))
 
 	// Откат: момент готовности не записан, статус не сдвинулся.
 	repo.unfail("UpdateEventStatus")
@@ -612,8 +616,8 @@ func TestServerPurchasedFailsWhenStatusUpdateBroken(t *testing.T) {
 	event := repo.events[ev.id]
 	repo.mu.Unlock()
 
-	if event.ServerID != "" {
-		t.Errorf("реквизиты сервера остались после отката: %q", event.ServerID)
+	if event.ServerIP != "" {
+		t.Errorf("реквизиты сервера остались после отката: %q", event.ServerIP)
 	}
 	expectStatus(t, repo, ev.id, domain.EventStatusConfirmed)
 }
@@ -622,12 +626,12 @@ func TestServerDeployedRejectsAfterCancel(t *testing.T) {
 	svc, repo, _ := newTestService(t)
 	ev := createTestEvent(t, svc, 1)
 	confirmEvent(t, svc, repo, ev)
-	serverID := newID()
-	requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverID, "secret"))
+	serverIP := newServerIP()
+	requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, serverIP, "secret"))
 	requireNoErr(t, svc.CancelEvent(context.Background(), ev.id, ev.creator))
 
 	// Ивент отменён, пока сервер разворачивался.
-	requireKind(t, svc.ServerDeployed(context.Background(), ev.id, serverID), domain.KindFailedPrecondition)
+	requireKind(t, svc.ServerDeployed(context.Background(), ev.id, serverIP), domain.KindFailedPrecondition)
 	expectStatus(t, repo, ev.id, domain.EventStatusCanceled)
 }
 
@@ -650,5 +654,42 @@ func TestCancelEventAllowedUntilStart(t *testing.T) {
 			requireNoErr(t, svc.CancelEvent(context.Background(), ev.id, ev.creator))
 			expectStatus(t, repo, ev.id, domain.EventStatusCanceled)
 		})
+	}
+}
+
+func TestServerPurchasedAcceptsAnyAddressForm(t *testing.T) {
+	for _, address := range []string{"1.2.3.4", "10.0.0.1:27015", "2001:db8::1", "srv-01.example.com"} {
+		t.Run(address, func(t *testing.T) {
+			svc, repo, _ := newTestService(t)
+			ev := createTestEvent(t, svc, 1)
+			confirmEvent(t, svc, repo, ev)
+
+			requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, address, "secret"))
+
+			gotIP, _, err := svc.GetServerData(context.Background(), ev.id, ev.creator)
+			requireNoErr(t, err)
+
+			if gotIP != address {
+				t.Errorf("адрес сервера %q, ожидался %q", gotIP, address)
+			}
+		})
+	}
+}
+
+func TestServerIPTrimmedOnBothMessages(t *testing.T) {
+	svc, repo, _ := newTestService(t)
+	ev := createTestEvent(t, svc, 1)
+	confirmEvent(t, svc, repo, ev)
+
+	// Пробелы по краям не должны мешать сверке пары в vps.deployed.
+	requireNoErr(t, svc.ServerPurchased(context.Background(), ev.id, "  10.1.2.3  ", "secret"))
+	requireNoErr(t, svc.ServerDeployed(context.Background(), ev.id, " 10.1.2.3 "))
+
+	expectStatus(t, repo, ev.id, domain.EventStatusDeployed)
+
+	gotIP, _, err := svc.GetServerData(context.Background(), ev.id, ev.creator)
+	requireNoErr(t, err)
+	if gotIP != "10.1.2.3" {
+		t.Errorf("адрес сервера %q, ожидался обрезанный по краям", gotIP)
 	}
 }

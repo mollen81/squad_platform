@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math/rand/v2"
 	"sort"
 	"sync"
 	"testing"
@@ -150,16 +152,16 @@ func (f *fakeRepo) GetEventByIDForUpdate(ctx context.Context, eventID string) (d
 	return f.events[eventID], nil
 }
 
-func (f *fakeRepo) GetEventByIDAndServerIDForUpdate(ctx context.Context, eventID, serverID string) (domain.Event, error) {
+func (f *fakeRepo) GetEventByIDAndServerIPForUpdate(ctx context.Context, eventID, serverIP string) (domain.Event, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if err := f.check("GetEventByIDAndServerIDForUpdate"); err != nil {
+	if err := f.check("GetEventByIDAndServerIPForUpdate"); err != nil {
 		return domain.Event{}, err
 	}
 
 	event, ok := f.events[eventID]
-	if !ok || event.ServerID != serverID {
+	if !ok || event.ServerIP != serverIP {
 		return domain.Event{}, nil
 	}
 
@@ -403,7 +405,7 @@ func (f *fakeRepo) IncrementEventGameCount(ctx context.Context, eventID string) 
 	return event.GameCount, nil
 }
 
-func (f *fakeRepo) SetServerData(ctx context.Context, eventID, serverID, serverPassword string) error {
+func (f *fakeRepo) SetServerData(ctx context.Context, eventID, serverIP, serverPassword string) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -416,7 +418,7 @@ func (f *fakeRepo) SetServerData(ctx context.Context, eventID, serverID, serverP
 		return domain.NotFound("event %q not found", eventID)
 	}
 
-	event.ServerID, event.ServerPassword = serverID, serverPassword
+	event.ServerIP, event.ServerPassword = serverIP, serverPassword
 	f.events[eventID] = event
 	return nil
 }
@@ -1198,6 +1200,11 @@ func newTestService(t *testing.T) (*eventService, *fakeRepo, *fakeProducer) {
 
 func newID() string { return uuid.New().String() }
 
+// newServerIP — адрес сервера для тестов: vps-сервис присылает строку, а не uuid.
+func newServerIP() string {
+	return fmt.Sprintf("10.%d.%d.%d", rand.IntN(256), rand.IntN(256), rand.IntN(256))
+}
+
 // futureStart — момент старта, проходящий проверку "не раньше чем через 45 минут".
 func futureStart() time.Time { return time.Now().Add(2 * time.Hour) }
 
@@ -1356,9 +1363,9 @@ func deployServer(t *testing.T, svc *eventService, repo *fakeRepo, ev testEvent)
 	t.Helper()
 
 	ctx := context.Background()
-	serverID := newID()
-	requireNoErr(t, svc.ServerPurchased(ctx, ev.id, serverID, "server-secret"))
-	requireNoErr(t, svc.ServerDeployed(ctx, ev.id, serverID))
+	serverIP := newServerIP()
+	requireNoErr(t, svc.ServerPurchased(ctx, ev.id, serverIP, "server-secret"))
+	requireNoErr(t, svc.ServerDeployed(ctx, ev.id, serverIP))
 
 	// Времени в vps.deployed нет: сервис отсчитывает ServerReadyDelay от
 	// момента получения, поэтому для тестов отодвигаем его в прошлое.
@@ -1371,7 +1378,7 @@ func deployServer(t *testing.T, svc *eventService, repo *fakeRepo, ev testEvent)
 	svc.cancelEventTimer(ev.id)
 	requireNoErr(t, svc.openStartGate(ctx, ev.id, ev.timeStart))
 
-	return serverID
+	return serverIP
 }
 
 // playGame доводит одну игру до конца: старт (если ещё не идёт) и финиш с

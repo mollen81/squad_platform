@@ -698,8 +698,9 @@ func (x *GetServerDataRequest) GetEventId() string {
 
 type GetServerDataResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// id сервера из vps-сервиса (uuid) и пароль к нему
-	ServerId       string `protobuf:"bytes,1,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
+	// Адрес сервера строкой, как его присылает vps-сервис (IPv4, IPv6 или
+	// адрес с портом), и пароль к нему.
+	ServerIp       string `protobuf:"bytes,1,opt,name=server_ip,json=serverIp,proto3" json:"server_ip,omitempty"`
 	ServerPassword string `protobuf:"bytes,2,opt,name=server_password,json=serverPassword,proto3" json:"server_password,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
@@ -735,9 +736,9 @@ func (*GetServerDataResponse) Descriptor() ([]byte, []int) {
 	return file_event_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *GetServerDataResponse) GetServerId() string {
+func (x *GetServerDataResponse) GetServerIp() string {
 	if x != nil {
-		return x.ServerId
+		return x.ServerIp
 	}
 	return ""
 }
@@ -2789,7 +2790,7 @@ const file_event_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x19\n" +
 	"\bevent_id\x18\x02 \x01(\tR\aeventId\"]\n" +
 	"\x15GetServerDataResponse\x12\x1b\n" +
-	"\tserver_id\x18\x01 \x01(\tR\bserverId\x12'\n" +
+	"\tserver_ip\x18\x01 \x01(\tR\bserverIp\x12'\n" +
 	"\x0fserver_password\x18\x02 \x01(\tR\x0eserverPassword\"7\n" +
 	"\x1aGetEventMembersListRequest\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\"M\n" +
