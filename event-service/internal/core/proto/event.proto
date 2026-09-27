@@ -1,0 +1,386 @@
+syntax = "proto3";
+
+package event;
+
+option go_package = "event-service/internal/core/proto";
+
+import "google/protobuf/timestamp.proto";
+
+service EventService {
+    rpc CreateEvent(CreateEventRequest) returns (CreateEventResponse);
+    rpc GetEventsByCreatorId(GetEventsByCreatorIdRequest) returns (GetEventsByCreatorIdResponse);
+    rpc GetLastEventByCreatorId(GetLastEventByCreatorIdRequest) returns (GetLastEventByCreatorIdResponse);
+    rpc GetEventsByEventName(GetEventsByEventNameRequest) returns (GetEventsByEventNameResponse);
+    rpc GetUnfinishedEventsByUserID(GetUnfinishedEventsByUserIDRequest) returns (GetUnfinishedEventsByUserIDResponse);
+    rpc GetUnfinishedEventsByEventName(GetUnfinishedEventsByEventNameRequest) returns (GetUnfinishedEventsByEventNameResponse);
+    rpc UpdateTimeEvent(UpdateTimeEventRequest) returns (UpdateTimeEventResponse);
+    rpc CancelEvent(CancelEventRequest) returns (CancelEventResponse);
+    rpc JoinToEvent(JoinToEventRequest) returns (JoinToEventResponse);
+    rpc LeaveEvent(LeaveEventRequest) returns (LeaveEventResponse);
+    rpc SetRole(SetRoleRequest) returns (SetRoleResponse);
+    rpc GetEventMembersList(GetEventMembersListRequest) returns (GetEventMembersListResponse);
+    rpc GetTeamsByEventID(GetTeamsByEventIDRequest) returns (GetTeamsByEventIDResponse);
+    rpc StartTeamGame(StartTeamGameRequest) returns (StartTeamGameResponse);
+    rpc FinishTeamGame(FinishTeamGameRequest) returns (FinishTeamGameResponse);
+    rpc AddTeamMemberStats(AddTeamMemberStatsRequest) returns (AddTeamMemberStatsResponse);
+    rpc GetTeamStats(GetTeamStatsRequest) returns (GetTeamStatsResponse); // выполняет всю функциональность GetTeamMembersList
+    rpc GetTeamByID(GetTeamByIDRequest) returns (GetTeamByIDResponse);
+    rpc JoinUserToTeam(JoinUserToTeamRequest) returns (JoinUserToTeamResponse);
+    rpc RemoveUserFromTeam(RemoveUserFromTeamRequest) returns (RemoveUserFromTeamResponse);
+    rpc GetServerData(GetServerDataRequest) returns (GetServerDataResponse);
+    // StartEvent зовут ОБА сайд-лидера, когда сервер готов (статус ивента
+    // ready). Ивент стартует после второго нажатия; если второй лидер молчит
+    // слишком долго, сервис стартует ивент сам.
+    rpc StartEvent(StartEventRequest) returns (StartEventResponse);
+}
+
+message Event {
+    string event_id = 1;
+    string event_name = 2;
+    string user_create_id = 3;
+    string enemy_side_leader_id = 4;
+    int64 user_count = 5;
+    google.protobuf.Timestamp time_start = 6;
+    google.protobuf.Timestamp time_finish = 7;
+    google.protobuf.Timestamp create_time = 8;
+    // "" | "ally" | "enemy" | "draw"
+    string winner_side = 9;
+    int64 target_game_count = 12;
+    int64 game_count = 13;
+    // pending | confirmed | purchased | deployed | ready | in_progress |
+    // finished | declined | canceled
+    //   purchased — сервер куплен, доступен GetServerData
+    //   deployed  — сервер развёрнут, идёт отсчёт 15 минут
+    //   ready     — можно звать StartEvent
+    string status = 14;
+    // Когда пришло vps.deployed (по часам сервиса — в сообщении времени нет).
+    // Пусто, пока сервер не доложил о себе.
+    google.protobuf.Timestamp server_deployed_at = 15;
+    // С этого момента доступен StartEvent (server_deployed_at + 15 минут).
+    google.protobuf.Timestamp start_available_at = 16;
+    // Нажал ли StartEvent сайд-лидер соответствующей стороны.
+    bool ally_ready = 17;
+    bool enemy_ready = 18;
+}
+
+message User {
+    string user_event_id = 1;
+    string user_id = 2;
+    string event_id = 3;
+    string clan_id = 4;
+    // Сторона, за которую игрок вошёл в ивент: войти в команду противоположной
+    // стороны нельзя (см. JoinUserToTeam).
+    bool enemy = 5;
+    reserved 6; // было role — роль есть только внутри команды, см. TeamMember
+    reserved "role";
+    reserved 7; // было six_clan_members — переехало в TeamMember, см. ниже
+    reserved "six_clan_members";
+    google.protobuf.Timestamp join_time = 8;
+}
+
+message Team {
+    string team_id = 1;
+    string event_id = 2;
+    string side_leader_id = 3;
+    int64 game_number = 4;
+    int64 members_count = 5;
+    bool winner = 6;
+    int64 total_kills = 7;
+    int64 total_deaths = 8;
+    int64 total_points = 9;
+    int64 total_revival = 10;
+    int64 total_destroyed_vehicles = 11;
+    // Пустой time_start => игра ещё не началась. Пустой time_finish => игра ещё не окончена.
+    google.protobuf.Timestamp time_start = 12;
+    google.protobuf.Timestamp time_finish = 13;
+    // Состояние участия команды в игре: pending (игра не началась) |
+    // in_progress (идёт) | finished (закончена). Менять состав команды и роли
+    // можно только в pending.
+    string status = 14;
+}
+
+message TeamMember {
+    string team_id = 1;
+    string user_event_id = 2;
+    string user_id = 3;
+    string role = 4;
+    int64 kills = 5;
+    int64 deaths = 6;
+    int64 points = 7;
+    int64 revival = 8;
+    int64 destroyed_vehicles = 9;
+    // Сигнал для другого микросервиса: перед стартом игры он смотрит на этот
+    // флаг у каждого участника команды и решает, приглашать его (true) или
+    // проигнорировать (false). Считается по клану внутри команды, не по
+    // всему ивенту (см. JoinUserToTeam).
+    bool six_clan_members = 10;
+}
+
+message StartEventRequest {
+    string event_id = 1;
+    // Сайд-лидер, который подтверждает готовность своей стороны.
+    string user_id = 2;
+}
+
+message StartEventResponse {}
+
+message GetServerDataRequest {
+    string user_id = 1;
+    string event_id = 2;
+}
+
+message GetServerDataResponse {
+    // Адрес сервера строкой, как его присылает vps-сервис (IPv4, IPv6 или
+    // адрес с портом), и пароль к нему.
+    string server_ip = 1;
+    string server_password = 2;
+}
+
+message GetEventMembersListRequest {
+    string event_id = 1;
+}
+
+message GetEventMembersListResponse {
+    repeated User users = 1;
+    reserved 2; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+message CreateEventRequest {
+    string user_creator_id = 1;
+    string creator_clan_id = 2;
+    string enemy_side_leader_id = 3;
+    string enemy_side_leader_clan_id = 4;
+    string event_name = 5;
+    google.protobuf.Timestamp time_start = 6;
+    // Сколько игр сыграть в рамках ивента: 1, 2 или 3.
+    int64 target_game_count = 7;
+}
+
+message CreateEventResponse {
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+message GetEventsByCreatorIdRequest {
+    string user_create_id = 1;
+}
+
+message GetEventsByCreatorIdResponse {
+    repeated Event events = 1;
+    reserved 2; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+message GetLastEventByCreatorIdRequest {
+    string user_create_id = 1;
+}
+
+message GetLastEventByCreatorIdResponse {
+    Event event = 1;
+    reserved 2; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+message GetEventsByEventNameRequest {
+    string event_name = 1;
+}
+
+message GetEventsByEventNameResponse {
+    repeated Event events = 1;
+    reserved 2; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+message UpdateTimeEventRequest {
+    string event_id = 1;
+    string user_create_id = 2;
+    google.protobuf.Timestamp new_time_start = 3;
+}
+
+message UpdateTimeEventResponse {
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+// CancelEvent — ручная отмена ивента создателем (пока он ещё pending или
+// confirmed). Статус становится "canceled" — в отличие от "declined", в
+// который автоматически уходит ивент, не набравший минимум игроков к
+// контрольной точке (см. controlEventTimerDenial).
+message CancelEventRequest {
+    string event_id = 1;
+    string user_create_id = 2;
+}
+
+message CancelEventResponse {
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+message JoinToEventRequest {
+    string event_id = 1;
+    string user_id = 2;
+    string clan_id = 3;
+    bool enemy = 4;
+}
+
+message JoinToEventResponse {
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+message LeaveEventRequest {
+    string user_id = 1;
+    string event_id = 2;
+}
+
+message LeaveEventResponse {
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+// SetRole назначает роль внутри одной команды (одной игры), поэтому
+// принимает team_id, а не event_id: в разных играх у игрока могут быть разные
+// роли. Вызывать может только сайд-лидер этой же команды, и только пока её
+// игра не началась (status = pending).
+message SetRoleRequest {
+    reserved 1; // было event_id — роль назначается по команде, а не по ивенту
+    reserved "event_id";
+    string side_leader_id = 2;
+    string user_id = 3;
+    // "player" | "side_leader" ("squad_leader" через SetRole не выдаётся)
+    string role = 4;
+    string team_id = 5;
+}
+
+message SetRoleResponse {
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+message GetTeamsByEventIDRequest {
+    string event_id = 1;
+}
+
+message GetTeamsByEventIDResponse {
+    repeated Team teams = 1;
+    reserved 2; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+// Стартует сразу обе стороны одной игры (game_number), поэтому принимает id
+// обеих команд одним вызовом, а не по одной команде за раз.
+message StartTeamGameRequest {
+    string team1_id = 1;
+    string team2_id = 2;
+}
+
+message StartTeamGameResponse {
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+// Закрывает ровно одну игру (game_number) внутри ивента — обе её команды
+// сразу, с явным указанием команды-победителя. team_winner_id обязан
+// совпадать с team1_id или team2_id, team1_id и team2_id обязаны быть разными.
+// Статистику по игрокам эта ручка не трогает — она вносится позже, по одному
+// игроку за раз, через AddTeamMemberStats (см. её комментарий). Итог всего
+// ивента (winner_side) определяется автоматически, когда закрывается
+// последняя из запланированных игр (1, 2 или 3 — см. target_game_count).
+message FinishTeamGameRequest {
+    string team1_id = 1;
+    string team2_id = 2;
+    string team_winner_id = 3;
+}
+
+message FinishTeamGameResponse {
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+// Вызывается один раз на игрока, ПОСЛЕ того как FinishTeamGame уже закрыл
+// игру для его команды — заносит статистику этого игрока за прошедшую игру.
+// user_id — сырой внешний id (как и везде в API), сервис сам резолвит его в
+// user_event_id по паре (user_id, team_id).
+message AddTeamMemberStatsRequest {
+    string team_id = 1;
+    string user_id = 2;
+    int64 kills = 3;
+    int64 deaths = 4;
+    int64 points = 5;
+    int64 revival = 6;
+    int64 destroyed_vehicles = 7;
+}
+
+message AddTeamMemberStatsResponse {
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+message GetTeamStatsRequest {
+    string team_id = 1;
+}
+
+message GetTeamStatsResponse {
+    repeated TeamMember stats = 1;
+    // Итог по всей команде — то же, что лежит в Team после FinishTeamGame,
+    // отдано отдельными полями, чтобы не заставлять клиента суммировать stats самому.
+    int64 total_kills = 2;
+    int64 total_deaths = 3;
+    int64 total_points = 4;
+    int64 total_revival = 5;
+    int64 total_destroyed_vehicles = 6;
+    reserved 7; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+message GetTeamByIDRequest {
+    string team_id = 1;
+}
+
+message GetTeamByIDResponse {
+    Team team = 1;
+    reserved 2; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+message JoinUserToTeamRequest {
+    string team_id = 1;
+    string user_id = 2;
+    string role = 3;
+}
+
+message JoinUserToTeamResponse {
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+message RemoveUserFromTeamRequest {
+    string team_id = 1;
+    string user_id = 2;
+}
+
+message RemoveUserFromTeamResponse {
+    reserved 1; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+message GetUnfinishedEventsByUserIDRequest {
+    string user_create_id = 1;
+}
+
+message GetUnfinishedEventsByUserIDResponse {
+    repeated Event events = 1;
+    reserved 2; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
+
+message GetUnfinishedEventsByEventNameRequest {
+    string event_name = 1;
+}
+
+message GetUnfinishedEventsByEventNameResponse {
+    repeated Event events = 1;
+    reserved 2; // было error — ошибки отдаются gRPC-статусом
+    reserved "error";
+}
