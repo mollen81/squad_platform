@@ -30,4 +30,28 @@ public class EloCalculationServiceTest {
         int newElo = eloService.calculateMatchElo(110, false, "Rifleman", 0, 15, 0, 0);
         assertThat(newElo).isEqualTo(100);
     }
+
+    @Test
+    void calculateMatchElo_ShouldNotIncreaseHigherMaxMatchElo() {
+        int currentElo = 1000;
+        int newElo = eloService.calculateMatchElo(currentElo, true, "Rifleman", 50, 0, 50, 50);
+        assertThat(newElo).isEqualTo(currentElo + 50);
+    }
+
+    @Test
+    void calculateMatchElo_ShouldNotDropBelowMinMatchElo() {
+        int currentElo = 1000;
+        int newElo = eloService.calculateMatchElo(currentElo, true, "Rifleman", 0, 50, 0, 0);
+        assertThat(newElo).isEqualTo(currentElo - 50);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "1000, true, Rifleman, ",
+            "",
+
+    })
+    void calculateMatchElo_ShouldReturnCorrectBracketsInfantry() {
+
+    }
 }

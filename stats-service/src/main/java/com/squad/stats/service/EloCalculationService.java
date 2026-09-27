@@ -34,7 +34,7 @@ public class EloCalculationService {
 
             // Пехоте важны фраги и немного поднятия
             case "Rifleman", "Ambusher", "Raider", "Automatic Rifleman", "Machine Gunner" ->
-                    kdDiff * 1.3 + revives * 0.2;
+                    kdDiff * 1.75 + revives * 0.2;
 
             // Медику фраги почти не дают бонуса, главный упор на поднятия
             case "Medic" ->
@@ -45,7 +45,7 @@ public class EloCalculationService {
                     (kdRatio - 1.0) * 5.0 + kdDiff * 0.8;
 
             case "Grenadier", "Scout" ->
-                    (kdRatio - 1.0) * 2.0 + kdDiff * 0.5 + revives * 0.1;
+                    (kdRatio - 1.0) * 2.5 + kdDiff * 0.75 + revives * 0.2;
 
             // Командирам даем фиксированный бонус за организацию (компенсирует просадки по K/D)
             case "Squad Leader" ->
@@ -54,7 +54,7 @@ public class EloCalculationService {
             case "Lead Crewman", "Crewman" ->
                     kdDiff * 1.5;
 
-            case "Lead Pilot" ->
+            case "Lead Pilot", "Pilot" ->
                     4.0; // Пилоту сложно считать K/D, даем статический плюс
 
             // Трубам важнее уничтожать технику, чем пехоту
