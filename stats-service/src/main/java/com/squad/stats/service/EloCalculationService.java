@@ -38,14 +38,14 @@ public class EloCalculationService {
 
             // Медику фраги почти не дают бонуса, главный упор на поднятия
             case "Medic" ->
-                    kdDiff * 0.35 + revives * 1.5;
+                    revives < deaths ? -20 : kdDiff * 0.35 + revives * 1.5;
 
             // Снайпер наказывается за K/D ниже 1.0 и получает сильный буст за высокий K/D
             case "Sniper", "Marksman" ->
-                    (kdRatio - 1.0) * 5.0 + kdDiff * 0.8;
+                    kdDiff < 0 ? -30: (kdRatio - 1.5) * 2.0 + kdDiff * 0.4;
 
             case "Grenadier", "Scout" ->
-                    (kdRatio - 1.0) * 2.5 + kdDiff * 0.75 + revives * 0.2;
+                    kdRatio < 0.75 ? -20 + revives * 0.5 : (kdRatio - 1.0) * 2.25 + kdDiff * 0.4 + revives * 0.5;
 
             // Командирам даем фиксированный бонус за организацию (компенсирует просадки по K/D)
             case "Squad Leader" ->
