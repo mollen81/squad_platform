@@ -18,7 +18,7 @@ import java.math.BigDecimal;
 @Builder
 public class Refund extends BaseEntity {
 
-    private BigDecimal refundAmount;
+    private BigDecimal amount;
 
     private String reason;
 

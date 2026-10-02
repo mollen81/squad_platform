@@ -17,7 +17,7 @@ import lombok.NoArgsConstructor;
 public class VpsHosting extends BaseEntity {
 
     @Convert(converter = HostingConverter.class)
-    private Hosting hosting;
+    private Hosting hostingName;
 
     private String apiToken;
 }
