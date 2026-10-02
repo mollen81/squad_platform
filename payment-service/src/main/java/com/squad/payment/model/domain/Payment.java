@@ -15,16 +15,20 @@ import java.util.List;
 public class Payment extends BaseEntity {
     private BigDecimal amount;
 
+    @Column(name = "status")
     @Convert(converter = PaymentStatusConverter.class)
     private PaymentStatus paymentStatus;
 
     private String errorMessage;
 
-    @OneToOne
-    @JoinColumn(name = "event_id")
+    @Column(name = "event_id", nullable = false)
     private String eventId;
 
-    @OneToOne
+    // Aeza service id
+    @Column(name = "external_service_id")
+    private Long externalServiceId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vps_hosting_id")
     private VpsHosting vpsHosting;
 
