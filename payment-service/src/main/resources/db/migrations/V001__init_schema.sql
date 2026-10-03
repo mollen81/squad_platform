@@ -10,7 +10,6 @@ CREATE TABLE payment (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_payment_vps_hosting FOREIGN KEY (vps_hosting_id) REFERENCES vps_hosting(id)
 );
-
 CREATE INDEX idx_payment_id ON payment(id);
 CREATE INDEX idx_payment_event_id ON payment(event_id);
 CREATE INDEX idx_payment_vps_hosting_id ON payment(vps_hosting_id);
@@ -25,7 +24,6 @@ CREATE TABLE refund (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE INDEX idx_refund_id ON refund(id);
 CREATE INDEX idx_refund_payment_id ON refund(payment_id);
 
@@ -37,6 +35,5 @@ CREATE TABLE vps_hosting (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-
 CREATE INDEX idx_vps_hosting_id ON vps_hosting(id);
 CREATE INDEX idx_vps_hosting_hosting_name ON vps_hosting(hosting_name);
