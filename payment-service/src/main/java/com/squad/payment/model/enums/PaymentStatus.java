@@ -6,7 +6,8 @@ import lombok.Getter;
 public enum PaymentStatus {
     PROCESSING,
     SUCCESS,
-    FAILED;
+    FAILED,
+    CLOSED;
 
     public static PaymentStatus fromString(String stringStatus) {
         for(PaymentStatus paymentStatus : PaymentStatus.values()) {
