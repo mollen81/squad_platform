@@ -1,6 +1,7 @@
 package com.squad.payment.repository;
 
 import com.squad.payment.model.domain.Payment;
+import com.squad.payment.model.enums.PaymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -10,4 +11,5 @@ import java.util.Optional;
 public interface PaymentRepository extends JpaRepository<Payment, String> {
     Optional<Payment> findByPaymentId(String paymentId);
     Optional<Payment> findByEventId(String eventId);
+    Optional<Payment> findByEventIdAndPaymentStatus(String eventId, PaymentStatus paymentStatus);
 }
