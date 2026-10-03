@@ -11,6 +11,8 @@ import java.util.List;
 @Entity
 @AllArgsConstructor
 @NoArgsConstructor
+@Getter
+@Setter
 @Builder
 public class Payment extends BaseEntity {
     private BigDecimal amount;
@@ -30,7 +32,7 @@ public class Payment extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vps_hosting_id")
-    private VpsHosting vpsHosting;
+    private VdsHosting vdsHosting;
 
     @OneToMany(mappedBy = "payment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Refund> refunds;

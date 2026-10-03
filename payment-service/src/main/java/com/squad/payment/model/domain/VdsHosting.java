@@ -5,16 +5,16 @@ import com.squad.payment.model.enums.converters.HostingConverter;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Entity
 @Table(name = "vps_hosting")
 @AllArgsConstructor
 @NoArgsConstructor
+@Getter
+@Setter
 @Builder
-public class VpsHosting extends BaseEntity {
+public class VdsHosting extends BaseEntity {
 
     @Convert(converter = HostingConverter.class)
     private Hosting hostingName;
