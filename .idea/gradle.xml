@@ -12,6 +12,7 @@
             <option value="$PROJECT_DIR$/clan-service" />
             <option value="$PROJECT_DIR$/deployment-service" />
             <option value="$PROJECT_DIR$/gateway" />
+            <option value="$PROJECT_DIR$/payment-service" />
             <option value="$PROJECT_DIR$/stats-service" />
             <option value="$PROJECT_DIR$/user-service" />
           </set>
