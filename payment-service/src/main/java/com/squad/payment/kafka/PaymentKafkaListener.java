@@ -1,6 +1,7 @@
 package com.squad.payment.kafka;
 
 import com.squad.payment.model.dto.ServerRentEvent;
+import com.squad.payment.model.dto.ServerTeardownEvent;
 import com.squad.payment.service.ServerProvisioningService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -18,7 +19,7 @@ public class PaymentKafkaListener {
     }
 
     @KafkaListener(topics = "server.teardown", groupId = "payment-group")
-    public void onServerTearDown() {
-        provisioningService.
+    public void onServerTearDown(ServerTeardownEvent event) {
+        provisioningService.processServerTeardown(event.eventId());
     }
 }
