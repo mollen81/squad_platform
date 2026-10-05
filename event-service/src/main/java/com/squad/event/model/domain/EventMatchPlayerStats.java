@@ -19,13 +19,13 @@ import java.util.UUID;
 @Getter
 @Setter
 @Builder
-public class MatchPlayerStats {
+public class EventMatchPlayerStats {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "match_id", nullable = false)
-    private UUID matchId;
+    @Column(name = "event_match_id", nullable = false)
+    private UUID eventMatchId;
 
     @Column(name = "participant_id")
     private UUID participantId;

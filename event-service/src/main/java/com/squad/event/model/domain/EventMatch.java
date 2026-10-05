@@ -1,6 +1,6 @@
 package com.squad.event.model.domain;
 
-import com.squad.event.model.enums.MatchStatus;
+import com.squad.event.model.enums.EventMatchStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -9,9 +9,9 @@ import java.util.UUID;
 
 @Entity
 @Table(
-        name = "match",
+        name = "event_match",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uq_match_event_sequence", columnNames = {"event_id", "sequence_number"})
+                @UniqueConstraint(name = "uq_event_match_event_sequence", columnNames = {"event_id", "sequence_number"})
         }
 )
 @AllArgsConstructor
@@ -19,7 +19,7 @@ import java.util.UUID;
 @Builder
 @Getter
 @Setter
-public class Match {
+public class EventMatch {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
@@ -32,7 +32,7 @@ public class Match {
 
     @Enumerated(EnumType.STRING)
     @Column(length = 32, nullable = false)
-    private MatchStatus status;
+    private EventMatchStatus status;
 
     @Column(name = "winner_side_id")
     private UUID winnerSideId;

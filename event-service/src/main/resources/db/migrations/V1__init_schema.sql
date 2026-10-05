@@ -53,7 +53,7 @@ CREATE TABLE event_server (
 CREATE INDEX idx_event_server_status ON event_server(status);
 
 
-CREATE TABLE match (
+CREATE TABLE event_match (
     id UUID PRIMARY KEY NOT NULL,
     event_id UUID NOT NULL REFERENCES event(id) ON DELETE CASCADE,
     sequence_number INTEGER NOT NULL,
@@ -69,7 +69,7 @@ CREATE INDEX idx_match_event_id ON match(event_id);
 CREATE INDEX idx_event_match_status ON match(status);
 
 
-CREATE TABLE match_player_stats (
+CREATE TABLE event_match_player_stats (
     id UUID PRIMARY KEY NOT NULL,
     match_id UUID NOT NULL REFERENCES event_match(id) ON DELETE CASCADE,
     participant_id UUID NOT NULL REFERENCES event_participant(id) ON DELETE CASCADE,

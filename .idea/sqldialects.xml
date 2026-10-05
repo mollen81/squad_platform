@@ -3,11 +3,13 @@
   <component name="SqlDialectMappings">
     <file url="file://$PROJECT_DIR$/clan-service/src/main/resources/db/migrations/V1__init_clans_table_and_clan_members_table.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/clan-service/src/main/resources/db/migrations/V2__init_applications_table.sql" dialect="PostgreSQL" />
-    <file url="file://$PROJECT_DIR$/event-service/src/main/resources/db/migrations/V001__init_event_schema.sql" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/event-service/src/main/java/com/squad/event/repo/EventMatchRepository.java" dialect="GenericSQL" />
+    <file url="file://$PROJECT_DIR$/event-service/src/main/resources/db/migrations/V1__init_schema.sql" dialect="GenericSQL" />
     <file url="file://$PROJECT_DIR$/payment-service/src/main/resources/db/migrations/V001__init_schema.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/stats-service/src/main/resources/db/migrations/V1__init_user_stats_schema.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/stats-service/src/main/resources/db/migrations/V2__add_vehicles_destroyed_field.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/stats-service/src/main/resources/db/migrations/V3__index_create_for_user_id_and_steam_id.sql" dialect="PostgreSQL" />
     <file url="file://$PROJECT_DIR$/user-service/src/main/resources/db/migration/V1__init_user_schema.sql" dialect="PostgreSQL" />
+    <file url="PROJECT" dialect="PostgreSQL" />
   </component>
 </project>

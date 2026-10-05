@@ -1,6 +1,6 @@
 package com.squad.event.model.enums;
 
-public enum MatchStatus {
+public enum EventMatchStatus {
     PENDING,
     IN_PROGRESS,
     FINISHED,
