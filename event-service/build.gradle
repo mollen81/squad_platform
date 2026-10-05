@@ -2,7 +2,7 @@ plugins {
     id 'com.google.protobuf' version '0.9.4'
 }
 
-group = 'org.mollen'
+group = 'com.squad'
 version = '0.0.1'
 
 repositories {
