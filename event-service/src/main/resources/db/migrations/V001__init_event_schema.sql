@@ -3,7 +3,7 @@ CREATE TABLE event (
     name VARCHAR(255),
     creator_user_id UUID NOT NULL,
     target_game_count INTEGER NOT NULL,
-    status VARCHAR(50) NOT NULL,
+    status VARCHAR(32) NOT NULL,
     time_start TIMESTAMP WITH TIME ZONE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
@@ -40,3 +40,14 @@ CREATE INDEX idx_event_participant_event_id ON event_participant(event_id);
 CREATE INDEX idx_event_participant_side_id ON event_participant(side_id);
 
 
+CREATE TABLE event_server (
+    event_id UUID PRIMARY KEY NOT NULL REFERENCES event(id) ON DELETE CASCADE,
+    status VARCHAR(32) NOT NULL,
+    ip_address VARCHAR(255),
+    password VARCHAR(255),
+    deployed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_event_server_status ON event_server(status);
