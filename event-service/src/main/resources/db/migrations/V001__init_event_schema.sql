@@ -9,7 +9,6 @@ CREATE TABLE event (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-CREATE INDEX idx_event_id ON event(id);
 CREATE INDEX idx_event_creator_user_id ON event(creator_user_id);
 CREATE INDEX idx_event_time_start ON event(time_start);
 
@@ -23,7 +22,21 @@ CREATE TABLE event_side (
     ready_at TIMESTAMP WITH TIME ZONE
 );
 
-CREATE INDEX idx_event_side_id ON event_side(id);
 CREATE INDEX idx_event_side_event_id ON event_side(event_id);
+
+
+CREATE TABLE event_participant (
+    id UUID PRIMARY KEY NOT NULL,
+    event_id UUID NOT NULL,
+    side_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    clan_id UUID,
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+
+    CONSTRAINT uq_event_participant_event_user UNIQUE (event_id, user_id)
+);
+
+CREATE INDEX idx_event_participant_event_id ON event_participant(event_id);
+CREATE INDEX idx_event_participant_side_id ON event_participant(side_id);
 
 
