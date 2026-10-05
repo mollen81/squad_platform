@@ -67,3 +67,28 @@ CREATE TABLE match (
 
 CREATE INDEX idx_match_event_id ON match(event_id);
 CREATE INDEX idx_event_match_status ON match(status);
+
+
+CREATE TABLE match_player_stats (
+    id UUID PRIMARY KEY NOT NULL,
+    match_id UUID NOT NULL REFERENCES event_match(id) ON DELETE CASCADE,
+    participant_id UUID NOT NULL REFERENCES event_participant(id) ON DELETE CASCADE,
+
+    primary_role VARCHAR(64),
+
+    kills INTEGER NOT NULL DEFAULT 0,
+    deaths INTEGER NOT NULL DEFAULT 0,
+    revives INTEGER NOT NULL DEFAULT 0,
+    team_kills INTEGER NOT NULL DEFAULT 0,
+
+    vehicles_destroyed INTEGER NOT NULL DEFAULT 0,
+    vehicles_lost INTEGER NOT NULL DEFAULT 0,
+    flying_time_seconds INTEGER NOT NULL DEFAULT 0,
+    supply_points INTEGER NOT NULL DEFAULT 0,
+
+
+    CONSTRAINT uq_match_player_stats UNIQUE (match_id, participant_id)
+);
+
+CREATE INDEX idx_match_player_stats_match_id ON match_player_stats(match_id);
+CREATE INDEX idx_match_player_stats_participant_id ON match_player_stats(participant_id);
