@@ -1,14 +1,12 @@
 package com.squad.event.model.domain;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import com.squad.event.model.enums.EventStatus;
+import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Entity
@@ -24,15 +22,24 @@ public class Event {
 
     private String name;
 
+    @Column(name = "creator_user_id", nullable = false)
     private UUID creatorUserId;
 
+    @Column(name = "target_game_count", nullable = false)
     private int targetGameCount;
 
-    private LocalDateTime timeStart;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private EventStatus status;
+
+    @Column(name = "time_start", nullable = false)
+    private Instant timeStart;
 
     @CreationTimestamp
-    private LocalDateTime createdAt;
+    @Column(name = "created_at", updatable = false)
+    private Instant createdAt;
 
     @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    @Column(name = "updated_at")
+    private Instant updatedAt;
 }
