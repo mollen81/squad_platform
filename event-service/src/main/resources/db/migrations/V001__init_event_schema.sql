@@ -51,3 +51,19 @@ CREATE TABLE event_server (
 );
 
 CREATE INDEX idx_event_server_status ON event_server(status);
+
+
+CREATE TABLE match (
+    id UUID PRIMARY KEY NOT NULL,
+    event_id UUID NOT NULL REFERENCES event(id) ON DELETE CASCADE,
+    sequence_number INTEGER NOT NULL,
+    status VARCHAR(32) NOT NULL,
+    winner_side_id UUID REFERENCES event_side(id) ON DELETE SET NULL,
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    finished_at TIMESTAMP WITH TIME ZONE CURRENT_TIMESTAMP NOT NULL,
+
+    CONSTRAINT uq_match_event_sequence UNIQUE (event_id, sequence_number)
+);
+
+CREATE INDEX idx_match_event_id ON match(event_id);
+CREATE INDEX idx_event_match_status ON match(status);
