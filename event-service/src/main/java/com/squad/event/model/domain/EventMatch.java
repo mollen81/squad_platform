@@ -1,5 +1,6 @@
 package com.squad.event.model.domain;
 
+import com.squad.event.model.enums.EventMatchMap;
 import com.squad.event.model.enums.EventMatchStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -29,6 +30,9 @@ public class EventMatch {
 
     @Column(name = "sequence_number", nullable = false)
     private int sequenceNumber; // 1, 2, 3 ...
+
+    @Enumerated(EnumType.STRING)
+    private EventMatchMap map;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 32, nullable = false)

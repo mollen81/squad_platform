@@ -27,8 +27,8 @@ CREATE INDEX idx_event_side_event_id ON event_side(event_id);
 
 CREATE TABLE event_participant (
     id UUID PRIMARY KEY NOT NULL,
-    event_id UUID NOT NULL,
-    side_id UUID NOT NULL,
+    event_id UUID NOT NULL REFERENCES event(id),
+    side_id UUID NOT NULL REFERENCES event_side(id),
     user_id UUID NOT NULL,
     clan_id UUID,
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -57,6 +57,7 @@ CREATE TABLE event_match (
     id UUID PRIMARY KEY NOT NULL,
     event_id UUID NOT NULL REFERENCES event(id) ON DELETE CASCADE,
     sequence_number INTEGER NOT NULL,
+    map VARCHAR(255),
     status VARCHAR(32) NOT NULL,
     winner_side_id UUID REFERENCES event_side(id) ON DELETE SET NULL,
     started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -92,3 +93,18 @@ CREATE TABLE event_match_player_stats (
 
 CREATE INDEX idx_match_player_stats_match_id ON match_player_stats(match_id);
 CREATE INDEX idx_match_player_stats_participant_id ON match_player_stats(participant_id);
+
+
+CREATE TABLE event_match_map_vote (
+    id UUID PRIMARY KEY NOT NULL,
+    match_id UUID NOT NULL REFERENCES event_match(id),
+    user_id UUID NOT NULL,
+    map VARCHAR(255) NOT NULL,
+
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT uq_event_match_map_vote_match_id_user_id UNIQUE(match_id, user_id)
+);
+
+CREATE INDEX idx_event_match_map_vote_user_id ON event_match_map_vote(user_id);

@@ -19,12 +19,15 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
     @Query(value = "SELECT * FROM event WHERE status NOT IN ('FINISHED', 'CANCELED')", nativeQuery = true)
     List<Event> findAllUnfinished();
 
-    @Query(value = "SELECT * FROM events WHERE status = 'REGISTRATION'", nativeQuery = true)
+    @Query(value = "SELECT * FROM event WHERE status = 'REGISTRATION'", nativeQuery = true)
     List<Event> findAllInRegistration();
 
-    @Query(value = "SELECT * FROM events WHERE status = 'FINISHED' ORDER BY time_start", nativeQuery = true)
+    @Query(value = "SELECT * FROM event WHERE status = 'FINISHED' ORDER BY time_start", nativeQuery = true)
     List<Event> findAllFinished();
 
-    @Query(value = "SELECT * FROM events WHERE status = 'LIVE'", nativeQuery = true)
+    @Query(value = "SELECT * FROM event WHERE status = 'LIVE'", nativeQuery = true)
     List<Event> findAllLive();
+
+    @Query(value = "SELECT * FROM event WHERE id = (SELECT event_id FROM event_match WHERE id = :match_id)", nativeQuery = true)
+    Optional<Event> findByMatchId(@Param("match_id") UUID matchId);
 }
