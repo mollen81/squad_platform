@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.Year;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.IntStream;
@@ -44,6 +46,15 @@ public class EventService {
 
         eventRepository.save(event);
 
+        if(request.creatorUserId().equals(request.secondLeaderId())) {
+            throw new IllegalArgumentException("One user cannot be leader for both team in one time");
+        }
+
+        if(request.timeStart().isBefore(Instant.now())
+                || request.timeStart().isAfter(Instant.from(Instant.now().plus(1, ChronoUnit.YEARS)))) {
+            throw new IllegalArgumentException("Start time is not in valid interval");
+        }
+
         EventSide side1 = EventSide.builder()
                 .eventId(event.getId())
                 .name(request.creatorSideName())
@@ -57,9 +68,14 @@ public class EventService {
                 .leaderUserId(request.secondLeaderId())
                 .isReady(false)
                 .build();
-
         eventSideRepository.save(side1);
         eventSideRepository.save(side2);
+
+        // TODO event_participant add for leader1 and leader2 (clan_id gRPC call to clan-service)
+
+        if(request.targetGameCount() < 1 || request.targetGameCount() > 5) {
+            throw new IllegalArgumentException("Games target count is too low or too high");
+        }
 
         List<EventMatch> matches = IntStream.rangeClosed(1, event.getTargetGameCount())
                 .mapToObj(seq -> EventMatch.builder()
@@ -68,7 +84,6 @@ public class EventService {
                         .status(EventMatchStatus.PENDING)
                         .build())
                 .toList();
-
         eventMatchRepository.saveAll(matches);
 
         return event.getId();
