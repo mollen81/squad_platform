@@ -12,7 +12,7 @@ CREATE TABLE clans (
    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE clan_members (
+CREATE TABLE clan_member (
   id UUID PRIMARY KEY,
   clan_id UUID NOT NULL REFERENCES clans(id) ON DELETE CASCADE,
   user_id UUID NOT NULL UNIQUE,
@@ -20,5 +20,5 @@ CREATE TABLE clan_members (
   joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_clan_members_clan_id ON clan_members(clan_id);
-CREATE INDEX idx_clan_members_user_id ON clan_members(user_id);
+CREATE INDEX idx_clan_members_clan_id ON clan_member(clan_id);
+CREATE INDEX idx_clan_members_user_id ON clan_member(user_id);

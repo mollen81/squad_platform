@@ -61,6 +61,11 @@ public class ClanService {
         return clan;
     }
 
+    public UUID getClanIdFromUserId(UUID userId) {
+        return clanMemberRepository.getClanIdFromUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("clan_id from clan_member table for user_id " + userId + " is not found"));
+    }
+
 
     //TODO Facade pattern for userElo fetching from gRPC stats-service
     @Transactional
