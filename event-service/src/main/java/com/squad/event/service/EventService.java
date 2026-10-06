@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.IntStream;
 
 @Service
 @Slf4j
@@ -59,6 +60,16 @@ public class EventService {
 
         eventSideRepository.save(side1);
         eventSideRepository.save(side2);
+
+        List<EventMatch> matches = IntStream.rangeClosed(1, event.getTargetGameCount())
+                .mapToObj(seq -> EventMatch.builder()
+                        .eventId(event.getId())
+                        .sequenceNumber(seq)
+                        .status(EventMatchStatus.PENDING)
+                        .build())
+                .toList();
+
+        eventMatchRepository.saveAll(matches);
 
         return event.getId();
     }
