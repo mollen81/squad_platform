@@ -133,6 +133,40 @@ public class ClanGrpcService extends com.squad.clan.grpc.ClanServiceGrpc.ClanSer
         }
     }
 
+    public void getClanIdFromUserId(
+            GetClanIdFromUserIdRequest request,
+            StreamObserver<GetClanIdFromUserIdResponse> responseObserver
+    ) {
+        log.info("Finding clan_id for user_id {} from clan_member table", request.getUserId());
+        try {
+            UUID clanId = clanFacade.getClanIdFromUserId(UUID.fromString(request.getUserId()));
+
+            GetClanIdFromUserIdResponse response = GetClanIdFromUserIdResponse.newBuilder()
+                    .setClanId(clanId.toString())
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        }
+        catch (IllegalArgumentException e) {
+            log.error("clan_id is not found for user_id {} in table clan_member", request.getUserId());
+            responseObserver.onError(
+                    Status.INTERNAL
+                            .withDescription(e.getMessage())
+                            .asRuntimeException()
+            );
+        }
+        catch (Exception e) {
+            log.error("Unexpected error for getClanIdFromUserId method");
+            responseObserver.onError(
+                    Status.INTERNAL
+                            .withCause(e.getCause())
+                            .withDescription(e.getMessage())
+                            .asRuntimeException()
+            );
+        }
+    }
+
 
     public void processAcceptance(ProcessAcceptanceRequest request, StreamObserver<ProcessAcceptanceResponse> responseObserver) {
         log.info("Processing the acceptance of application: {}, accepted by user: {}",

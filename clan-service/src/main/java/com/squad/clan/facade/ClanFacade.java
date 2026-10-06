@@ -25,6 +25,10 @@ public class ClanFacade {
         return clanService.createClan(dto, leaderElo);
     }
 
+    public UUID getClanIdFromUserId(UUID userId) {
+        return clanService.getClanIdFromUserId(userId);
+    }
+
     public ClanApplication applyToClan(ClanRequests.ApplyToClanDto dto) {
         int userElo = statsGrpcClient.getPlayerElo(dto.getUserId());
 
