@@ -1,8 +1,10 @@
 package com.squad.event.service;
 
 import com.squad.event.model.domain.Event;
+import com.squad.event.model.domain.EventParticipant;
 import com.squad.event.model.domain.EventSide;
 import com.squad.event.model.dto.CreateEventRequest;
+import com.squad.event.model.dto.JoinEventRequest;
 import com.squad.event.model.enums.EventStatus;
 import com.squad.event.repo.EventParticipantRepository;
 import com.squad.event.repo.EventRepository;
@@ -30,7 +32,6 @@ public class EventService {
         log.info("Creating new event: {} by user {}", request.name(), request.creatorUserId());
 
         Event event = Event.builder()
-                .id(UUID.randomUUID())
                 .name(request.name())
                 .creatorUserId(request.creatorUserId())
                 .targetGameCount(request.targetGameCount())
@@ -41,7 +42,6 @@ public class EventService {
         eventRepository.save(event);
 
         EventSide side1 = EventSide.builder()
-                .id(UUID.randomUUID())
                 .eventId(event.getId())
                 .name(request.creatorSideName())
                 .leaderUserId(request.creatorUserId())
@@ -49,7 +49,6 @@ public class EventService {
                 .build();
 
         EventSide side2 = EventSide.builder()
-                .id(UUID.randomUUID())
                 .eventId(event.getId())
                 .name(request.enemySideName())
                 .leaderUserId(request.secondLeaderId())
@@ -60,5 +59,45 @@ public class EventService {
         eventSideRepository.save(side2);
 
         return event.getId();
+    }
+
+    @Transactional
+    public UUID joinEvent(JoinEventRequest request) {
+        Event event = eventRepository.findByIdForUpdate(request.eventId())
+                .orElseThrow(() -> new IllegalArgumentException("Event " + request.eventId() + " is not found"));
+
+        if(event.getStatus() != EventStatus.REGISTRATION) {
+            throw new IllegalStateException("Event registration is closed. Current status: " + event.getStatus());
+        }
+
+        EventSide side = eventSideRepository.findById(request.sideId())
+                .orElseThrow(() -> new IllegalArgumentException("Side " + request.sideId() + " is not found"));
+
+        if(!side.getEventId().equals(event.getId())) {
+            throw new IllegalArgumentException("Side " + side.getId() + " does not belong to event " + event.getId());
+        }
+
+        if(eventParticipantRepository.existsByEventIdAndUserId(event.getId(), request.userId())) {
+            throw new IllegalStateException("User " + request.userId() + " is already registered to event " + event.getId());
+        }
+
+        int currentSidePlayers = eventParticipantRepository.countBySideId(side.getId());
+        if(currentSidePlayers >= MAX_PLAYERS_PER_SIDE) {
+            throw new IllegalStateException("Side " + side.getId() + " is full: current players count = " + currentSidePlayers);
+        }
+
+        EventParticipant participant = EventParticipant.builder()
+                .eventId(request.eventId())
+                .sideId(request.sideId())
+                .userId(request.userId())
+                .clanId(request.clanId())
+                .build();
+
+        eventParticipantRepository.save(participant);
+
+        log.info("User {} is joined to event {} for side {}",
+                request.userId(), request.eventId(), request.sideId());
+
+        return participant.getId();
     }
 }
