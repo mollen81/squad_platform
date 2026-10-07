@@ -7,6 +7,7 @@ import com.squad.event.model.dto.CreateEventRequest;
 import com.squad.event.model.dto.JoinEventRequest;
 import com.squad.event.model.enums.EventMatchMap;
 import com.squad.event.model.enums.EventMatchStatus;
+import com.squad.event.model.enums.EventServerStatus;
 import com.squad.event.model.enums.EventStatus;
 import com.squad.event.repo.*;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class EventService {
     private final EventParticipantRepository eventParticipantRepository;
     private final EventMatchRepository eventMatchRepository;
     private final EventMatchMapVoteRepository eventMatchMapVoteRepository;
+    private final EventServerRepository eventServerRepository;
     private final ClanServiceGrpc.ClanServiceBlockingStub clanServiceBlockingStub;
 
     private static final int MAX_PLAYERS_PER_SIDE = 50;
@@ -176,11 +178,18 @@ public class EventService {
         Event event = eventRepository.findByIdForUpdate(eventId)
                 .orElseThrow(() -> new IllegalArgumentException("Event " + eventId + " is not found"));
 
-        if(event.getStatus() != EventStatus.LIVE && event.getStatus() != EventStatus.PREPARING) {
+        if(event.getStatus() == EventStatus.CANCELED || event.getStatus() == EventStatus.FINISHED) {
+            throw new IllegalStateException("Event is canceled or finished");
+        }
+
+        EventServer server = eventServerRepository.findByEventId(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Server for event " + eventId + " is not found"));
+
+        if(server.getStatus() != EventServerStatus.READY) {
             throw new IllegalStateException("Server is not ready yet or match already finished");
         }
 
-        EventSide currentSide = eventSideRepository.findAllByEventIdAndLeaderUserId(eventId, userId)
+        EventSide currentSide = eventSideRepository.findByEventIdAndLeaderUserId(eventId, userId)
                 .orElseThrow(() -> new IllegalStateException("User " + userId + "is not the side leader"));
 
         if(currentSide.isReady()) {

@@ -16,5 +16,5 @@ public interface EventSideRepository extends JpaRepository<EventSide, UUID> {
     List<EventSide> findAllByEventId(@Param("event_id") UUID eventId);
 
     @Query(value = "SELECT * FROM event_side WHERE event_id = :event_id AND leader_user_id = :leader_user_id", nativeQuery = true)
-    Optional<EventSide> findAllByEventIdAndLeaderUserId(@Param("event_id") UUID eventId, @Param("leader_id") UUID leaderId);
+    Optional<EventSide> findByEventIdAndLeaderUserId(@Param("event_id") UUID eventId, @Param("leader_user_id") UUID leaderId);
 }
