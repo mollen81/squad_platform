@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package com.squad.event.grpc;
+
+option java_multiple_files = true;
+option java_package = "com.squad.event.grpc";
+
+import "google/protobuf/timestamp.proto";
+
+service ClanService {
+  rpc GetClanIdFromUserId (GetClanIdFromUserIdRequest) returns (GetClanIdFromUserIdResponse);
+}
+
+message GetClanIdFromUserIdRequest {
+  string userId = 1;
+}
+
+message GetClanIdFromUserIdResponse {
+  string clanId = 1;
+}

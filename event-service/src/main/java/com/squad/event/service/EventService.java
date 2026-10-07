@@ -1,5 +1,7 @@
 package com.squad.event.service;
 
+import com.squad.event.grpc.ClanServiceGrpc;
+import com.squad.event.grpc.GetClanIdFromUserIdRequest;
 import com.squad.event.model.domain.*;
 import com.squad.event.model.dto.CreateEventRequest;
 import com.squad.event.model.dto.JoinEventRequest;
@@ -13,7 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.Year;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -29,6 +30,7 @@ public class EventService {
     private final EventParticipantRepository eventParticipantRepository;
     private final EventMatchRepository eventMatchRepository;
     private final EventMatchMapVoteRepository eventMatchMapVoteRepository;
+    private final ClanServiceGrpc.ClanServiceBlockingStub clanServiceBlockingStub;
 
     private static final int MAX_PLAYERS_PER_SIDE = 50;
 
@@ -36,6 +38,38 @@ public class EventService {
     public UUID createEvent(CreateEventRequest request) {
         log.info("Creating new event: {} by user {}", request.name(), request.creatorUserId());
 
+        // business logic checks
+        if(request.creatorUserId().equals(request.secondLeaderId())) {
+            throw new IllegalArgumentException("One user cannot be leader for both team in one time");
+        }
+
+        if(request.timeStart().isBefore(Instant.now())
+                || request.timeStart().isAfter(Instant.from(Instant.now().plus(1, ChronoUnit.YEARS)))) {
+            throw new IllegalArgumentException("Start time is not in valid interval");
+        }
+
+        if(request.targetGameCount() < 1 || request.targetGameCount() > 5) {
+            throw new IllegalArgumentException("Games target count is too low or too high");
+        }
+
+
+        // clan_id fetching from clan-service (gRPC call)
+        GetClanIdFromUserIdRequest clanServiceRequest1 = GetClanIdFromUserIdRequest.newBuilder()
+                .setUserId(request.creatorUserId().toString())
+                .build();
+        GetClanIdFromUserIdRequest clanServiceRequest2 = GetClanIdFromUserIdRequest.newBuilder()
+                .setUserId(request.secondLeaderId().toString())
+                .build();
+
+        String rawClanId1 = clanServiceBlockingStub.getClanIdFromUserId(clanServiceRequest1).getClanId();
+        UUID clanId1 = (rawClanId1.isBlank()) ? null : UUID.fromString(rawClanId1);
+        String rawClanId2 = clanServiceBlockingStub.getClanIdFromUserId(clanServiceRequest2).getClanId();
+        UUID clanId2 = (rawClanId2.isBlank()) ? null : UUID.fromString(rawClanId2);
+
+
+        // repository calls
+
+        // event form
         Event event = Event.builder()
                 .name(request.name())
                 .creatorUserId(request.creatorUserId())
@@ -46,15 +80,8 @@ public class EventService {
 
         eventRepository.save(event);
 
-        if(request.creatorUserId().equals(request.secondLeaderId())) {
-            throw new IllegalArgumentException("One user cannot be leader for both team in one time");
-        }
 
-        if(request.timeStart().isBefore(Instant.now())
-                || request.timeStart().isAfter(Instant.from(Instant.now().plus(1, ChronoUnit.YEARS)))) {
-            throw new IllegalArgumentException("Start time is not in valid interval");
-        }
-
+        // event side form
         EventSide side1 = EventSide.builder()
                 .eventId(event.getId())
                 .name(request.creatorSideName())
@@ -71,12 +98,25 @@ public class EventService {
         eventSideRepository.save(side1);
         eventSideRepository.save(side2);
 
-        // TODO event_participant add for leader1 and leader2 (clan_id gRPC call to clan-service)
 
-        if(request.targetGameCount() < 1 || request.targetGameCount() > 5) {
-            throw new IllegalArgumentException("Games target count is too low or too high");
-        }
+        // leaders save in event_participant table
+        EventParticipant leader1 = EventParticipant.builder()
+                .eventId(event.getId())
+                .sideId(side1.getId())
+                .userId(side1.getLeaderUserId())
+                .clanId(clanId1)
+                .build();
+        EventParticipant leader2 = EventParticipant.builder()
+                .eventId(event.getId())
+                .sideId(side2.getId())
+                .userId(side2.getLeaderUserId())
+                .clanId(clanId2)
+                .build();
 
+        eventParticipantRepository.saveAll(List.of(leader1, leader2));
+
+
+        // matches save in event_match table
         List<EventMatch> matches = IntStream.rangeClosed(1, event.getTargetGameCount())
                 .mapToObj(seq -> EventMatch.builder()
                         .eventId(event.getId())
