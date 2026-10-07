@@ -30,4 +30,12 @@ public interface EventMatchMapVoteRepository extends JpaRepository<EventMatchMap
             @Param("user_id") UUID userId,
             @Param("map") String map
     );
+
+    @Query(value = """
+            SELECT map FROM event_match_map_vote
+            WHERE match_id = :match_id
+            GROUP BY map ORDER BY COUNT(id) DESC, map ASC
+            LIMIT 1
+            """, nativeQuery = true)
+    Optional<String> findWinnerMapByMatchId(@Param("match_id") UUID matchId);
 }

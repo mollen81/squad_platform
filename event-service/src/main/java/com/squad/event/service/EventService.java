@@ -131,6 +131,7 @@ public class EventService {
         return event.getId();
     }
 
+
     @Transactional
     public UUID joinEvent(JoinEventRequest request) {
         Event event = eventRepository.findByIdForUpdate(request.eventId())
@@ -170,6 +171,7 @@ public class EventService {
 
         return participant.getId();
     }
+
 
     @Transactional
     public void setSideReady(UUID eventId, UUID userId) {
@@ -218,6 +220,7 @@ public class EventService {
         }
     }
 
+
     @Transactional
     public void mapVote(UUID matchId, UUID userId, EventMatchMap map) {
         Event event = eventRepository.findByMatchId(matchId)
@@ -239,5 +242,40 @@ public class EventService {
        );
 
         log.info("User {} voted for map {} in match {}", userId, map.name(), matchId);
+    }
+
+
+    @Transactional
+    public void startEventPreparation(UUID eventId) {
+        log.info("Starting preparation for event {}", eventId);
+
+        Event event = eventRepository.findByIdForUpdate(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event " + eventId + " is not found"));
+
+        if(event.getStatus() != EventStatus.REGISTRATION) {
+            throw new IllegalStateException("Event " + eventId + " is not in REGISTRATION status");
+        }
+
+        event.setStatus(EventStatus.PREPARING);
+        eventRepository.save(event);
+
+        List<EventMatch> matches = eventMatchRepository.findAllByEventIdOrderBySequenceNumber(eventId);
+        for(EventMatch match : matches) {
+            String winnerMapName = eventMatchMapVoteRepository.findWinnerMapByMatchId(match.getId())
+                    .orElse(EventMatchMap.YEHORIVKA.name());
+
+            match.setMap(EventMatchMap.valueOf(winnerMapName));
+            eventMatchRepository.save(match);
+        }
+
+        EventServer server = EventServer.builder()
+                .eventId(eventId)
+                .status(EventServerStatus.PENDING)
+                .build();
+        eventServerRepository.save(server);
+
+        log.info("Preparation completed for event {}. Ready for server deployment", eventId);
+
+        // TODO Kafka produces (server.rent)
     }
 }
