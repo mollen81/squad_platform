@@ -1,5 +1,6 @@
 package com.squad.event.model.domain;
 
+import com.squad.event.model.enums.EventGameMode;
 import com.squad.event.model.enums.EventStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -34,6 +35,10 @@ public class Event {
 
     @Column(name = "time_start", nullable = false)
     private Instant timeStart;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "game_mode", nullable = false)
+    private EventGameMode gameMode;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

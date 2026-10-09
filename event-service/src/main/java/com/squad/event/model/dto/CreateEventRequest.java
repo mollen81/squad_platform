@@ -1,5 +1,7 @@
 package com.squad.event.model.dto;
 
+import com.squad.event.model.enums.EventGameMode;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -9,6 +11,7 @@ public record CreateEventRequest(
         UUID secondLeaderId,
         int targetGameCount,
         Instant timeStart,
+        EventGameMode gameMode,
         String creatorSideName,
         String enemySideName
 ) {}

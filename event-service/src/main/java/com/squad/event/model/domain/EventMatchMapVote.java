@@ -1,6 +1,5 @@
 package com.squad.event.model.domain;
 
-import com.squad.event.model.enums.EventMatchMap;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -35,8 +34,8 @@ public class EventMatchMapVote {
     @Column(name = "user_id")
     private UUID userId;
 
-    @Enumerated(EnumType.STRING)
-    private EventMatchMap map;
+    @Column(name = "layer_name")
+    private String layerName;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

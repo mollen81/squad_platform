@@ -2,10 +2,11 @@ package com.squad.event.service;
 
 import com.squad.event.grpc.ClanServiceGrpc;
 import com.squad.event.grpc.GetClanIdFromUserIdRequest;
+import com.squad.event.kafka.EventKafkaProducer;
+import com.squad.event.kafka.event.ServerRentEvent;
 import com.squad.event.model.domain.*;
 import com.squad.event.model.dto.CreateEventRequest;
 import com.squad.event.model.dto.JoinEventRequest;
-import com.squad.event.model.enums.EventMatchMap;
 import com.squad.event.model.enums.EventMatchStatus;
 import com.squad.event.model.enums.EventServerStatus;
 import com.squad.event.model.enums.EventStatus;
@@ -30,11 +31,13 @@ public class EventService {
     private final EventSideRepository eventSideRepository;
     private final EventParticipantRepository eventParticipantRepository;
     private final EventMatchRepository eventMatchRepository;
-    private final EventMatchMapVoteRepository eventMatchMapVoteRepository;
+    private final EventMatchLayerVoteRepository eventMatchLayerVoteRepository;
     private final EventServerRepository eventServerRepository;
     private final ClanServiceGrpc.ClanServiceBlockingStub clanServiceBlockingStub;
+    private final EventKafkaProducer kafkaProducer;
 
     private static final int MAX_PLAYERS_PER_SIDE = 50;
+    private static final String TOPIC_SERVER_RENT = "server.rent";
 
     @Transactional
     public UUID createEvent(CreateEventRequest request) {
@@ -77,6 +80,7 @@ public class EventService {
                 .creatorUserId(request.creatorUserId())
                 .targetGameCount(request.targetGameCount())
                 .timeStart(request.timeStart())
+                .gameMode(request.gameMode())
                 .status(EventStatus.DRAFT)
                 .build();
 
@@ -134,6 +138,12 @@ public class EventService {
 
     @Transactional
     public UUID joinEvent(JoinEventRequest request) {
+        GetClanIdFromUserIdRequest getClanIdFromUserIdRequest = GetClanIdFromUserIdRequest.newBuilder()
+                .setUserId(request.userId().toString())
+                .build();
+        UUID clanId = UUID.fromString(
+                clanServiceBlockingStub.getClanIdFromUserId(getClanIdFromUserIdRequest).getClanId());
+
         Event event = eventRepository.findByIdForUpdate(request.eventId())
                 .orElseThrow(() -> new IllegalArgumentException("Event " + request.eventId() + " is not found"));
 
@@ -157,11 +167,12 @@ public class EventService {
             throw new IllegalStateException("Side " + side.getId() + " is full: current players count = " + currentSidePlayers);
         }
 
+
         EventParticipant participant = EventParticipant.builder()
                 .eventId(request.eventId())
                 .sideId(request.sideId())
                 .userId(request.userId())
-                .clanId(request.clanId())
+                .clanId(clanId)
                 .build();
 
         eventParticipantRepository.save(participant);
@@ -222,7 +233,7 @@ public class EventService {
 
 
     @Transactional
-    public void mapVote(UUID matchId, UUID userId, EventMatchMap map) {
+    public void mapVote(UUID matchId, UUID userId, String layer) {
         Event event = eventRepository.findByMatchId(matchId)
                 .orElseThrow(() -> new IllegalArgumentException("Event for match " + matchId + " is not found"));
 
@@ -234,14 +245,13 @@ public class EventService {
             throw new IllegalStateException("User " + userId + " is not joined event " + event.getId());
         }
 
-       eventMatchMapVoteRepository.upsertVote(
+       eventMatchLayerVoteRepository.upsertVote(
                UUID.randomUUID(),
                matchId,
                userId,
-               map.name()
-       );
+               layer);
 
-        log.info("User {} voted for map {} in match {}", userId, map.name(), matchId);
+        log.info("User {} voted for layer {} in match {}", userId, layer, matchId);
     }
 
 
@@ -261,10 +271,10 @@ public class EventService {
 
         List<EventMatch> matches = eventMatchRepository.findAllByEventIdOrderBySequenceNumber(eventId);
         for(EventMatch match : matches) {
-            String winnerMapName = eventMatchMapVoteRepository.findWinnerMapByMatchId(match.getId())
-                    .orElse(EventMatchMap.YEHORIVKA.name());
+            String winnerMapName = eventMatchLayerVoteRepository.findWinnerLayerByMatchId(match.getId())
+                    .orElse("Gorodok_RAAS_V1");
 
-            match.setMap(EventMatchMap.valueOf(winnerMapName));
+            match.setLayerName(winnerMapName);
             eventMatchRepository.save(match);
         }
 
@@ -276,6 +286,27 @@ public class EventService {
 
         log.info("Preparation completed for event {}. Ready for server deployment", eventId);
 
-        // TODO Kafka produces (server.rent)
+        // TODO Kafka producer (server.rent)
+        List<EventMatch> layerList = eventMatchRepository.findAllByEventIdOrderBySequenceNumber(eventId);
+        List<ServerRentEvent.AdminEntry> admins = List.of(new ServerRentEvent.AdminEntry(
+                "admin",
+                "76561198888277695"));
+        List<String> whiteList = eventParticipantRepository.findAllParticipantSteamIdsByEventId(eventId);
+        whiteList.add("76561198888277695");
+
+        ServerRentEvent serverRentEvent = new ServerRentEvent(
+                TOPIC_SERVER_RENT,
+                eventId,
+                event.getTimeStart(),
+                new ServerRentEvent.ServerConfig(
+                        event.getName(),
+                        "",
+                        layerList,
+                        100
+                ),
+                admins,
+                whiteList
+        );
+        kafkaProducer.sendServerRentEvent(serverRentEvent);
     }
 }

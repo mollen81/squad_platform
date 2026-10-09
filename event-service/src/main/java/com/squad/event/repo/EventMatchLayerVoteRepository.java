@@ -11,31 +11,31 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface EventMatchMapVoteRepository extends JpaRepository<EventMatchMapVote, UUID> {
-    @Query(value = "SELECT * FROM event_match_map_vote WHERE match_id = :match_id AND user_id = :user_id", nativeQuery = true)
+public interface EventMatchLayerVoteRepository extends JpaRepository<EventMatchMapVote, UUID> {
+    @Query(value = "SELECT * FROM event_match_layer_vote WHERE match_id = :match_id AND user_id = :user_id", nativeQuery = true)
     Optional<EventMatchMapVote> findByMatchIdAndUserId(@Param("match_id") UUID matchId, @Param("user_id") UUID userId);
 
     @Modifying
     @Query(value = """
-            INSERT INTO event_match_map_vote (id, match_id, user_id, map)
-            VALUES (:id, :match_id, :user_id, :map)
+            INSERT INTO event_match_layer_vote (id, match_id, user_id, layer_name)
+            VALUES (:id, :match_id, :user_id, :layer_name)
             ON CONFLICT (match_id, user_id)
             DO UPDATE SET
-                map = EXCLUDED.map,
+                layer_name = EXCLUDED.layer_name,
                 updated_at = CURRENT_TIMESTAMP
             """, nativeQuery = true)
     void upsertVote(
             @Param("id") UUID id,
             @Param("match_id") UUID matchId,
             @Param("user_id") UUID userId,
-            @Param("map") String map
+            @Param("layer_name") String layerName
     );
 
     @Query(value = """
-            SELECT map FROM event_match_map_vote
+            SELECT layer_name FROM event_match_layer_vote
             WHERE match_id = :match_id
-            GROUP BY map ORDER BY COUNT(id) DESC, map ASC
+            GROUP BY layer_name ORDER BY COUNT(id) DESC, layer_name ASC
             LIMIT 1
             """, nativeQuery = true)
-    Optional<String> findWinnerMapByMatchId(@Param("match_id") UUID matchId);
+    Optional<String> findWinnerLayerByMatchId(@Param("match_id") UUID matchId);
 }

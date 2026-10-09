@@ -32,4 +32,7 @@ public interface EventParticipantRepository extends JpaRepository<EventParticipa
     @Modifying
     @Query(value = "DELETE FROM event_participant WHERE event_id = :event_id AND user_id = :user_id", nativeQuery = true)
     void deleteByEventIdAndUserId(@Param("event_id") UUID eventId, @Param("user_id") UUID userId);
+
+    @Query(value = "SELECT steam_id FROM event_participant WHERE event_id = :event_id", nativeQuery = true)
+    List<String> findAllParticipantSteamIdsByEventId(@Param("event_id") UUID eventId);
 }
