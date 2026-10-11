@@ -151,7 +151,7 @@ public class ClanGrpcService extends com.squad.clan.grpc.ClanServiceGrpc.ClanSer
         catch (IllegalArgumentException e) {
             log.error("clan_id is not found for user_id {} in table clan_member", request.getUserId());
             responseObserver.onError(
-                    Status.INTERNAL
+                    Status.NOT_FOUND
                             .withDescription(e.getMessage())
                             .asRuntimeException()
             );
