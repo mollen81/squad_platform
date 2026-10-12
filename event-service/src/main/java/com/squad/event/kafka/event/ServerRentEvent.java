@@ -1,7 +1,6 @@
 package com.squad.event.kafka.event;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.squad.event.model.domain.EventMatch;
 
 import java.time.Instant;
 import java.util.List;
@@ -18,7 +17,7 @@ public record ServerRentEvent(
         public record ServerConfig (
                 @JsonProperty("server_name") String serverName,
                 @JsonProperty("password") String password,
-                @JsonProperty("matches") List<EventMatch> matches,
+                @JsonProperty("layer_names") List<String> layerNames,
                 @JsonProperty("max_players") Integer maxPlayers
         ) {}
         public record AdminEntry(

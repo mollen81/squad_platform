@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.IntStream;
@@ -154,12 +155,13 @@ public class EventLifecycleManagementService {
 
         log.info("Preparation completed for event {}. Ready for server deployment", eventId);
 
-        // TODO Kafka producer (server.rent)
-        List<EventMatch> layerList = eventMatchRepository.findAllByEventIdOrderBySequenceNumber(eventId);
+        List<String> layerNames = matches.stream()
+                .map(EventMatch::getLayerName)
+                .toList();
         List<ServerRentEvent.AdminEntry> admins = List.of(new ServerRentEvent.AdminEntry(
                 "admin",
                 "76561198888277695"));
-        List<String> whiteList = eventParticipantRepository.findAllParticipantSteamIdsByEventId(eventId);
+        List<String> whiteList = new ArrayList<>(eventParticipantRepository.findAllParticipantSteamIdsByEventId(eventId));
         whiteList.add("76561198888277695");
 
         ServerRentEvent serverRentEvent = new ServerRentEvent(
@@ -169,7 +171,7 @@ public class EventLifecycleManagementService {
                 new ServerRentEvent.ServerConfig(
                         event.getName(),
                         "",
-                        layerList,
+                        layerNames,
                         100
                 ),
                 admins,
