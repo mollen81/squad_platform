@@ -40,6 +40,8 @@ public class EventLifecycleManagementService {
 
     private final EventKafkaProducer kafkaProducer;
 
+    private final PasswordGeneratorService passwordGeneratorService;
+
     private static final String TOPIC_SERVER_RENT = "server.rent";
 
     @Transactional
@@ -168,7 +170,7 @@ public class EventLifecycleManagementService {
                 event.getTimeStart(),
                 new ServerRentEvent.ServerConfig(
                         event.getName(),
-                        "",
+                        passwordGeneratorService.generatePassword(15),
                         layerList,
                         100
                 ),
