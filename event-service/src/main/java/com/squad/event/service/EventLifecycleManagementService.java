@@ -36,6 +36,7 @@ public class EventLifecycleManagementService {
     private final EventMatchRepository eventMatchRepository;
     private final EventMatchLayerVoteRepository eventMatchLayerVoteRepository;
     private final EventServerRepository eventServerRepository;
+    private final PasswordGeneratorService passwordGeneratorService;
 
     private final ClanServiceGrpcClient clanServiceGrpcClient;
 
@@ -170,7 +171,7 @@ public class EventLifecycleManagementService {
                 event.getTimeStart(),
                 new ServerRentEvent.ServerConfig(
                         event.getName(),
-                        "",
+                        passwordGeneratorService.generatePassword(15),
                         layerNames,
                         100
                 ),
