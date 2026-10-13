@@ -28,6 +28,10 @@ dependencies {
 
     // Flyway migrations
     implementation 'org.flywaydb:flyway-core'
+
+    // Passay password generator
+    // Source: https://mvnrepository.com/artifact/org.passay/passay
+    implementation 'org.passay:passay:2.0.0'
 }
 
 protobuf {
