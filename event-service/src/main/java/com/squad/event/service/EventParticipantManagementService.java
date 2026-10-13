@@ -32,9 +32,6 @@ public class EventParticipantManagementService {
 
     @Transactional
     public UUID joinEvent(JoinEventRequest request) {
-        GetClanIdFromUserIdRequest getClanIdFromUserIdRequest = GetClanIdFromUserIdRequest.newBuilder()
-                .setUserId(request.userId().toString())
-                .build();
         UUID clanId = clanServiceGrpcClient.resolveUserClanId(request.userId());
 
         Event event = eventRepository.findByIdForUpdate(request.eventId())

@@ -6,11 +6,11 @@ import com.squad.event.model.dto.JoinEventRequest;
 import com.squad.event.repo.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
-@Component
+@Service
 @Slf4j
 @RequiredArgsConstructor
 public class EventService {

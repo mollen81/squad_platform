@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.IntStream;
@@ -39,8 +40,6 @@ public class EventLifecycleManagementService {
     private final ClanServiceGrpcClient clanServiceGrpcClient;
 
     private final EventKafkaProducer kafkaProducer;
-
-    private final PasswordGeneratorService passwordGeneratorService;
 
     private static final String TOPIC_SERVER_RENT = "server.rent";
 
@@ -156,12 +155,13 @@ public class EventLifecycleManagementService {
 
         log.info("Preparation completed for event {}. Ready for server deployment", eventId);
 
-        // TODO Kafka producer (server.rent)
-        List<EventMatch> layerList = eventMatchRepository.findAllByEventIdOrderBySequenceNumber(eventId);
+        List<String> layerNames = matches.stream()
+                .map(EventMatch::getLayerName)
+                .toList();
         List<ServerRentEvent.AdminEntry> admins = List.of(new ServerRentEvent.AdminEntry(
                 "admin",
                 "76561198888277695"));
-        List<String> whiteList = eventParticipantRepository.findAllParticipantSteamIdsByEventId(eventId);
+        List<String> whiteList = new ArrayList<>(eventParticipantRepository.findAllParticipantSteamIdsByEventId(eventId));
         whiteList.add("76561198888277695");
 
         ServerRentEvent serverRentEvent = new ServerRentEvent(
@@ -170,8 +170,8 @@ public class EventLifecycleManagementService {
                 event.getTimeStart(),
                 new ServerRentEvent.ServerConfig(
                         event.getName(),
-                        passwordGeneratorService.generatePassword(15),
-                        layerList,
+                        "",
+                        layerNames,
                         100
                 ),
                 admins,
