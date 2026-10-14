@@ -1,4 +1,4 @@
-package com.squad.event.kafka;
+package com.squad.event.kafka.producer;
 
 import com.squad.event.kafka.event.ServerRentEvent;
 import lombok.RequiredArgsConstructor;

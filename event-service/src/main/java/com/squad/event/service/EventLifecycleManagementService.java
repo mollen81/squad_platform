@@ -1,9 +1,8 @@
 package com.squad.event.service;
 
 import com.squad.event.client.ClanServiceGrpcClient;
-import com.squad.event.grpc.ClanServiceGrpc;
-import com.squad.event.grpc.GetClanIdFromUserIdRequest;
-import com.squad.event.kafka.EventKafkaProducer;
+import com.squad.event.kafka.event.ServerReadyEvent;
+import com.squad.event.kafka.producer.EventKafkaProducer;
 import com.squad.event.kafka.event.ServerRentEvent;
 import com.squad.event.model.domain.*;
 import com.squad.event.model.dto.CreateEventRequest;
@@ -11,8 +10,6 @@ import com.squad.event.model.enums.EventMatchStatus;
 import com.squad.event.model.enums.EventServerStatus;
 import com.squad.event.model.enums.EventStatus;
 import com.squad.event.repo.*;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -179,5 +176,32 @@ public class EventLifecycleManagementService {
                 whiteList
         );
         kafkaProducer.sendServerRentEvent(serverRentEvent);
+    }
+
+
+    @Transactional
+    public void handleServerReady(ServerReadyEvent readyEvent) {
+        log.info("Received server.ready event for eventId: {}", readyEvent.eventId());
+
+        EventServer server = eventServerRepository.findByEventId(readyEvent.eventId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "EventServer for event " + readyEvent.eventId() + " is not found"));
+
+        if(server.getStatus() == EventServerStatus.READY) {
+            log.warn(
+                    "Server for event {} is already in READY status. Ignoring duplicate message",
+                    readyEvent.eventId()
+            );
+        }
+
+        server.setIpAddress(readyEvent.ipAddress());
+        server.setQueryPort(readyEvent.queryPort());
+        server.setPassword(readyEvent.password());
+        server.setStatus(EventServerStatus.READY);
+
+        eventServerRepository.save(server);
+
+        log.info("Server for event {} is now READY ({}:{})",
+                readyEvent.eventId(), readyEvent.ipAddress(), readyEvent.queryPort());
     }
 }

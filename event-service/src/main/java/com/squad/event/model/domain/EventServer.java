@@ -28,6 +28,9 @@ public class EventServer {
     @Column(name = "ip_address")
     private String ipAddress;
 
+    @Column(name = "query_port")
+    private int queryPort;
+
     private String password;
 
     @Column(name = "deployed_at")
@@ -44,5 +47,16 @@ public class EventServer {
     public boolean isDataAvailable() {
         return ipAddress != null && password != null &&
                 (status == EventServerStatus.DEPLOYED || status == EventServerStatus.READY);
+    }
+
+    public String getSteamConnectionLink() {
+        if(this.status != EventServerStatus.READY || this.ipAddress == null) {
+            return null;
+        }
+        return String.format("steam://connect/%s:%d/%s",
+                this.ipAddress,
+                this.queryPort,
+                this.password != null ? this.password : ""
+        );
     }
 }

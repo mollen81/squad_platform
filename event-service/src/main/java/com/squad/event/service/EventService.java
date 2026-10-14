@@ -1,5 +1,6 @@
 package com.squad.event.service;
 
+import com.squad.event.kafka.event.ServerReadyEvent;
 import com.squad.event.model.domain.*;
 import com.squad.event.model.dto.CreateEventRequest;
 import com.squad.event.model.dto.JoinEventRequest;
@@ -46,5 +47,9 @@ public class EventService {
 
     public void startEventPreparation(UUID eventId) {
         eventLifecycleManagementService.startEventPreparation(eventId);
+    }
+
+    public void handleServerReady(ServerReadyEvent event) {
+        eventLifecycleManagementService.handleServerReady(event);
     }
 }
