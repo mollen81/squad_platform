@@ -23,4 +23,7 @@ public class EventKafkaConsumer {
             log.error("Failed to process server.ready event for event {}: {}", readyEvent.eventId(), e.getMessage(), e);
         }
     }
+
+
+    @KafkaListener(topics = "")
 }

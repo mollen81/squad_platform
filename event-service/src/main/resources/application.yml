@@ -1,0 +1,23 @@
+server:
+  port: 8086
+
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: event-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+        # Игнорируем чужие названия пакетов в заголовках Kafka:
+        spring.json.use.type.headers: false
+        # Явно указываем, в какой наш класс маппить входящий JSON:
+        spring.json.value.default.type: com.squad.event.kafka.event.ServerReadyEvent
+
+grpc:
+  client:
+    clan-service:
+      address: ${CLAN_SERVICE_GRPC_HOST}:${CLAN_SERVICE_GRPC_PORT}
+      negotiation-type: plaintext
