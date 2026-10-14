@@ -44,6 +44,7 @@ CREATE TABLE event_server (
     event_id UUID PRIMARY KEY NOT NULL REFERENCES event(id) ON DELETE CASCADE,
     status VARCHAR(32) NOT NULL,
     ip_address VARCHAR(255),
+    query_port INTEGER,
     password VARCHAR(255),
     deployed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

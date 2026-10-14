@@ -1,11 +1,13 @@
 package com.squad.event.repo;
 
 import com.squad.event.model.domain.Event;
+import com.squad.event.model.enums.EventStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,4 +32,7 @@ public interface EventRepository extends JpaRepository<Event, UUID> {
 
     @Query(value = "SELECT * FROM event WHERE id = (SELECT event_id FROM event_match WHERE id = :match_id)", nativeQuery = true)
     Optional<Event> findByMatchId(@Param("match_id") UUID matchId);
+
+    @Query(value = "SELECT id FROM event WHERE status = :#{#status.name()} AND time_start <= :threshold", nativeQuery = true)
+    List<UUID> findEventIdsWithStatusAndTimeStartThreshold(@Param("status") EventStatus status, @Param("threshold") Instant threshold);
 }
