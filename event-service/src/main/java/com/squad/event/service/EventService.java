@@ -47,9 +47,11 @@ public class EventService {
         eventLifecycleManagementService.startEventPreparation(eventId);
     }
 
+
     public void handleMatchFinished(MatchFinishedEvent matchFinishedEvent) {
         eventLifecycleManagementService.handleMatchFinished(matchFinishedEvent);
     }
+
 
     public void handleServerReady(ServerReadyEvent event) {
         eventLifecycleManagementService.handleServerReady(event);

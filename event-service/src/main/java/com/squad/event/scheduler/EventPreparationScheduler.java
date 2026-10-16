@@ -3,6 +3,7 @@ package com.squad.event.scheduler;
 import com.squad.event.model.enums.EventStatus;
 import com.squad.event.repo.EventRepository;
 import com.squad.event.service.EventLifecycleManagementService;
+import com.squad.event.service.EventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -19,7 +20,7 @@ import java.util.UUID;
 public class EventPreparationScheduler {
 
     private final EventRepository eventRepository;
-    private final EventLifecycleManagementService eventLifecycleManagementService;
+    private final EventService eventService;
 
     @Scheduled(fixedDelay = 60000)
     public void checkAndStartEventPreparations() {
@@ -38,7 +39,7 @@ public class EventPreparationScheduler {
 
         for(UUID eventId : eventsToPrepare) {
             try {
-                eventLifecycleManagementService.startEventPreparation(eventId);
+                eventService.startEventPreparation(eventId);
             } catch (Exception e) {
                 log.error("Failed to prepare event: {}. Reason: {}", eventId, e.getMessage(), e);
             }
