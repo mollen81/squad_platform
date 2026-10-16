@@ -1,5 +1,6 @@
 package com.squad.event.service;
 
+import com.squad.event.kafka.event.MatchFinishedEvent;
 import com.squad.event.kafka.event.ServerReadyEvent;
 import com.squad.event.model.domain.*;
 import com.squad.event.model.dto.CreateEventRequest;
@@ -20,9 +21,6 @@ public class EventService {
     private final EventParticipantManagementService eventParticipantManagementService;
     private final EventSideManagementService eventSideManagementService;
     private final EventMatchLayerManagementService eventMatchLayerManagementService;
-
-    private static final int MAX_PLAYERS_PER_SIDE = 50;
-    private static final String TOPIC_SERVER_RENT = "server.rent";
 
 
     public UUID createEvent(CreateEventRequest request) {
@@ -47,6 +45,10 @@ public class EventService {
 
     public void startEventPreparation(UUID eventId) {
         eventLifecycleManagementService.startEventPreparation(eventId);
+    }
+
+    public void handleMatchFinished(MatchFinishedEvent matchFinishedEvent) {
+        eventLifecycleManagementService.handleMatchFinished(matchFinishedEvent);
     }
 
     public void handleServerReady(ServerReadyEvent event) {

@@ -1,5 +1,6 @@
 package com.squad.event.kafka.consumer;
 
+import com.squad.event.kafka.event.MatchFinishedEvent;
 import com.squad.event.kafka.event.ServerReadyEvent;
 import com.squad.event.service.EventService;
 import lombok.RequiredArgsConstructor;
@@ -25,5 +26,21 @@ public class EventKafkaConsumer {
     }
 
 
-    @KafkaListener(topics = "")
+    @KafkaListener(topics = "match.finished", groupId = "event-service-group")
+    public void consumeMatchFinishedEvent(MatchFinishedEvent matchFinishedEvent) {
+        try {
+            log.info("Consuming message from 'match.finished' for event: {}", matchFinishedEvent.eventId());
+            eventService.handleMatchFinished(matchFinishedEvent);
+        }
+        catch (Exception e) {
+            log.error("Failed to process MatchFinishedEvent for event {}: {}",
+                    matchFinishedEvent.eventId(), e.getMessage(), e);
+        }
+    }
+
+
+    @KafkaListener(topics = "event.match.timeline", groupId = "event-service-group")
+    public void consumeEventMatchTimelineEvent() {
+
+    }
 }
