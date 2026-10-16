@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.UUID;
 
 public record ServerRentEvent(
-        @JsonProperty("type") String type,
         @JsonProperty("eventId") UUID eventId,
         @JsonProperty("time_start") Instant timeStart,
         @JsonProperty("server_config") ServerConfig serverConfig,

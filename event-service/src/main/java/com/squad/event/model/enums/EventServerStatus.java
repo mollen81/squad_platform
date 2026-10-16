@@ -5,5 +5,6 @@ public enum EventServerStatus {
     PURCHASED,
     DEPLOYED,
     READY,
+    STOPPED,
     TEARDOWN
 }

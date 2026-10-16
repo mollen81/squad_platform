@@ -1,7 +1,9 @@
 package com.squad.event.service;
 
 import com.squad.event.client.ClanServiceGrpcClient;
+import com.squad.event.kafka.event.MatchFinishedEvent;
 import com.squad.event.kafka.event.ServerReadyEvent;
+import com.squad.event.kafka.event.ServerStopEvent;
 import com.squad.event.kafka.producer.EventKafkaProducer;
 import com.squad.event.kafka.event.ServerRentEvent;
 import com.squad.event.model.domain.*;
@@ -39,7 +41,6 @@ public class EventLifecycleManagementService {
 
     private final EventKafkaProducer kafkaProducer;
 
-    private static final String TOPIC_SERVER_RENT = "server.rent";
 
     @Transactional
     public UUID createEvent(CreateEventRequest request) {
@@ -163,7 +164,6 @@ public class EventLifecycleManagementService {
         whiteList.add("76561198888277695");
 
         ServerRentEvent serverRentEvent = new ServerRentEvent(
-                TOPIC_SERVER_RENT,
                 eventId,
                 event.getTimeStart(),
                 new ServerRentEvent.ServerConfig(
@@ -203,5 +203,77 @@ public class EventLifecycleManagementService {
 
         log.info("Server for event {} is now READY ({}:{})",
                 readyEvent.eventId(), readyEvent.ipAddress(), readyEvent.queryPort());
+    }
+
+
+    @Transactional
+    public void handleMatchFinished(MatchFinishedEvent finishedEvent) {
+        UUID eventId = finishedEvent.eventId();
+        log.info("Processing match finish for event {}, match #{}", eventId, finishedEvent.matchSequenceNumber());
+
+        Event event = eventRepository.findByIdForUpdate(eventId)
+                .orElseThrow(() -> new IllegalArgumentException("Event " + eventId + " is not found"));
+
+        List<EventMatch> matches = eventMatchRepository.findAllByEventIdOrderBySequenceNumber(eventId);
+
+        EventMatch currentMatch = matches.get(finishedEvent.matchSequenceNumber() - 1);
+
+        if(currentMatch.getStatus() == EventMatchStatus.FINISHED) {
+            log.warn("Match #{} for event {} is already FINISHED. Ignoring duplicate event.",
+                    finishedEvent.matchSequenceNumber(), eventId);
+            return;
+        }
+
+        if(event.getStatus() != EventStatus.LIVE) {
+            throw new IllegalStateException("Cannot finish match: Event " + eventId + " is not in LIVE status");
+        }
+
+        Instant now = Instant.now();
+        currentMatch.setStatus(EventMatchStatus.FINISHED);
+        currentMatch.setWinnerSideId(finishedEvent.winnerSideId());
+        currentMatch.setFinishedAt(now);
+
+        int winsRequired = (event.getTargetGameCount() / 2) + 1;
+
+        long winnerTotalWins = matches.stream()
+                .filter(m -> m.getStatus() == EventMatchStatus.FINISHED)
+                .filter(m -> finishedEvent.winnerSideId() != null && finishedEvent.winnerSideId().equals(m.getWinnerSideId()))
+                .count();
+
+        boolean isLastMatchInSchedule = currentMatch.getSequenceNumber() >= event.getTargetGameCount();
+        boolean isSeriesDecided = (winnerTotalWins >= winsRequired) || isLastMatchInSchedule;
+
+        if(isSeriesDecided) {
+            log.info("Series decided for event {} (Winner side {} has {} wins). Finishing event",
+                    eventId, finishedEvent.winnerSideId(), winnerTotalWins);
+
+            event.setStatus(EventStatus.FINISHED);
+            eventRepository.save(event);
+
+            matches.stream()
+                    .filter(m -> m.getStatus() == EventMatchStatus.PENDING)
+                    .forEach(m -> m.setStatus(EventMatchStatus.CANCELED));
+
+            eventServerRepository.findByEventId(eventId).ifPresent(server -> {
+                server.setStatus(EventServerStatus.STOPPED);
+                eventServerRepository.save(server);
+            });
+
+            kafkaProducer.sendServerStopEvent(new ServerStopEvent(eventId));
+        }
+        else {
+            int nextSeq = currentMatch.getSequenceNumber() + 1;
+            EventMatch nextMatch = matches.stream()
+                    .filter(m -> m.getSequenceNumber() == nextSeq)
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("Next match #" + nextSeq + " not found"));
+
+            nextMatch.setStatus(EventMatchStatus.IN_PROGRESS);
+            nextMatch.setStartedAt(now);
+
+            log.info("Match #{} started for event {} on layer {}", nextSeq, eventId, nextMatch.getLayerName());
+        }
+
+        eventMatchRepository.saveAll(matches);
     }
 }
