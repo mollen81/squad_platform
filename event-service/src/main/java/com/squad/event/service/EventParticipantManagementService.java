@@ -1,7 +1,6 @@
 package com.squad.event.service;
 
 import com.squad.event.client.ClanServiceGrpcClient;
-import com.squad.event.grpc.GetClanIdFromUserIdRequest;
 import com.squad.event.model.domain.Event;
 import com.squad.event.model.domain.EventParticipant;
 import com.squad.event.model.domain.EventSide;

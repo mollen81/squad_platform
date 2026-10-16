@@ -2,7 +2,6 @@ package com.squad.event.scheduler;
 
 import com.squad.event.model.enums.EventStatus;
 import com.squad.event.repo.EventRepository;
-import com.squad.event.service.EventLifecycleManagementService;
 import com.squad.event.service.EventService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

@@ -11,7 +11,8 @@ public record ServerRentEvent(
         @JsonProperty("time_start") Instant timeStart,
         @JsonProperty("server_config") ServerConfig serverConfig,
         @JsonProperty("admins") List<AdminEntry> admins,
-        @JsonProperty("whitelist_steam_ids") List<String> whitelistSteamIds
+        @JsonProperty("whitelist_steam_ids") List<String> whitelistSteamIds,
+        @JsonProperty("side_ids") List<UUID> sideIds
         ) {
         public record ServerConfig (
                 @JsonProperty("server_name") String serverName,

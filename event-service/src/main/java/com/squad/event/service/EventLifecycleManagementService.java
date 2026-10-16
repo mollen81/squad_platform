@@ -163,6 +163,10 @@ public class EventLifecycleManagementService {
         List<String> whiteList = new ArrayList<>(eventParticipantRepository.findAllParticipantSteamIdsByEventId(eventId));
         whiteList.add("76561198888277695");
 
+        List<UUID> sideIds = new ArrayList<>(eventSideRepository.findAllByEventId(eventId).stream()
+                .map(EventSide::getId)
+                .toList());
+
         ServerRentEvent serverRentEvent = new ServerRentEvent(
                 eventId,
                 event.getTimeStart(),
@@ -173,7 +177,8 @@ public class EventLifecycleManagementService {
                         100
                 ),
                 admins,
-                whiteList
+                whiteList,
+                sideIds
         );
         kafkaProducer.sendServerRentEvent(serverRentEvent);
     }
