@@ -109,3 +109,15 @@ CREATE TABLE event_match_layer_vote (
 );
 
 CREATE INDEX idx_event_match_layer_vote_user_id ON event_match_layer_vote(user_id);
+
+
+CREATE TABLE timeline_event(
+    id UUID PRIMARY KEY NOT NULL,
+    match_id UUID NOT NULL REFERENCES event_match(id),
+    timeline_event_type VARCHAR(64) NOT NULL,
+    game_time_seconds INTEGER NOT NULL,
+    payload JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_timeline_event_created_at ON timeline_event(created_at);
