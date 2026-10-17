@@ -1,12 +1,12 @@
 package com.squad.event.kafka.event;
 
-import com.squad.event.model.enums.TimelineEvenType;
+import com.squad.event.model.enums.TimelineEventType;
 
 import java.util.UUID;
 
 public record EventMatchTimelineEvent(
         UUID id,
         UUID matchId,
-        TimelineEvenType evenType,
+        TimelineEventType evenType,
         int gameTimeSeconds
 ) {}

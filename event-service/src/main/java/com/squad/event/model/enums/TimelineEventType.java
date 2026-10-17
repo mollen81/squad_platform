@@ -1,6 +1,6 @@
 package com.squad.event.model.enums;
 
-public enum TimelineEvenType {
+public enum TimelineEventType {
     KILL,
     REVIVE,
     VEHICLE_DESTROYED,
