@@ -43,12 +43,13 @@ public class EventKafkaConsumer {
     @KafkaListener(topics = "event.match.timeline", groupId = "event-service-group")
     public void consumeEventMatchTimelineEvent(EventMatchTimelineEvent matchTimelineEvent) {
         try {
-            log.info("Consuming message from 'event.match.timeline' for match: {}", matchTimelineEvent.matchId());
+            log.info("Consuming message from 'event.match.timeline' for eventId {}, match #{}",
+                    matchTimelineEvent.eventId(), matchTimelineEvent.matchSequenceNumber());
             eventService.processMatchTimelineEvent(matchTimelineEvent);
         }
         catch (Exception e) {
-            log.error("Failed to process EventMatchTimelineEvent for match {}: {}",
-                    matchTimelineEvent.matchId(), e.getMessage(), e);
+            log.error("Failed to process EventMatchTimelineEvent for eventId {}, match #{}: {}",
+                    matchTimelineEvent.eventId(), matchTimelineEvent.matchSequenceNumber(), e.getMessage(), e);
         }
     }
 }
