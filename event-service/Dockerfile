@@ -12,6 +12,9 @@ COPY build.gradle .
 COPY event-service/build.gradle ./event-service/
 COPY event-service/src ./event-service/src
 
+COPY clan-service/build.gradle ./clan-service/
+COPY clan-service/src ./clan-service/src
+
 RUN ./gradlew :event-service:clean :event-service:build -x test --no-daemon
 
 # 4. Переходим в папку с собранным артефактом и распаковываем JAR на слои

@@ -1,5 +1,6 @@
 package com.squad.event.service;
 
+import com.squad.event.kafka.event.EventMatchTimelineEvent;
 import com.squad.event.kafka.event.MatchFinishedEvent;
 import com.squad.event.kafka.event.ServerReadyEvent;
 import com.squad.event.model.domain.*;
@@ -21,6 +22,7 @@ public class EventService {
     private final EventParticipantManagementService eventParticipantManagementService;
     private final EventSideManagementService eventSideManagementService;
     private final EventMatchLayerManagementService eventMatchLayerManagementService;
+    private final EventMatchTimelineService eventMatchTimelineService;
 
 
     public UUID createEvent(CreateEventRequest request) {
@@ -55,5 +57,9 @@ public class EventService {
 
     public void handleServerReady(ServerReadyEvent event) {
         eventLifecycleManagementService.handleServerReady(event);
+    }
+
+    public void processMatchTimelineEvent(EventMatchTimelineEvent eventMatchTimelineEvent) {
+        eventMatchTimelineService.processTimelineEvent(eventMatchTimelineEvent);
     }
 }

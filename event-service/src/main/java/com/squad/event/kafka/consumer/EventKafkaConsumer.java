@@ -1,5 +1,6 @@
 package com.squad.event.kafka.consumer;
 
+import com.squad.event.kafka.event.EventMatchTimelineEvent;
 import com.squad.event.kafka.event.MatchFinishedEvent;
 import com.squad.event.kafka.event.ServerReadyEvent;
 import com.squad.event.service.EventService;
@@ -40,7 +41,14 @@ public class EventKafkaConsumer {
 
 
     @KafkaListener(topics = "event.match.timeline", groupId = "event-service-group")
-    public void consumeEventMatchTimelineEvent() {
-
+    public void consumeEventMatchTimelineEvent(EventMatchTimelineEvent matchTimelineEvent) {
+        try {
+            log.info("Consuming message from 'event.match.timeline' for match: {}", matchTimelineEvent.matchId());
+            eventService.processMatchTimelineEvent(matchTimelineEvent);
+        }
+        catch (Exception e) {
+            log.error("Failed to process EventMatchTimelineEvent for match {}: {}",
+                    matchTimelineEvent.matchId(), e.getMessage(), e);
+        }
     }
 }
