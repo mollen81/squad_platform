@@ -4,5 +4,5 @@ public enum EventGameMode {
     RAAS,
     AAS,
     INVASION,
-    SKRIMISH
+    SKIRMISH
 }

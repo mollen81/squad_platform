@@ -6,6 +6,66 @@ option java_multiple_files = true;
 option java_package = "com.squad.event.grpc";
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+
+service EventService {
+  rpc CreateEvent(CreateEventRequest) returns (CreateEventResponse);
+  rpc JoinEvent(JoinEventRequest) returns (JoinEventResponse);
+  rpc SetSideReady(SetSideReadyRequest) returns (google.protobuf.Empty);
+  rpc MapVote(MapVoteRequest) returns (google.protobuf.Empty);
+}
+
+
+// createEvent method request/response data -> method for players to create the event
+message CreateEventRequest {
+  string name = 1;
+  string creator_user_id = 2;
+  string second_leader_id = 3;
+  int32 targetGameCount = 4;
+  google.protobuf.Timestamp time_start = 5;
+  EventGameMode gameMode = 6;
+  string creator_side_name = 7;
+  string enemy_side_name = 8;
+}
+
+message CreateEventResponse {
+  string event_id = 1;
+}
+
+enum EventGameMode {
+  RAAS = 0;
+  AAS = 1;
+  INVASION = 2;
+  SKIRMISH = 3;
+}
+
+
+// joinEvent method request/response data -> method for players to join the event
+message JoinEventRequest {
+  string user_id = 1;
+  string event_id = 2;
+  string side_id = 3;
+}
+
+message JoinEventResponse {
+  string event_participant_id = 1;
+}
+
+
+// setSideReady method request data -> method for event creators to set sides status to READY
+message SetSideReadyRequest {
+  string event_id = 1;
+  string user_id = 2;
+}
+
+
+// mapVote method request data -> method for event participants to vote for map layers
+message MapVoteRequest {
+  string match_id = 1;
+  string user_id = 2;
+  string layer = 3;
+}
 
 service ClanService {
   rpc GetClanIdFromUserId (GetClanIdFromUserIdRequest) returns (GetClanIdFromUserIdResponse);
