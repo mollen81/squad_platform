@@ -53,4 +53,35 @@ public class GrpcEventService extends EventServiceGrpc.EventServiceImplBase {
         }
     }
 
+    @Override
+    public void joinEvent(JoinEventRequest request, StreamObserver<JoinEventResponse> responseStreamObserver) {
+        log.info("Starting to process gRPC joinEvent request from user {} to event {}",
+                request.getUserId(), request.getEventId());
+        try {
+            com.squad.event.model.dto.JoinEventRequest joinEventRequest = new com.squad.event.model.dto.JoinEventRequest(
+                    UUID.fromString(request.getUserId()),
+                    UUID.fromString(request.getEventId()),
+                    UUID.fromString(request.getSideId())
+            );
+
+            UUID eventParticipantId = eventService.joinEvent(joinEventRequest);
+
+            log.info("gRPC joinEvent request from user {} to event {} is processed",
+                    request.getUserId(), request.getEventId());
+
+            JoinEventResponse response = JoinEventResponse.newBuilder()
+                    .setEventParticipantId(eventParticipantId.toString())
+                    .build();
+            responseStreamObserver.onNext(response);
+            responseStreamObserver.onCompleted();
+        }
+        catch (Exception e) {
+            log.error("Error while processing joinEvent gRPC request from user {} to event {}",
+                    request.getUserId(), request.getEventId(), e);
+            responseStreamObserver.onError(Status.INTERNAL
+                    .withDescription(e.getMessage())
+                    .withCause(e.getCause())
+                    .asRuntimeException());
+        }
+    }
 }
