@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -61,5 +62,9 @@ public class EventService {
 
     public void processMatchTimelineEvent(EventMatchTimelineEvent eventMatchTimelineEvent) {
         eventMatchTimelineService.processTimelineEvent(eventMatchTimelineEvent);
+    }
+
+    public List<TimelineEvent> getMatchTimelineHistory(UUID eventId, int matchSequenceNumber) {
+        return eventMatchTimelineService.getMatchTimelineHistory(eventId, matchSequenceNumber);
     }
 }
