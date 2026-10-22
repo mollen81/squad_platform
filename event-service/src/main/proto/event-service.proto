@@ -15,7 +15,7 @@ service EventService {
   rpc JoinEvent(JoinEventRequest) returns (JoinEventResponse);
   rpc SetSideReady(SetSideReadyRequest) returns (google.protobuf.Empty);
   rpc MapVote(MapVoteRequest) returns (google.protobuf.Empty);
-  rpc GetMatchTimeLine(GetMatchTimelineRequest) returns (GetMatchTimelineResponse);
+  rpc GetMatchTimeline(GetMatchTimelineRequest) returns (GetMatchTimelineResponse);
 }
 
 
@@ -83,10 +83,10 @@ message GetMatchTimelineResponse {
 message TimelineEvent {
   string id = 1;
   string match_id = 2;
-  TimelineEventType timelineEventType = 3;
+  string timelineEventType = 3;
   int32 game_time_seconds = 4;
-  google.protobuf.Struct payload = 5;
-  google.protobuf.Timestamp created_at = 6;
+  string payload = 5;
+  uint64 created_at = 6;
 }
 
 enum TimelineEventType {
