@@ -127,4 +127,11 @@ public class GrpcEventService extends EventServiceGrpc.EventServiceImplBase {
         log.info("gRPC getMatchTimeline request to event {}, match #{} is processed",
                 request.getEventId(), request.getMatchSequenceNumber());
     }
+
+    public void streamMatchTimeline(
+            StreamMatchTimelineRequest request,
+            StreamObserver<com.squad.event.grpc.TimelineEvent> responseStreamObserver) {
+        log.info("Starting to stream match timeline on event {}", request.getEventId());
+        streamManager.registerGatewayObserver(UUID.fromString(request.getEventId()), responseStreamObserver);
+    }
 }

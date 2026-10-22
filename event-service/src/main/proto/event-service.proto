@@ -16,6 +16,7 @@ service EventService {
   rpc SetSideReady(SetSideReadyRequest) returns (google.protobuf.Empty);
   rpc MapVote(MapVoteRequest) returns (google.protobuf.Empty);
   rpc GetMatchTimeline(GetMatchTimelineRequest) returns (GetMatchTimelineResponse);
+  rpc StreamMatchTimeline(StreamMatchTimelineRequest) returns (stream TimelineEvent);
 }
 
 
@@ -98,6 +99,16 @@ enum TimelineEventType {
   TICKETS_UPDATE = 5;
 }
 
+
+// streamMatchTimeline
+message StreamMatchTimelineRequest {
+  string event_id = 1;
+}
+
+
+/*
+  CLAN-SERVICE
+ */
 service ClanService {
   rpc GetClanIdFromUserId (GetClanIdFromUserIdRequest) returns (GetClanIdFromUserIdResponse);
 }

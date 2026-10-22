@@ -1,6 +1,7 @@
 package com.squad.event.service;
 
 import com.squad.event.client.ClanServiceGrpcClient;
+import com.squad.event.grpc.GrpcTimelineStreamManager;
 import com.squad.event.kafka.event.*;
 import com.squad.event.kafka.producer.EventKafkaProducer;
 import com.squad.event.model.domain.*;
@@ -37,6 +38,8 @@ public class EventLifecycleManagementService {
     private final ClanServiceGrpcClient clanServiceGrpcClient;
 
     private final EventKafkaProducer kafkaProducer;
+
+    private final GrpcTimelineStreamManager streamManager;
 
 
     @Transactional
@@ -263,6 +266,8 @@ public class EventLifecycleManagementService {
 
             kafkaProducer.sendEventEndedEvent(new EventEndedEvent(eventId, finishedEvent.winnerSideId(), currentMatch.getFinishedAt()));
             kafkaProducer.sendServerStopEvent(new ServerStopEvent(eventId));
+
+            streamManager.completeStreamsForEvent(eventId);
         }
         else {
             int nextSeq = currentMatch.getSequenceNumber() + 1;
