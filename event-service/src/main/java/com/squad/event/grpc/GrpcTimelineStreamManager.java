@@ -23,7 +23,6 @@ public class GrpcTimelineStreamManager {
     private final ObjectMapper objectMapper;
 
 
-    // TODO: streams management logic
     public void registerGatewayObserver(UUID eventId, StreamObserver<TimelineEvent> streamObserver) {
         List<StreamObserver<TimelineEvent>> eventObservers = observersByEvent.computeIfAbsent(
                 eventId, k -> new CopyOnWriteArrayList<>());
@@ -38,6 +37,7 @@ public class GrpcTimelineStreamManager {
 
         log.info("Registered gRPC timeline stream for event {}. Active streams: {}", eventId, eventObservers.size());
     }
+
 
     public void broadcastTimelineEvent(UUID eventId, com.squad.event.model.domain.TimelineEvent timelineEvent) {
         List<StreamObserver<TimelineEvent>> eventObservers = observersByEvent.get(eventId);
@@ -60,6 +60,26 @@ public class GrpcTimelineStreamManager {
         }
     }
 
+
+    public void completeStreamsForEvent(UUID eventId) {
+        List<StreamObserver<TimelineEvent>> eventObservers = observersByEvent.get(eventId);
+        if(eventObservers == null) {
+            return;
+        }
+
+        for(StreamObserver<TimelineEvent> observer : eventObservers) {
+            try {
+                synchronized (observer) {
+                    observer.onCompleted();
+                }
+            }
+            catch (Exception ignored) {}
+        }
+
+        log.info("Closed all gRPC timeline streams for finished event {}", eventId);
+    }
+
+
     private void removeObserver(UUID eventId, StreamObserver<TimelineEvent> observer) {
         List<StreamObserver<TimelineEvent>> observers = observersByEvent.get(eventId);
         if(observers != null) {
@@ -69,6 +89,7 @@ public class GrpcTimelineStreamManager {
             }
         }
     }
+
 
     public TimelineEvent mapToProto(com.squad.event.model.domain.TimelineEvent event) {
         String payloadJson = "{}";
