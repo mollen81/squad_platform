@@ -1,5 +1,6 @@
 package com.squad.event.service;
 
+import com.squad.event.grpc.GrpcTimelineStreamManager;
 import com.squad.event.kafka.event.EventMatchTimelineEvent;
 import com.squad.event.model.domain.Event;
 import com.squad.event.model.domain.EventMatch;
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class EventMatchTimelineService {
     private final EventMatchRepository eventMatchRepository;
     private final EventMatchTimelineRepository eventMatchTimelineRepository;
+    private final GrpcTimelineStreamManager streamManager;
 
     @Transactional
     public void processTimelineEvent(EventMatchTimelineEvent event) {
@@ -35,9 +37,9 @@ public class EventMatchTimelineService {
                 .payload(event.payload())
                 .build();
 
-        eventMatchTimelineRepository.save(timelineEvent);
+        TimelineEvent savedEntry = eventMatchTimelineRepository.save(timelineEvent);
 
-        // TODO: SSE emitter message receiving
+        streamManager.broadcastTimelineEvent(event.eventId(), savedEntry);
 
         log.debug("Processed timeline event {} for event {}, match #{}",
                 event.timelineEventType(), event.eventId(), event.matchSequenceNumber());
