@@ -39,6 +39,27 @@ public class GrpcTimelineStreamManager {
         log.info("Registered gRPC timeline stream for event {}. Active streams: {}", eventId, eventObservers.size());
     }
 
+    public void broadcastTimelineEvent(UUID eventId, com.squad.event.model.domain.TimelineEvent timelineEvent) {
+        List<StreamObserver<TimelineEvent>> eventObservers = observersByEvent.get(eventId);
+        if(eventObservers == null || eventObservers.isEmpty()) {
+            return;
+        }
+
+        TimelineEvent grpcMessage = mapToProto(timelineEvent);
+
+        for(StreamObserver<TimelineEvent> observer : eventObservers) {
+            try {
+                synchronized (observer) {
+                    observer.onNext(grpcMessage);
+                }
+            }
+            catch (Exception e) {
+                log.warn("Failed to send timeline event to gRPC stream for event {}. Removing observer.", eventId);
+                removeObserver(eventId, observer);
+            }
+        }
+    }
+
     private void removeObserver(UUID eventId, StreamObserver<TimelineEvent> observer) {
         List<StreamObserver<TimelineEvent>> observers = observersByEvent.get(eventId);
         if(observers != null) {
