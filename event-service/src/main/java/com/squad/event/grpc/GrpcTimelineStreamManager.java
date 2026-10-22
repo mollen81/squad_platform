@@ -3,6 +3,7 @@ package com.squad.event.grpc;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Timestamp;
+import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Service
 @Slf4j
@@ -22,6 +24,30 @@ public class GrpcTimelineStreamManager {
 
 
     // TODO: streams management logic
+    public void registerGatewayObserver(UUID eventId, StreamObserver<TimelineEvent> streamObserver) {
+        List<StreamObserver<TimelineEvent>> eventObservers = observersByEvent.computeIfAbsent(
+                eventId, k -> new CopyOnWriteArrayList<>());
+        eventObservers.add(streamObserver);
+
+        if(streamObserver instanceof ServerCallStreamObserver<TimelineEvent> serverObserver) {
+            serverObserver.setOnCancelHandler(() -> {
+                log.info("gRPC stream canceled by gateway for event {}", eventId);
+                removeObserver(eventId, streamObserver);
+            });
+        }
+
+        log.info("Registered gRPC timeline stream for event {}. Active streams: {}", eventId, eventObservers.size());
+    }
+
+    private void removeObserver(UUID eventId, StreamObserver<TimelineEvent> observer) {
+        List<StreamObserver<TimelineEvent>> observers = observersByEvent.get(eventId);
+        if(observers != null) {
+            observers.remove(observer);
+            if(observers.isEmpty()) {
+                observersByEvent.remove(eventId);
+            }
+        }
+    }
 
     public TimelineEvent mapToProto(com.squad.event.model.domain.TimelineEvent event) {
         String payloadJson = "{}";
