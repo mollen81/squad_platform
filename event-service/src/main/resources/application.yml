@@ -1,11 +1,36 @@
 server:
   port: 8086
 
+
 spring:
+  application:
+    name:
+      event-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  jpa:
+    properties:
+      hibernate:
+        ddl-auto: validate
+        show-sql: true
+        default_schema: public
+  flyway:
+    enabled: true
+    schemas: public
+    table: flyway_schema_history_event
+    locations: 'classpath:db/migrations'
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    baseline-version: '0'
+    clean-disabled: true
+
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS}
     consumer:
-      group-id: event-service-group
+      group-id: event-workers
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
@@ -15,8 +40,14 @@ spring:
         spring.json.use.type.headers: false
         # Явно указываем, в какой наш класс маппить входящий JSON:
         spring.json.value.default.type: com.squad.event.kafka.event.ServerReadyEvent
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
 
 grpc:
+  server:
+    port:
+      9096
   client:
     clan-service:
       address: ${CLAN_SERVICE_GRPC_HOST}:${CLAN_SERVICE_GRPC_PORT}

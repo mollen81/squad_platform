@@ -1,11 +1,8 @@
 package com.squad.event.service;
 
 import com.squad.event.client.ClanServiceGrpcClient;
-import com.squad.event.kafka.event.MatchFinishedEvent;
-import com.squad.event.kafka.event.ServerReadyEvent;
-import com.squad.event.kafka.event.ServerStopEvent;
+import com.squad.event.kafka.event.*;
 import com.squad.event.kafka.producer.EventKafkaProducer;
-import com.squad.event.kafka.event.ServerRentEvent;
 import com.squad.event.model.domain.*;
 import com.squad.event.model.dto.CreateEventRequest;
 import com.squad.event.model.enums.EventMatchStatus;
@@ -264,6 +261,7 @@ public class EventLifecycleManagementService {
                 eventServerRepository.save(server);
             });
 
+            kafkaProducer.sendEventEndedEvent(new EventEndedEvent(eventId, finishedEvent.winnerSideId(), currentMatch.getFinishedAt()));
             kafkaProducer.sendServerStopEvent(new ServerStopEvent(eventId));
         }
         else {

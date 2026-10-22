@@ -62,13 +62,13 @@ CREATE TABLE event_match (
     status VARCHAR(32) NOT NULL,
     winner_side_id UUID REFERENCES event_side(id) ON DELETE SET NULL,
     started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
-    finished_at TIMESTAMP WITH TIME ZONE CURRENT_TIMESTAMP NOT NULL,
+    finished_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
     CONSTRAINT uq_match_event_sequence UNIQUE (event_id, sequence_number)
 );
 
-CREATE INDEX idx_match_event_id ON match(event_id);
-CREATE INDEX idx_event_match_status ON match(status);
+CREATE INDEX idx_match_event_id ON event_match(event_id);
+CREATE INDEX idx_event_match_status ON event_match(status);
 
 
 CREATE TABLE event_match_player_stats (
@@ -92,8 +92,8 @@ CREATE TABLE event_match_player_stats (
     CONSTRAINT uq_match_player_stats UNIQUE (match_id, participant_id)
 );
 
-CREATE INDEX idx_match_player_stats_match_id ON match_player_stats(match_id);
-CREATE INDEX idx_match_player_stats_participant_id ON match_player_stats(participant_id);
+CREATE INDEX idx_match_player_stats_match_id ON event_match_player_stats(match_id);
+CREATE INDEX idx_match_player_stats_participant_id ON event_match_player_stats(participant_id);
 
 
 CREATE TABLE event_match_layer_vote (
@@ -111,7 +111,7 @@ CREATE TABLE event_match_layer_vote (
 CREATE INDEX idx_event_match_layer_vote_user_id ON event_match_layer_vote(user_id);
 
 
-CREATE TABLE timeline_event(
+CREATE TABLE timeline_event (
     id UUID PRIMARY KEY NOT NULL,
     match_id UUID NOT NULL REFERENCES event_match(id),
     timeline_event_type VARCHAR(64) NOT NULL,

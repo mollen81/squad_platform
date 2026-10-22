@@ -18,7 +18,7 @@ public class GrpcGlobalExceptionHandler {
                 .asRuntimeException();
     }
 
-    @GrpcExceptionHandler(IllegalArgumentException.class)
+    @GrpcExceptionHandler(IllegalStateException.class)
     public StatusRuntimeException handleIllegalStateException(IllegalStateException e) {
         log.warn("gRPC Failed precondition: {}", e.getMessage());
         return Status.FAILED_PRECONDITION

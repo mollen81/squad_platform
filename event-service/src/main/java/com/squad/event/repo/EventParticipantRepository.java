@@ -20,10 +20,10 @@ public interface EventParticipantRepository extends JpaRepository<EventParticipa
     @Query(value = "SELECT * FROM event_participant WHERE event_id = :event_id AND user_id = :user_id", nativeQuery = true)
     Optional<EventParticipant> findByEventIdAndUserId(@Param("event_id") UUID eventId, @Param("user_id") UUID userId);
 
-    @Query(value = "SELECT COUNT(*) FROM event_participant WHERE side_id = :side_id")
+    @Query(value = "SELECT COUNT(*) FROM event_participant WHERE side_id = :side_id", nativeQuery = true)
     int countBySideId(@Param("side_id") UUID sideId);
 
-    @Query(value = "SELECT COUNT(*) FROM event_participant WHERE side_id = :side_id AND clan_id = :clan_id")
+    @Query(value = "SELECT COUNT(*) FROM event_participant WHERE side_id = :side_id AND clan_id = :clan_id", nativeQuery = true)
     int countBySideIdAndClanId(@Param("side_id") UUID sideId, @Param("clan_id") UUID clanId);
 
     @Query(value = "SELECT * FROM event_participant WHERE side_id = :side_id AND clan_id = :clan_id", nativeQuery = true)

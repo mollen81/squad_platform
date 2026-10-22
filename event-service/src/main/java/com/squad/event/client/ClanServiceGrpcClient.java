@@ -16,7 +16,7 @@ import java.util.UUID;
 @Slf4j
 public class ClanServiceGrpcClient {
     @GrpcClient("clan-service")
-    private final ClanServiceGrpc.ClanServiceBlockingStub clanServiceBlockingStub;
+    private ClanServiceGrpc.ClanServiceBlockingStub clanServiceBlockingStub;
 
     // userId -> clanId (if exists)
     public UUID resolveUserClanId(UUID userId) {
