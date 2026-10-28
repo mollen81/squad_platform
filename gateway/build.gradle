@@ -9,9 +9,6 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
 
-    implementation 'net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE'
-    implementation 'javax.annotation:javax.annotation-api:1.3.2'
-
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     
@@ -20,6 +17,12 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
 
     testImplementation 'org.mockito:mockito-core'
+
+    // gRPC server
+    implementation 'net.devh:grpc-server-spring-boot-starter:3.1.0.RELEASE'
+    implementation 'net.devh:grpc-client-spring-boot-starter:3.1.0.RELEASE'
+    implementation 'javax.annotation:javax.annotation-api:1.3.2'
+    compileOnly 'org.apache.tomcat:annotations-api:6.0.53'
 }
 
 protobuf {
@@ -48,6 +51,7 @@ sourceSets {
             srcDir '../user-service/src/main/proto'
             srcDir '../stats-service/src/main/proto'
             srcDir '../clan-service/src/main/proto'
+            srcDir '../event-service/src/main/proto'
         }
     }
 }

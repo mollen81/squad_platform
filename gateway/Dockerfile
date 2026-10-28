@@ -21,6 +21,9 @@ COPY stats-service/src ./stats-service/src
 COPY clan-service/build.gradle ./clan-service/
 COPY clan-service/src ./clan-service/src
 
+COPY event-service/build.gradle ./event-service/
+COPY event-service/src ./event-service/src
+
 RUN ./gradlew :gateway:clean :gateway:build -x test --no-daemon
 
 # 4. Переходим в папку с собранным артефактом и распаковываем JAR на слои
@@ -42,5 +45,6 @@ COPY --from=builder /build/gateway/build/libs/snapshot-dependencies/ ./
 COPY --from=builder /build/gateway/build/libs/application/ ./
 
 EXPOSE 8080
+EXPOSE 9090
 
 ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
