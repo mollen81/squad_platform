@@ -3,7 +3,7 @@ package com.squad.gateway.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.squad.clan.grpc.CreateClanResponse;
 import com.squad.clan.grpc.GetClanResponse;
-import com.squad.gateway.service.ClanGrpcClientService;
+import com.squad.gateway.service.clan.ClanGrpcClientService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;

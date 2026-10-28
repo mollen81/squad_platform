@@ -1,6 +1,6 @@
 package com.squad.gateway.controller;
 
-import com.squad.gateway.service.ClanGrpcClientService;
+import com.squad.gateway.service.clan.ClanGrpcClientService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

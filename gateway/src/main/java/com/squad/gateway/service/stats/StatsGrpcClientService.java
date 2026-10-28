@@ -1,4 +1,4 @@
-package com.squad.gateway.service;
+package com.squad.gateway.service.stats;
 
 import com.squad.stats.grpc.GetPlayerStatsByInternalIdRequest;
 import com.squad.stats.grpc.GetPlayerStatsResponse;

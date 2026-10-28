@@ -1,4 +1,4 @@
-package com.squad.gateway.service;
+package com.squad.gateway.service.user;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

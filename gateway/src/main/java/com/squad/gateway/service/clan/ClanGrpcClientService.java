@@ -1,4 +1,4 @@
-package com.squad.gateway.service;
+package com.squad.gateway.service.clan;
 
 import com.squad.clan.grpc.*;
 import net.devh.boot.grpc.client.inject.GrpcClient;

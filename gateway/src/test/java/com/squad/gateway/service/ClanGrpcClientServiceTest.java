@@ -3,6 +3,7 @@ package com.squad.gateway.service;
 import com.squad.clan.grpc.ClanServiceGrpc;
 import com.squad.clan.grpc.CreateClanRequest;
 import com.squad.clan.grpc.CreateClanResponse;
+import com.squad.gateway.service.clan.ClanGrpcClientService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
