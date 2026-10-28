@@ -1,12 +1,9 @@
 package com.squad.gateway.service.event;
 
 import com.google.protobuf.Timestamp;
-import com.squad.event.grpc.CreateEventRequest;
-import com.squad.event.grpc.CreateEventResponse;
-import com.squad.event.grpc.EventGameMode;
-import com.squad.event.grpc.EventServiceGrpc;
+import com.squad.event.grpc.*;
 import com.squad.gateway.model.dto.request.CreateEventHttpRequest;
-import io.grpc.stub.StreamObserver;
+import com.squad.gateway.model.dto.request.JoinEventHttpRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
@@ -21,12 +18,12 @@ public class EventGrpcClientService {
     @GrpcClient("event-service")
     private EventServiceGrpc.EventServiceBlockingStub eventServiceBlockingStub;
 
-    public UUID createEvent(CreateEventHttpRequest request) {
-        log.info("Received create event request from user {}", request.creatorUserId());
+    public UUID createEvent(CreateEventHttpRequest request, UUID creatorUserId) {
+        log.info("Received create event request from user {}", creatorUserId);
         try {
             CreateEventRequest grpcResuest = CreateEventRequest.newBuilder()
                     .setName(request.name())
-                    .setCreatorUserId(request.creatorUserId().toString())
+                    .setCreatorUserId(creatorUserId.toString())
                     .setSecondLeaderId(request.secondLeaderId().toString())
                     .setTargetGameCount(request.targetGameCount())
                     .setTimeStart(Timestamp.newBuilder()
@@ -42,7 +39,22 @@ public class EventGrpcClientService {
             return UUID.fromString(response.getEventId());
         }
         catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Error while create event request: " + e.getMessage(), e);
         }
     }
+
+    public UUID joinEvent(JoinEventHttpRequest request, UUID userId) {
+        log.info("Received join event request from user {}", userId);
+
+        JoinEventRequest grpcRequest = JoinEventRequest.newBuilder()
+                .setUserId(userId.toString())
+                .setEventId(request.eventId().toString())
+                .setSideId(request.sideId().toString())
+                .build();
+
+        JoinEventResponse response = eventServiceBlockingStub.joinEvent(grpcRequest);
+        return UUID.fromString(response.getEventParticipantId());
+    }
+
+
 }

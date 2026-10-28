@@ -12,9 +12,12 @@ dependencies {
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     
-    implementation('org.springframework.boot:spring-boot-starter-test')
+    implementation 'org.springframework.boot:spring-boot-starter-test'
 
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
+    // Source: https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-security
+    implementation 'org.springframework.boot:spring-boot-starter-security'
 
     testImplementation 'org.mockito:mockito-core'
 

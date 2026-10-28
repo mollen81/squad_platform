@@ -9,8 +9,6 @@ public record CreateEventHttpRequest(
         @NotBlank(message = "Event name is required")
         String name,
 
-        UUID creatorUserId,
-
         @NotNull(message = "Second leader ID is required")
         UUID secondLeaderId,
 
