@@ -80,6 +80,4 @@ public class EventGrpcClientService {
 
         eventServiceBlockingStub.mapVote(grpcRequest);
     }
-
-    public List<>
 }
