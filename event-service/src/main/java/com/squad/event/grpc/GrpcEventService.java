@@ -2,6 +2,10 @@ package com.squad.event.grpc;
 
 import com.google.protobuf.Empty;
 import com.squad.event.model.domain.TimelineEvent;
+import com.squad.event.model.dto.CreateEventHttpRequest;
+import com.squad.event.model.dto.JoinEventHttpRequest;
+import com.squad.event.model.dto.MapVoteHttpRequest;
+import com.squad.event.model.dto.UpdateSideReadyHttpRequest;
 import com.squad.event.model.enums.EventGameMode;
 import com.squad.event.service.EventService;
 import io.grpc.stub.StreamObserver;
@@ -24,7 +28,7 @@ public class GrpcEventService extends EventServiceGrpc.EventServiceImplBase {
     public void createEvent(CreateEventRequest request, StreamObserver<CreateEventResponse> responseStreamObserver) {
         log.info("Starting to process gRPC createEvent request from user {}", request.getCreatorUserId());
 
-        com.squad.event.model.dto.CreateEventRequest createEventRequest = new com.squad.event.model.dto.CreateEventRequest(
+        CreateEventHttpRequest externalRequest = new CreateEventHttpRequest(
                 request.getName(),
                 UUID.fromString(request.getCreatorUserId()),
                 UUID.fromString(request.getSecondLeaderId()),
@@ -35,7 +39,7 @@ public class GrpcEventService extends EventServiceGrpc.EventServiceImplBase {
                 request.getEnemySideName()
         );
 
-        UUID eventId = eventService.createEvent(createEventRequest);
+        UUID eventId = eventService.createEvent(externalRequest);
 
         CreateEventResponse response = CreateEventResponse.newBuilder()
                 .setEventId(eventId.toString())
@@ -52,13 +56,13 @@ public class GrpcEventService extends EventServiceGrpc.EventServiceImplBase {
         log.info("Starting to process gRPC joinEvent request from user {} to event {}",
                 request.getUserId(), request.getEventId());
 
-        com.squad.event.model.dto.JoinEventRequest joinEventRequest = new com.squad.event.model.dto.JoinEventRequest(
+        JoinEventHttpRequest externalRequest = new JoinEventHttpRequest(
                 UUID.fromString(request.getUserId()),
                 UUID.fromString(request.getEventId()),
                 UUID.fromString(request.getSideId())
         );
 
-        UUID eventParticipantId = eventService.joinEvent(joinEventRequest);
+        UUID eventParticipantId = eventService.joinEvent(externalRequest);
 
         JoinEventResponse response = JoinEventResponse.newBuilder()
                 .setEventParticipantId(eventParticipantId.toString())
@@ -71,11 +75,18 @@ public class GrpcEventService extends EventServiceGrpc.EventServiceImplBase {
     }
 
     @Override
-    public void setSideReady(SetSideReadyRequest request, StreamObserver<Empty> responseStreamObserver) {
-        log.info("Starting to process gRPC setSideReady request from user {} to event {}",
-        request.getUserId(), request.getEventId());
+    public void updateSideReady(UpdateSideReadyRequest request, StreamObserver<Empty> responseStreamObserver) {
+        log.info("Starting to process gRPC setSideReady request: event {}, side {}, user {}",
+        request.getEventId(), request.getSideId(), request.getUserId());
 
-        eventService.setSideReady(UUID.fromString(request.getEventId()), UUID.fromString(request.getUserId()));
+        UpdateSideReadyHttpRequest externalRequest = new UpdateSideReadyHttpRequest(
+                UUID.fromString(request.getEventId()),
+                UUID.fromString(request.getSideId()),
+                UUID.fromString(request.getUserId()),
+                request.getIsReady()
+        );
+
+        eventService.setSideReady(externalRequest);
 
         responseStreamObserver.onNext(Empty.getDefaultInstance());
         responseStreamObserver.onCompleted();
@@ -89,10 +100,14 @@ public class GrpcEventService extends EventServiceGrpc.EventServiceImplBase {
         log.info("Starting to process gRPC mapVote request from user {}, to match {}, vote layer {}",
                 request.getUserId(), request.getMatchId(), request.getLayer());
 
-        eventService.mapVote(
+        MapVoteHttpRequest externalRequest = new MapVoteHttpRequest(
+                UUID.fromString(request.getEventId()),
                 UUID.fromString(request.getMatchId()),
                 UUID.fromString(request.getUserId()),
-                request.getLayer());
+                request.getLayer()
+        );
+
+        eventService.mapVote(externalRequest);
 
         responseStreamObserver.onNext(Empty.getDefaultInstance());
         responseStreamObserver.onCompleted();
@@ -128,6 +143,7 @@ public class GrpcEventService extends EventServiceGrpc.EventServiceImplBase {
                 request.getEventId(), request.getMatchSequenceNumber());
     }
 
+    @Override
     public void streamMatchTimeline(
             StreamMatchTimelineRequest request,
             StreamObserver<com.squad.event.grpc.TimelineEvent> responseStreamObserver) {

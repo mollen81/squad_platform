@@ -5,7 +5,7 @@ import com.squad.event.grpc.GrpcTimelineStreamManager;
 import com.squad.event.kafka.event.*;
 import com.squad.event.kafka.producer.EventKafkaProducer;
 import com.squad.event.model.domain.*;
-import com.squad.event.model.dto.CreateEventRequest;
+import com.squad.event.model.dto.CreateEventHttpRequest;
 import com.squad.event.model.enums.EventMatchStatus;
 import com.squad.event.model.enums.EventServerStatus;
 import com.squad.event.model.enums.EventStatus;
@@ -43,7 +43,7 @@ public class EventLifecycleManagementService {
 
 
     @Transactional
-    public UUID createEvent(CreateEventRequest request) {
+    public UUID createEvent(CreateEventHttpRequest request) {
         log.info("Creating new event: {} by user {}", request.name(), request.creatorUserId());
 
         // business logic checks

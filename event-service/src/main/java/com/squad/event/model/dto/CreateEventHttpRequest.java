@@ -5,7 +5,7 @@ import com.squad.event.model.enums.EventGameMode;
 import java.time.Instant;
 import java.util.UUID;
 
-public record CreateEventRequest(
+public record CreateEventHttpRequest(
         String name,
         UUID creatorUserId,
         UUID secondLeaderId,

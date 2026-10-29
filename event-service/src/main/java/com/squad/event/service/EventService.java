@@ -4,9 +4,10 @@ import com.squad.event.kafka.event.EventMatchTimelineEvent;
 import com.squad.event.kafka.event.MatchFinishedEvent;
 import com.squad.event.kafka.event.ServerReadyEvent;
 import com.squad.event.model.domain.*;
-import com.squad.event.model.dto.CreateEventRequest;
-import com.squad.event.model.dto.JoinEventRequest;
-import com.squad.event.repo.*;
+import com.squad.event.model.dto.CreateEventHttpRequest;
+import com.squad.event.model.dto.JoinEventHttpRequest;
+import com.squad.event.model.dto.MapVoteHttpRequest;
+import com.squad.event.model.dto.UpdateSideReadyHttpRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,23 +27,23 @@ public class EventService {
     private final EventMatchTimelineService eventMatchTimelineService;
 
 
-    public UUID createEvent(CreateEventRequest request) {
+    public UUID createEvent(CreateEventHttpRequest request) {
         return eventLifecycleManagementService.createEvent(request);
     }
 
 
-    public UUID joinEvent(JoinEventRequest request) {
+    public UUID joinEvent(JoinEventHttpRequest request) {
         return eventParticipantManagementService.joinEvent(request);
     }
 
 
-    public void setSideReady(UUID eventId, UUID userId) {
-        eventSideManagementService.setSideReady(eventId, userId);
+    public void setSideReady(UpdateSideReadyHttpRequest request) {
+        eventSideManagementService.setSideReady(request);
     }
 
 
-    public void mapVote(UUID matchId, UUID userId, String layer) {
-        eventMatchLayerManagementService.mapVote(matchId, userId, layer);
+    public void mapVote(MapVoteHttpRequest request) {
+        eventMatchLayerManagementService.mapVote(request);
     }
 
 

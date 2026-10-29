@@ -4,7 +4,7 @@ import com.squad.event.client.ClanServiceGrpcClient;
 import com.squad.event.model.domain.Event;
 import com.squad.event.model.domain.EventParticipant;
 import com.squad.event.model.domain.EventSide;
-import com.squad.event.model.dto.JoinEventRequest;
+import com.squad.event.model.dto.JoinEventHttpRequest;
 import com.squad.event.model.enums.EventStatus;
 import com.squad.event.repo.EventParticipantRepository;
 import com.squad.event.repo.EventRepository;
@@ -30,7 +30,7 @@ public class EventParticipantManagementService {
     private static final int MAX_PLAYERS_PER_SIDE = 50;
 
     @Transactional
-    public UUID joinEvent(JoinEventRequest request) {
+    public UUID joinEvent(JoinEventHttpRequest request) {
         UUID clanId = clanServiceGrpcClient.resolveUserClanId(request.userId());
 
         Event event = eventRepository.findByIdForUpdate(request.eventId())

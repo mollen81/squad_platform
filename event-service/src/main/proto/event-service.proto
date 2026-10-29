@@ -13,7 +13,7 @@ import "google/protobuf/struct.proto";
 service EventService {
   rpc CreateEvent(CreateEventRequest) returns (CreateEventResponse);
   rpc JoinEvent(JoinEventRequest) returns (JoinEventResponse);
-  rpc SetSideReady(SetSideReadyRequest) returns (google.protobuf.Empty);
+  rpc UpdateSideReady(UpdateSideReadyRequest) returns (google.protobuf.Empty);
   rpc MapVote(MapVoteRequest) returns (google.protobuf.Empty);
   rpc GetMatchTimeline(GetMatchTimelineRequest) returns (GetMatchTimelineResponse);
   rpc StreamMatchTimeline(StreamMatchTimelineRequest) returns (stream TimelineEvent);
@@ -56,18 +56,21 @@ message JoinEventResponse {
 }
 
 
-// setSideReady method request data -> method for event creators to set sides status to READY
-message SetSideReadyRequest {
+// updateSideReady method request data -> method for event creators to update sides status
+message UpdateSideReadyRequest {
   string event_id = 1;
-  string user_id = 2;
+  string side_id = 2;
+  string user_id = 3;
+  bool isReady = 4;
 }
 
 
 // mapVote method request data -> method for event participants to vote for map layers
 message MapVoteRequest {
-  string match_id = 1;
-  string user_id = 2;
-  string layer = 3;
+  string event_id = 1;
+  string match_id = 2;
+  string user_id = 3;
+  string layer = 4;
 }
 
 
