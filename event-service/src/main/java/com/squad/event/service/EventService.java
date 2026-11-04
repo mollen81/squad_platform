@@ -65,7 +65,7 @@ public class EventService {
         eventMatchTimelineService.processTimelineEvent(eventMatchTimelineEvent);
     }
 
-    public List<TimelineEvent> getMatchTimelineHistory(UUID eventId, int matchSequenceNumber) {
-        return eventMatchTimelineService.getMatchTimelineHistory(eventId, matchSequenceNumber);
+    public List<TimelineEvent> getMatchTimelineHistory(UUID eventId, UUID matchId) {
+        return eventMatchTimelineService.getMatchTimelineHistory(eventId, matchId);
     }
 }

@@ -121,12 +121,13 @@ public class GrpcEventService extends EventServiceGrpc.EventServiceImplBase {
             GetMatchTimelineRequest request,
             StreamObserver<GetMatchTimelineResponse> responseStreamObserver) {
 
-        log.info("Starting to process gRPC getMatchTimeline for event {}, match #{}",
-                request.getEventId(), request.getMatchSequenceNumber());
+        log.info("Starting to process gRPC getMatchTimeline for event {}, match {}}",
+                request.getEventId(), request.getMatchId());
 
         List<TimelineEvent> timelineEvents = eventService.getMatchTimelineHistory(
                 UUID.fromString(request.getEventId()),
-                request.getMatchSequenceNumber());
+                UUID.fromString(request.getMatchId())
+        );
 
         List<com.squad.event.grpc.TimelineEvent> grpcEvents = timelineEvents.stream()
                 .map(streamManager::mapToProto)
@@ -139,8 +140,8 @@ public class GrpcEventService extends EventServiceGrpc.EventServiceImplBase {
         responseStreamObserver.onNext(response);
         responseStreamObserver.onCompleted();
 
-        log.info("gRPC getMatchTimeline request to event {}, match #{} is processed",
-                request.getEventId(), request.getMatchSequenceNumber());
+        log.info("gRPC getMatchTimeline request to event {}, match {} is processed",
+                request.getEventId(), request.getMatchId());
     }
 
     @Override

@@ -47,10 +47,10 @@ public class EventMatchTimelineService {
 
 
     @Transactional
-    public List<TimelineEvent> getMatchTimelineHistory(UUID eventId, int matchSequenceNumber) {
-        EventMatch eventMatch = eventMatchRepository.findByEventIdAndSequenceNumber(eventId, matchSequenceNumber)
+    public List<TimelineEvent> getMatchTimelineHistory(UUID eventId, UUID matchId) {
+        EventMatch eventMatch = eventMatchRepository.findByEventIdAndSequenceNumber(eventId, matchId)
                 .orElseThrow(() -> new IllegalArgumentException(
-                        "Match #" + matchSequenceNumber + " not found for eventId " + eventId));
+                        "Match " + matchId + " not found for eventId " + eventId));
         return eventMatchTimelineRepository.findAllByMatchIdOrderByTime(eventMatch.getId());
     }
 }

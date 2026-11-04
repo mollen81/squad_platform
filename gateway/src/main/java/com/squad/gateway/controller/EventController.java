@@ -1,9 +1,7 @@
 package com.squad.gateway.controller;
 
-import com.squad.gateway.model.dto.request.CreateEventHttpRequest;
-import com.squad.gateway.model.dto.request.JoinEventHttpRequest;
-import com.squad.gateway.model.dto.request.MapVoteHttpRequest;
-import com.squad.gateway.model.dto.request.UpdateSideReadyHttpRequest;
+import com.squad.gateway.model.dto.request.*;
+import com.squad.gateway.model.dto.response.TimelineEventHttpResponse;
 import com.squad.gateway.security.UserPrincipal;
 import com.squad.gateway.service.event.EventGrpcClientService;
 import jakarta.validation.Valid;
@@ -13,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -65,5 +64,13 @@ public class EventController {
     }
 
 
+    @GetMapping("/{eventId}/matches/{matchId}/match-timeline")
+    public ResponseEntity<Map<String, List<TimelineEventHttpResponse>>> getMatchTimeline (
+            @Valid @PathVariable UUID eventId,
+            @Valid @PathVariable UUID matchId
+    ) {
 
+        List<TimelineEventHttpResponse> timelineEventsList = eventGrpcClientService.getMatchTimeline(eventId, matchId);
+        return ResponseEntity.ok(Map.of("timelineEvent", timelineEventsList));
+    }
 }

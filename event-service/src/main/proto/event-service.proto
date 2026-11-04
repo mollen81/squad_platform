@@ -77,7 +77,7 @@ message MapVoteRequest {
 // getMatchTimeline method request data -> method for event participants to get match timeline events history
 message GetMatchTimelineRequest {
   string event_id = 1;
-  int32 match_sequence_number = 2;
+  string match_id = 2;
 }
 
 message GetMatchTimelineResponse {

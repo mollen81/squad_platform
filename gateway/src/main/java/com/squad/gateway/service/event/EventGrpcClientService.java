@@ -4,6 +4,7 @@ import com.google.protobuf.Timestamp;
 import com.squad.event.grpc.*;
 import com.squad.gateway.model.dto.request.CreateEventHttpRequest;
 import com.squad.gateway.model.dto.request.JoinEventHttpRequest;
+import com.squad.gateway.model.dto.response.TimelineEventHttpResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
@@ -79,5 +80,27 @@ public class EventGrpcClientService {
                 .build();
 
         eventServiceBlockingStub.mapVote(grpcRequest);
+    }
+
+    public List<TimelineEventHttpResponse> getMatchTimeline(UUID eventId, UUID matchId) {
+        log.info("Received get match timeline request for event {}, match {}",
+                eventId, matchId);
+
+        GetMatchTimelineRequest grpcRequest = GetMatchTimelineRequest.newBuilder()
+                .setEventId(eventId.toString())
+                .setMatchId(matchId.toString())
+                .build();
+
+        return eventServiceBlockingStub.getMatchTimeline(grpcRequest).getTimelineMatchEventsList()
+                .stream()
+                .map(grpcEvent -> new TimelineEventHttpResponse(
+                        UUID.fromString(grpcEvent.getId()),
+                        UUID.fromString(grpcEvent.getMatchId()),
+                        grpcEvent.getTimelineEventType(),
+                        grpcEvent.getGameTimeSeconds(),
+                        grpcEvent.getPayload(),
+                        grpcEvent.getCreatedAt()
+                ))
+                .toList();
     }
 }
