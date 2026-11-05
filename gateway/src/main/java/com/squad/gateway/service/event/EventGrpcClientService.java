@@ -83,8 +83,7 @@ public class EventGrpcClientService {
     }
 
     public List<TimelineEventHttpResponse> getMatchTimeline(UUID eventId, UUID matchId) {
-        log.info("Received get match timeline request for event {}, match {}",
-                eventId, matchId);
+        log.info("Received get match timeline request for event {}, match {}", eventId, matchId);
 
         GetMatchTimelineRequest grpcRequest = GetMatchTimelineRequest.newBuilder()
                 .setEventId(eventId.toString())

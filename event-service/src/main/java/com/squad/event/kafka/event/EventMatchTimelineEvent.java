@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public record EventMatchTimelineEvent(
         UUID eventId,
-        int matchSequenceNumber,
+        UUID matchId,
         TimelineEventType timelineEventType,
         int gameTimeSeconds,
         Map<String, Object> payload

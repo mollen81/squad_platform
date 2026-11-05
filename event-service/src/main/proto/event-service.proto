@@ -106,6 +106,7 @@ enum TimelineEventType {
 // streamMatchTimeline
 message StreamMatchTimelineRequest {
   string event_id = 1;
+  string matchId = 2;
 }
 
 

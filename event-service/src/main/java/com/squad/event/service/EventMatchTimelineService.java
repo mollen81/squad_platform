@@ -25,9 +25,9 @@ public class EventMatchTimelineService {
 
     @Transactional
     public void processTimelineEvent(EventMatchTimelineEvent event) {
-        EventMatch eventMatch = eventMatchRepository.findByEventIdAndSequenceNumber(
-                        event.eventId(), event.matchSequenceNumber())
-                .orElseThrow(() -> new IllegalArgumentException("Match #" + event.matchSequenceNumber() +
+        EventMatch eventMatch = eventMatchRepository.findByEventIdAndMatchId(
+                        event.eventId(), event.matchId())
+                .orElseThrow(() -> new IllegalArgumentException("Match " + event.matchId() +
                         " for event " + event.eventId() + " is not found"));
 
         TimelineEvent timelineEvent = TimelineEvent.builder()
@@ -41,14 +41,14 @@ public class EventMatchTimelineService {
 
         streamManager.broadcastTimelineEvent(event.eventId(), savedEntry);
 
-        log.debug("Processed timeline event {} for event {}, match #{}",
-                event.timelineEventType(), event.eventId(), event.matchSequenceNumber());
+        log.debug("Processed timeline event {} for event {}, match {}",
+                event.timelineEventType(), event.eventId(), event.matchId());
     }
 
 
     @Transactional
     public List<TimelineEvent> getMatchTimelineHistory(UUID eventId, UUID matchId) {
-        EventMatch eventMatch = eventMatchRepository.findByEventIdAndSequenceNumber(eventId, matchId)
+        EventMatch eventMatch = eventMatchRepository.findByEventIdAndMatchId(eventId, matchId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Match " + matchId + " not found for eventId " + eventId));
         return eventMatchTimelineRepository.findAllByMatchIdOrderByTime(eventMatch.getId());

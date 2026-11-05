@@ -1,11 +1,13 @@
 package com.squad.gateway.service.event;
 
 import com.squad.event.grpc.*;
+import com.squad.gateway.model.dto.response.TimelineEventHttpResponse;
 import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -27,88 +29,86 @@ public class EventStreamBridgeService {
     private static final long SSE_TIMEOUT = 60 * 60 * 1000L; // 1 час
 
     // Хранилище браузерных подписчиков: eventId -> список SseEmitter
-    private final Map<UUID, List<SseEmitter>> emittersByEvent = new ConcurrentHashMap<>();
-
-    // Хранилище контекстов gRPC-стримов для их отмены: eventId -> CancellableContext
+    private final Map<UUID, List<SseEmitter>> emittersByMatch = new ConcurrentHashMap<>();
     private final Map<UUID, Context.CancellableContext> grpcStreamContexts = new ConcurrentHashMap<>();
 
-    public SseEmitter subscribe(UUID eventId) {
+    public SseEmitter subscribe(UUID eventId, UUID matchId) {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT);
 
-        List<SseEmitter> emitters = emittersByEvent.computeIfAbsent(
-                eventId, k -> new CopyOnWriteArrayList<>()
+        // Получаем список подписчиков конкретного матча
+        List<SseEmitter> emitters = emittersByMatch.computeIfAbsent(
+                matchId, k -> new CopyOnWriteArrayList<>()
         );
         emitters.add(emitter);
 
-        Runnable cleanup = () -> removeEmitter(eventId, emitter);
+        Runnable cleanup = () -> removeEmitter(matchId, emitter);
         emitter.onCompletion(cleanup);
         emitter.onTimeout(cleanup);
         emitter.onError(e -> cleanup.run());
 
-        // Шлем приветственное системное событие в браузер
         try {
             emitter.send(SseEmitter.event()
                     .name("INIT")
-                    .data("Subscribed to live stream for event " + eventId));
+                    .data("Subscribed to live stream for match " + matchId));
         } catch (IOException e) {
-            removeEmitter(eventId, emitter);
+            removeEmitter(matchId, emitter);
             return emitter;
         }
 
-        // Если это первый зритель — открываем единственный gRPC-стрим к event-service
-        ensureGrpcStreamStarted(eventId);
+        // Запускаем gRPC стрим (если он еще не запущен для этого матча)
+        ensureGrpcStreamStarted(eventId, matchId);
 
-        log.info("Client subscribed to event {}. Viewers count: {}", eventId, emitters.size());
+        log.info("Client subscribed to match {}. Viewers count: {}", matchId, emitters.size());
         return emitter;
     }
 
-    private synchronized void ensureGrpcStreamStarted(UUID eventId) {
-        if (grpcStreamContexts.containsKey(eventId)) {
-            return; // Стрим уже запущен для предыдущих зрителей
+    private synchronized void ensureGrpcStreamStarted(UUID eventId, UUID matchId) {
+        if (grpcStreamContexts.containsKey(matchId)) {
+            return;
         }
 
-        log.info("Opening single gRPC stream to event-service for event {}", eventId);
+        log.info("Opening single gRPC stream to event-service for match {}", matchId);
 
         StreamMatchTimelineRequest request = StreamMatchTimelineRequest.newBuilder()
-                .setEventId(eventId.toString())
+                .setEventId(eventId.toString()) // Передаем для проверки иерархии
+                .setMatchId(matchId.toString())
                 .build();
 
-        // Оборачиваем вызов в CancellableContext, чтобы прервать стрим, когда зрителей не останется
         Context.CancellableContext cancellableContext = Context.current().withCancellation();
-        grpcStreamContexts.put(eventId, cancellableContext);
+        grpcStreamContexts.put(matchId, cancellableContext);
 
-        cancellableContext.run(() -> eventServiceStub.streamMatchTimeline(request, new StreamObserver<>() {
+        cancellableContext.run(() -> eventServiceStub.streamMatchTimeline(request, new StreamObserver<TimelineEvent>() {
             @Override
             public void onNext(TimelineEvent message) {
-                TimelineEvent dto = TimelineEvent.newBuilder()
-                        .setId(message.getId())
-                        .setMatchId(message.getMatchId())
-                        .setTimelineEventType(message.getTimelineEventType())
-                        .setGameTimeSeconds(message.getGameTimeSeconds())
-                        .setPayload(message.getPayload())
-                        .setCreatedAt(message.getCreatedAt())
-                        .build();
+                // Преобразуем Protobuf в чистый Record для сериализации
+                TimelineEventHttpResponse dto = new TimelineEventHttpResponse(
+                        UUID.fromString(message.getId()),
+                        UUID.fromString(message.getMatchId()),
+                        message.getTimelineEventType(),
+                        message.getGameTimeSeconds(),
+                        message.getPayload(),
+                        message.getCreatedAt()
+                );
 
-                // Fan-Out: рассылаем полученное событие всем браузерам
-                broadcastToSse(eventId, dto);
+                broadcastToSse(matchId, dto);
             }
 
             @Override
             public void onError(Throwable t) {
-                log.error("gRPC stream error from event-service for event {}: {}", eventId, t.getMessage());
-                closeAllEmittersForEvent(eventId);
+                log.error("gRPC stream error from event-service for match {}: {}", matchId, t.getMessage());
+                closeAllEmittersForMatch(matchId);
             }
 
             @Override
             public void onCompleted() {
-                log.info("gRPC stream completed by event-service for event {}", eventId);
-                closeAllEmittersForEvent(eventId);
+                log.info("gRPC stream completed by event-service for match {}", matchId);
+                closeAllEmittersForMatch(matchId);
             }
         }));
     }
 
-    private void broadcastToSse(UUID eventId, TimelineEvent eventData) {
-        List<SseEmitter> emitters = emittersByEvent.get(eventId);
+    private void broadcastToSse(UUID matchId, TimelineEventHttpResponse eventData) {
+        List<SseEmitter> emitters = emittersByMatch.get(matchId);
         if (emitters == null || emitters.isEmpty()) {
             return;
         }
@@ -119,33 +119,51 @@ public class EventStreamBridgeService {
                         .name("MATCH_TIMELINE_EVENT")
                         .data(eventData, MediaType.APPLICATION_JSON));
             } catch (Exception e) {
-                removeEmitter(eventId, emitter);
+                removeEmitter(matchId, emitter);
             }
         }
     }
 
-    private synchronized void removeEmitter(UUID eventId, SseEmitter emitter) {
-        List<SseEmitter> emitters = emittersByEvent.get(eventId);
+    private synchronized void removeEmitter(UUID matchId, SseEmitter emitter) {
+        List<SseEmitter> emitters = emittersByMatch.get(matchId);
         if (emitters != null) {
             emitters.remove(emitter);
 
-            // Если зрителей больше нет — прерываем gRPC стрим к event-service
             if (emitters.isEmpty()) {
-                emittersByEvent.remove(eventId);
-                Context.CancellableContext context = grpcStreamContexts.remove(eventId);
+                emittersByMatch.remove(matchId);
+                Context.CancellableContext context = grpcStreamContexts.remove(matchId);
                 if (context != null) {
-                    log.info("No more viewers for event {}. Cancelling gRPC stream.", eventId);
-                    context.cancel(null); // Посылает RST_STREAM в event-service
+                    log.info("No more viewers for match {}. Cancelling gRPC stream.", matchId);
+                    context.cancel(null);
                 }
             }
         }
     }
 
-    private synchronized void closeAllEmittersForEvent(UUID eventId) {
-        grpcStreamContexts.remove(eventId);
-        List<SseEmitter> emitters = emittersByEvent.remove(eventId);
+    private synchronized void closeAllEmittersForMatch(UUID matchId) {
+        grpcStreamContexts.remove(matchId);
+        List<SseEmitter> emitters = emittersByMatch.remove(matchId);
         if (emitters != null) {
             emitters.forEach(SseEmitter::complete);
         }
+    }
+
+    // Фоновый Heartbeat каждые 15 секунд
+    @Scheduled(fixedRate = 15000)
+    public void sendHeartbeat() {
+        if (emittersByMatch.isEmpty()) {
+            return;
+        }
+
+        emittersByMatch.forEach((matchId, emitters) -> {
+            for (SseEmitter emitter : emitters) {
+                try {
+                    emitter.send(SseEmitter.event().comment("ping"));
+                } catch (Exception e) {
+                    log.debug("Dead SSE connection detected during heartbeat for match {}. Removing.", matchId);
+                    removeEmitter(matchId, emitter);
+                }
+            }
+        });
     }
 }
