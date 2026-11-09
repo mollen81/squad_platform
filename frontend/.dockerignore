@@ -1,0 +1,30 @@
+# Зависимости и артефакты сборки
+node_modules
+dist
+dist-ssr
+.vite
+
+# Конфигурации IDE и ОС
+.idea
+.vscode
+*.iml
+.DS_Store
+
+# Логи и кэш пакетных менеджеров
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm
+.eslintcache
+*.tsbuildinfo
+
+# Система контроля версий и документация
+.git
+.gitignore
+README.md
+
+# Локальные переменные окружения и секреты
+.env
+.env.local
+.env.*.local
