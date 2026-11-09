@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useState } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 
 const CYRILLIC_GLYPH_PALETTE = [
   ' ', '.', '·', ':', 'и', 'н', 'о', 'р', 'т', 'а', 'в', 'к', 'м', 'п', 'с',
@@ -7,12 +7,48 @@ const CYRILLIC_GLYPH_PALETTE = [
   'Σ', 'Π', 'λ', 'ї', 'є', 'ö', 'ü', 'å', 'ñ'
 ];
 
+// ============================================================================
+// ПРЕДРАСЧИТАННЫЕ LUT-ТАБЛИЦЫ (0 АЛЛОКАЦИЙ И 0 MATH.POW ВНУТРИ ЦИКЛА РЕНДЕРА)
+// ============================================================================
+const CONTRAST = 1.35;
+
+// Таблица перевода сырой яркости (0..255) в контрастную яркость (0..1000)
+const CONTRAST_LUT = new Uint16Array(256);
+for (let i = 0; i < 256; i++) {
+  const raw = i / 255;
+  if (raw < 0.045) {
+    CONTRAST_LUT[i] = 0;
+  } else {
+    const curved = Math.pow(raw, 1 / 1.12);
+    const val = Math.min(1, Math.max(0, (curved - 0.12) * CONTRAST + 0.08));
+    CONTRAST_LUT[i] = val <= 0.03 ? 0 : Math.round(val * 1000);
+  }
+}
+
+// 32 предрасчитанные цветовые строки (исключают создание тысяч строк в секунду и GC-фризы)
+const COLOR_PALETTE_STEPS = 32;
+const COLOR_LUT: string[] = Array.from({ length: COLOR_PALETTE_STEPS }, (_, i) => {
+  const finalLum = i / (COLOR_PALETTE_STEPS - 1);
+  if (finalLum > 0.78) {
+    return '#ffffff';
+  } else if (finalLum > 0.56) {
+    const b = Math.floor(175 + (finalLum - 0.56) * 340);
+    return `rgb(${b},${b},${b})`;
+  } else if (finalLum > 0.32) {
+    const b = Math.floor(88 + (finalLum - 0.32) * 330);
+    return `rgb(${b},${b},${b})`;
+  } else {
+    const b = Math.floor(42 + finalLum * 140);
+    const a = (0.42 + finalLum * 1.4).toFixed(2);
+    return `rgba(${b},${b},${b},${a})`;
+  }
+});
+
 function seededNoise(x: number, y: number, seed = 1337) {
   const n = Math.sin(x * 12.9898 + y * 78.233 + seed * 0.37) * 43758.5453;
   return n - Math.floor(n);
 }
 
-// Функции плавности (Easing) для живой и упругой кинематики
 function clamp01(t: number) {
   return Math.max(0, Math.min(1, t));
 }
@@ -37,29 +73,27 @@ export type SoldierAnimType = 'IDLE' | 'MAG_CHECK' | 'LOOK_AROUND' | 'WEAPON_CHE
 
 interface SoldierPose {
   breathY: number;
-  torsoYaw: number;       // Поворот корпуса влево/вправо (-1..+1)
-  headYaw: number;        // Поворот головы/шлема (-1..+1)
-  headPitch: number;      // Наклон головы вверх/вниз
-  headRoll: number;       // Наклон головы к плечу (рад)
+  torsoYaw: number;
+  headYaw: number;
+  headPitch: number;
+  headRoll: number;
   rifleOffsetX: number;
   rifleOffsetY: number;
-  riflePitch: number;     // Угол подъема ствола (рад)
-  rifleRoll: number;      // Поворот автомата вокруг оси при осмотре (-1..+1)
-  boltPull: number;       // Отвод затворной рамы при press-check (0..1)
-  magRockAngle: number;   // Угол отмыкания магазина (рад)
-  magOffsetX: number;     // Смещение магазина к глазам по X
-  magOffsetY: number;     // Смещение магазина к глазам по Y
-  handToMag: number;      // 0 = кисть на цевье, 1 = кисть держит магазин
-  antennaSway: number;    // Вторичная инерция антенны рации
+  riflePitch: number;
+  rifleRoll: number;
+  boltPull: number;
+  magRockAngle: number;
+  magOffsetX: number;
+  magOffsetY: number;
+  handToMag: number;
+  antennaSway: number;
 }
 
-// Вычисление кинематической позы бойца для текущего времени и активной анимации
 function evaluateSoldierPose(
   elapsed: number,
   activeAnim: SoldierAnimType,
   animProgress: number
 ): SoldierPose {
-  // Базовое живое дыхание и микро-колебания в стойке
   const breathY = Math.sin(elapsed * 2.1) * 0.0055;
   const idleSwayX = Math.cos(elapsed * 1.1) * 0.004;
 
@@ -83,27 +117,16 @@ function evaluateSoldierPose(
 
   const p = clamp01(animProgress);
 
-  // ==========================================================================
-  // 1. АНИМАЦИЯ ОСМОТРА МАГАЗИНА (MAG_CHECK)
-  // ==========================================================================
   if (activeAnim === 'MAG_CHECK') {
-    // Фаза 1 (0.00 - 0.16): перенос левой руки на магазин, легкий подъем ствола
     const toMag = easeInOutCubic(remap(p, 0.0, 0.16));
-    // Фаза 2 (0.16 - 0.30): отмыкание магазина качком вперед (AK rock-out)
     const unlock = easeInOutCubic(remap(p, 0.16, 0.30));
-    // Фаза 3 (0.28 - 0.46): подъем магазина к уровню глаз для проверки патронов
     const liftInspect = easeInOutCubic(remap(p, 0.28, 0.46));
-    // Фаза 4 (0.46 - 0.66): легкое покачивание магазина в руке на свету
     const inspectHold = remap(p, 0.44, 0.66);
     const inspectTilt = inspectHold > 0 && inspectHold < 1
       ? Math.sin(inspectHold * Math.PI * 2) * 0.14
       : 0;
-    // Фаза 5 (0.66 - 0.82): вставка переднего зацепа и резкий защелк назад
     const insertBack = easeOutBack(remap(p, 0.66, 0.82));
-    // Фаза 6 (0.82 - 1.00): возврат левой кисти на цевье и выравнивание прицела
     const returnHand = easeInOutCubic(remap(p, 0.82, 1.0));
-
-    // Импульс автомата в момент защелкивания магазина (p ~ 0.80)
     const lockJolt = Math.exp(-Math.pow((p - 0.80) * 32, 2)) * 0.018;
 
     pose.handToMag = toMag * (1 - returnHand);
@@ -111,7 +134,6 @@ function evaluateSoldierPose(
     pose.rifleOffsetX += (toMag * (1 - returnHand)) * 0.015;
     pose.rifleOffsetY += (toMag * (1 - returnHand)) * -0.015 - lockJolt;
 
-    // Траектория движения магазина
     const isDetached = unlock * (1 - insertBack);
     const isElevated = liftInspect * (1 - easeInOutCubic(remap(p, 0.64, 0.78)));
 
@@ -123,31 +145,17 @@ function evaluateSoldierPose(
     pose.magOffsetX = isDetached * -0.012 + isElevated * 0.025;
     pose.magOffsetY = isDetached * 0.028 - isElevated * 0.135;
 
-    // Голова наклоняется к магазину
     const headLook = easeInOutCubic(remap(p, 0.12, 0.35)) * (1 - returnHand);
     pose.headPitch += headLook * 0.042;
     pose.headYaw -= headLook * 0.025;
     pose.headRoll = -headLook * 0.085;
     pose.antennaSway += lockJolt * 1.5;
-  }
-
-  // ==========================================================================
-  // 2. АНИМАЦИЯ ПОВОРОТА БОЙЦА / ОСМОТРА ПО СТОРОНАМ (LOOK_AROUND)
-  // ==========================================================================
-  else if (activeAnim === 'LOOK_AROUND') {
-    // Фаза 1 (0.00 - 0.30): поворот корпуса и головы вправо (к зрителю / правый фланг)
+  } else if (activeAnim === 'LOOK_AROUND') {
     const turnRight = easeInOutCubic(remap(p, 0.0, 0.28));
-    // Фаза 2 (0.36 - 0.72): плавный переброс взгляда и корпуса влево (сканирование сектора)
     const sweepLeft = easeInOutCubic(remap(p, 0.36, 0.68));
-    // Фаза 3 (0.78 - 1.00): возврат в боевую стойку по центру
     const returnCenter = easeInOutCubic(remap(p, 0.78, 1.0));
 
-    // Результирующий угол поворота (-1 = влево, +1 = вправо)
-    const yawCurve =
-      turnRight * 1.0 -
-      sweepLeft * 1.85 +
-      returnCenter * 0.85;
-
+    const yawCurve = turnRight * 1.0 - sweepLeft * 1.85 + returnCenter * 0.85;
     const activeEnvelope = easeInOutCubic(remap(p, 0.0, 0.18)) * (1 - returnCenter);
 
     pose.torsoYaw += yawCurve * 0.052;
@@ -155,30 +163,19 @@ function evaluateSoldierPose(
     pose.headPitch += activeEnvelope * -0.012 + Math.sin(p * Math.PI * 2) * 0.008;
     pose.headRoll = yawCurve * 0.045;
 
-    // Ствол чуть опускается в патрульное положение при осмотре по сторонам
     pose.riflePitch -= activeEnvelope * 0.11;
     pose.rifleOffsetY += activeEnvelope * 0.022;
     pose.rifleOffsetX += yawCurve * 0.032;
 
-    // Запаздывание антенны рации от поворота корпуса
     const delayedYaw =
       easeInOutCubic(remap(p - 0.05, 0.0, 0.28)) -
       easeInOutCubic(remap(p - 0.05, 0.36, 0.68)) * 1.85 +
       easeInOutCubic(remap(p - 0.05, 0.78, 1.0)) * 0.85;
     pose.antennaSway += (yawCurve - delayedYaw) * 0.09;
-  }
-
-  // ==========================================================================
-  // 3. АНИМАЦИЯ ОСМОТРА ОРУЖИЯ (WEAPON_CHECK)
-  // ==========================================================================
-  else if (activeAnim === 'WEAPON_CHECK') {
-    // Фаза 1 (0.00 - 0.24): подъем автомата и разворот ствольной коробкой к лицу
+  } else if (activeAnim === 'WEAPON_CHECK') {
     const liftIn = easeOutBack(remap(p, 0.0, 0.24));
-    // Фаза 2 (0.28 - 0.52): короткая проверка хода затворной рамы (press-check)
     const boltCheck = Math.sin(remap(p, 0.28, 0.52) * Math.PI);
-    // Фаза 3 (0.54 - 0.76): наклон оружия другой стороной (осмотр цевья/газоотвода)
     const tiltOther = easeInOutCubic(remap(p, 0.52, 0.74));
-    // Фаза 4 (0.76 - 1.00): четкая вкладка обратно в плечо
     const snapBack = easeOutBack(remap(p, 0.76, 1.0));
 
     const env = liftIn * (1 - snapBack);
@@ -186,11 +183,9 @@ function evaluateSoldierPose(
     pose.riflePitch += env * 0.24 - tiltOther * (1 - snapBack) * 0.08;
     pose.rifleOffsetY -= env * 0.045;
     pose.rifleOffsetX += env * 0.024;
-    // Наклон вокруг оси ствола: сначала +1 (к себе), затем -0.5 (от себя)
     pose.rifleRoll = (liftIn - tiltOther * 1.45) * (1 - snapBack);
     pose.boltPull = boltCheck;
 
-    // Взгляд сопровождает ствольную коробку и мушку
     pose.headPitch += env * 0.034;
     pose.headYaw -= env * 0.032 - tiltOther * (1 - snapBack) * 0.045;
     pose.headRoll = -env * 0.075 + tiltOther * (1 - snapBack) * 0.09;
@@ -200,15 +195,14 @@ function evaluateSoldierPose(
   return pose;
 }
 
-// Предварительная генерация тайла цифрового камуфляжа (1 раз при старте для 60 FPS)
 function createCamoPatternTile(): HTMLCanvasElement {
   const tile = document.createElement('canvas');
-  tile.width = 96;
-  tile.height = 96;
+  tile.width = 64;
+  tile.height = 64;
   const tctx = tile.getContext('2d');
   if (!tctx) return tile;
 
-  const step = 4;
+  const step = 3;
   for (let y = 0; y < tile.height; y += step) {
     for (let x = 0; x < tile.width; x += step) {
       const n = seededNoise(x / step, y / step, 42);
@@ -225,60 +219,223 @@ function createCamoPatternTile(): HTMLCanvasElement {
 }
 
 // ============================================================================
-// ОТРИСОВКА КАДРА БОЙЦА С УЧЕТОМ ТЕКУЩЕЙ КИНЕМАТИЧЕСКОЙ ПОЗЫ
+// ОТРИСОВКА ПРОЛЕТАЮЩЕГО ВЕРТОЛЕТА МИ-8 НА ЗАДНЕМ ПЛАНЕ
+// ============================================================================
+function drawMi8Helicopter(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  heliProgress: number,
+  elapsed: number
+) {
+  if (heliProgress <= 0 || heliProgress >= 1) return;
+
+  // Вертолет летит слева направо в верхней части неба (перекрываясь шлемом бойца)
+  const hx = (-0.22 + heliProgress * 1.44) * w;
+  const hy = (0.19 + Math.sin(elapsed * 3.2) * 0.008 - heliProgress * 0.03) * h;
+  const scale = w * 0.00115;
+
+  ctx.save();
+  ctx.translate(hx, hy);
+  // Характерный наклон носа Ми-8 вниз при горизонтальном крейсерском полете
+  ctx.rotate(0.11 + Math.sin(elapsed * 2.5) * 0.015);
+  ctx.scale(scale, scale);
+
+  // 1. Хвостовая балка и киль (справа-сзади, т.к. летит вправо)
+  ctx.fillStyle = '#6e6e6e';
+  ctx.beginPath();
+  ctx.moveTo(-28, -8);
+  ctx.lineTo(-135, -14);
+  ctx.lineTo(-135, -4);
+  ctx.lineTo(-28, 8);
+  ctx.closePath();
+  ctx.fill();
+
+  // Хвостовой киль и стабилизатор
+  ctx.fillStyle = '#858585';
+  ctx.beginPath();
+  ctx.moveTo(-125, -12);
+  ctx.lineTo(-152, -42);
+  ctx.lineTo(-138, -44);
+  ctx.lineTo(-112, -12);
+  ctx.closePath();
+  ctx.fill();
+
+  // Вращающийся рулевой винт на киле
+  const tailRotorBlur = Math.sin(elapsed * 55) * 0.5 + 0.5;
+  ctx.strokeStyle = `rgba(215, 215, 215, ${0.45 + tailRotorBlur * 0.45})`;
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(-146, -38, 18, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-146 + Math.cos(elapsed * 40) * 18, -38 + Math.sin(elapsed * 40) * 18);
+  ctx.lineTo(-146 - Math.cos(elapsed * 40) * 18, -38 - Math.sin(elapsed * 40) * 18);
+  ctx.stroke();
+
+  // 2. Основной фюзеляж Ми-8 (характерный округлый нос и грузовой отсек)
+  ctx.fillStyle = '#8e8e8e';
+  ctx.beginPath();
+  ctx.moveTo(-45, -14);
+  ctx.lineTo(42, -14);
+  // Округлый остекленный нос кабины пилотов
+  ctx.bezierCurveTo(75, -12, 86, 6, 78, 20);
+  ctx.lineTo(45, 24);
+  ctx.lineTo(-38, 22);
+  // Скошенная кормовая рампа грузового отсека
+  ctx.lineTo(-56, 6);
+  ctx.closePath();
+  ctx.fill();
+
+  // 3. Капоты двух турбовальных двигателей ТВ3-117 над кабиной и ЭВУ (выхлоп)
+  ctx.fillStyle = '#bababa';
+  ctx.beginPath();
+  ctx.moveTo(-25, -14);
+  ctx.lineTo(-15, -28);
+  ctx.lineTo(36, -28);
+  ctx.lineTo(46, -14);
+  ctx.closePath();
+  ctx.fill();
+
+  // Темное сопло выхлопа двигателя
+  ctx.fillStyle = '#222222';
+  ctx.beginPath();
+  ctx.arc(8, -21, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 4. Остекление кабины пилотов и круглые иллюминаторы десанта
+  ctx.fillStyle = '#e8e8e8';
+  ctx.beginPath();
+  ctx.moveTo(46, -10);
+  ctx.lineTo(68, -4);
+  ctx.lineTo(72, 8);
+  ctx.lineTo(46, 8);
+  ctx.closePath();
+  ctx.fill();
+
+  // Переплет фонаря кабины
+  ctx.strokeStyle = '#222222';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(58, -8);
+  ctx.lineTo(58, 9);
+  ctx.stroke();
+
+  // Иллюминаторы вдоль борта
+  ctx.fillStyle = '#181818';
+  for (let wx = -28; wx <= 24; wx += 16) {
+    ctx.beginPath();
+    ctx.arc(wx, 2, 3.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 5. Подвесной топливный бак (ПТБ) на борту и неубирающееся трехстоечное шасси
+  ctx.fillStyle = '#626262';
+  ctx.beginPath();
+  ctx.roundRect(-22, 11, 52, 13, 6);
+  ctx.fill();
+  ctx.strokeStyle = '#bcbcbc';
+  ctx.lineWidth = 1.8;
+  ctx.stroke();
+
+  // Стойки и колеса шасси
+  ctx.strokeStyle = '#999999';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  // Передняя стойка
+  ctx.moveTo(58, 22);
+  ctx.lineTo(62, 34);
+  // Основная стойка
+  ctx.moveTo(2, 22);
+  ctx.lineTo(-6, 36);
+  ctx.moveTo(14, 22);
+  ctx.lineTo(-6, 36);
+  ctx.stroke();
+
+  ctx.fillStyle = '#dcdcdc';
+  ctx.beginPath();
+  ctx.arc(62, 35, 5, 0, Math.PI * 2);
+  ctx.arc(-6, 37, 6.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 6. Втулка и вращающийся 5-лопастной несущий винт (эффект стробоскопа лопастей)
+  ctx.fillStyle = '#d4d4d4';
+  ctx.fillRect(6, -42, 7, 15);
+  ctx.beginPath();
+  ctx.arc(9.5, -42, 6, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Размытый диск несущего винта + яркие росчерки лопастей в фазе вращения
+  const bladePhase = Math.sin(elapsed * 48);
+  const spanLeft = 148 * (0.85 + 0.15 * Math.abs(bladePhase));
+  const spanRight = 148 * (0.85 + 0.15 * Math.abs(Math.cos(elapsed * 48)));
+
+  ctx.strokeStyle = '#f2f2f2';
+  ctx.lineWidth = 4.5;
+  ctx.beginPath();
+  ctx.moveTo(9 - spanLeft, -44 - bladePhase * 5);
+  ctx.lineTo(9 + spanRight, -40 + bladePhase * 5);
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(180, 180, 180, 0.55)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(9 - 135, -39 + bladePhase * 4);
+  ctx.lineTo(9 + 135, -45 - bladePhase * 4);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// ============================================================================
+// ОТРИСОВКА КАДРА БОЙЦА И ВЕРТОЛЕТА В БУФЕР ЯРКОСТИ
 // ============================================================================
 function drawSoldierFrame(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
   pose: SoldierPose,
-  camoPattern: CanvasPattern | null
+  camoPattern: CanvasPattern | null,
+  heliProgress: number,
+  elapsed: number
 ) {
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, w, h);
 
-  // Атмосферная дымка слева вверху
-  const smokeGrad = ctx.createRadialGradient(w * 0.14, h * 0.24, w * 0.01, w * 0.14, h * 0.24, w * 0.18);
-  smokeGrad.addColorStop(0, 'rgba(90, 90, 90, 0.28)');
-  smokeGrad.addColorStop(0.6, 'rgba(40, 40, 40, 0.10)');
-  smokeGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-  ctx.fillStyle = smokeGrad;
-  ctx.fillRect(0, 0, w, h);
+  // СЛОЙ 0: Пролетающий в небе Ми-8 (рендерится ДО бойца, чтобы перекрываться шлемом)
+  drawMi8Helicopter(ctx, w, h, heliProgress, elapsed);
 
+  // Вспомогательная отрисовка камуфлированных полигонов без создания градиентов на каждый полигон
   const fillCamoPolygon = (points: [number, number][], baseLum: number) => {
-    ctx.save();
     ctx.beginPath();
-    points.forEach(([px, py], idx) => {
-      if (idx === 0) ctx.moveTo(px * w, py * h);
-      else ctx.lineTo(px * w, py * h);
-    });
+    for (let i = 0; i < points.length; i++) {
+      const px = points[i][0] * w;
+      const py = points[i][1] * h;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
     ctx.closePath();
 
-    const grad = ctx.createLinearGradient(w * 0.32, h * 0.18, w * 0.88, h * 0.92);
-    const l1 = Math.min(255, Math.floor(baseLum * 1.22));
-    const l2 = Math.max(18, Math.floor(baseLum * 0.68));
-    grad.addColorStop(0, `rgb(${l1},${l1},${l1})`);
-    grad.addColorStop(1, `rgb(${l2},${l2},${l2})`);
-    ctx.fillStyle = grad;
+    const l = Math.min(255, Math.max(18, baseLum));
+    ctx.fillStyle = `rgb(${l},${l},${l})`;
     ctx.fill();
 
     if (camoPattern) {
       ctx.fillStyle = camoPattern;
       ctx.fill();
     }
-    ctx.restore();
   };
 
   const tYaw = pose.torsoYaw;
   const bY = pose.breathY;
 
   // --------------------------------------------------------------------------
-  // 1. ТАКТИЧЕСКИЙ РАНЕЦ И ШТЫРЕВАЯ РАДИОАНТЕННА (С ПАРАЛЛАКСОМ И ИНЕРЦИЕЙ)
+  // 1. ТАКТИЧЕСКИЙ РАНЕЦ И ШТЫРЕВАЯ РАДИОАНТЕННА
   // --------------------------------------------------------------------------
-  const packShiftX = -tYaw * 0.45; // Рюкзак за спиной смещается в противофазе груди
+  const packShiftX = -tYaw * 0.45;
   ctx.save();
   ctx.strokeStyle = '#828282';
-  ctx.lineWidth = Math.max(2.5, w * 0.011);
+  ctx.lineWidth = Math.max(2.2, w * 0.011);
   ctx.beginPath();
   ctx.moveTo(w * (0.83 + packShiftX), h * (0.44 + bY));
   ctx.quadraticCurveTo(
@@ -340,7 +497,6 @@ function drawSoldierFrame(
     106
   );
 
-  // Подсумки на груди смещаются сильнее при повороте корпуса (передний план торса)
   for (let i = 0; i < 3; i++) {
     const px = 0.47 + i * 0.045 + tYaw * 0.75;
     const py = 0.64 + i * 0.015 + bY;
@@ -358,7 +514,6 @@ function drawSoldierFrame(
     ctx.strokeRect(w * px, h * py, w * 0.036, h * 0.14);
   }
 
-  // Воротник
   fillCamoPolygon(
     [
       [0.53 + tYaw * 0.5, 0.41 + bY],
@@ -370,11 +525,10 @@ function drawSoldierFrame(
   );
 
   // --------------------------------------------------------------------------
-  // 3. АВТОМАТ АК-74М + ОТМЫКАЕМЫЙ МАГАЗИН (ИЕРАРХИЧЕСКИЙ ТРАНСФОРМ ОТ ПЛЕЧА)
+  // 3. АВТОМАТ АК-74М + ОТМЫКАЕМЫЙ МАГАЗИН
   // --------------------------------------------------------------------------
   const pivotX = 0.55 + tYaw * 0.4;
   const pivotY = 0.45 + bY;
-  // Перспективное сокращение длины ствола при повороте корпуса
   const rifleScaleX = 1 - Math.abs(tYaw) * 0.9;
 
   ctx.save();
@@ -396,7 +550,7 @@ function drawSoldierFrame(
   ctx.closePath();
   ctx.fill();
 
-  // --- МАГАЗИН 5.45х39 (Дочерний узел автомата с шарниром на переднем зацепе) ---
+  // Магазин 5.45х39
   const magLugX = 0.368 * w;
   const magLugY = 0.44 * h;
 
@@ -405,7 +559,6 @@ function drawSoldierFrame(
   ctx.rotate(pose.magRockAngle);
   ctx.translate(-magLugX, -magLugY);
 
-  // Если магазин отстегнут — рисуем верхнюю горловину подавателя и блеск гильзы 5.45
   if (pose.handToMag > 0.25) {
     ctx.fillStyle = '#888888';
     ctx.fillRect(w * 0.372, h * 0.422, w * 0.036, h * 0.022);
@@ -430,14 +583,11 @@ function drawSoldierFrame(
   ctx.stroke();
   ctx.restore();
 
-  // --- СТВОЛЬНАЯ КОРОБКА (С учетом наклона rifleRoll при осмотре оружия) ---
+  // Ствольная коробка
   const rollExpand = pose.rifleRoll * 0.016;
-  const recGrad = ctx.createLinearGradient(w * 0.31, h * 0.35, w * 0.51, h * 0.48);
-  const specBoost = Math.max(0, pose.rifleRoll) * 45;
-  recGrad.addColorStop(0, `rgb(${Math.min(255, 166 + specBoost)},${Math.min(255, 166 + specBoost)},${Math.min(255, 166 + specBoost)})`);
-  recGrad.addColorStop(0.45, '#686868');
-  recGrad.addColorStop(1, '#343434');
-  ctx.fillStyle = recGrad;
+  const specBoost = Math.round(Math.max(0, pose.rifleRoll) * 45);
+  const recLum = Math.min(240, 108 + specBoost);
+  ctx.fillStyle = `rgb(${recLum},${recLum},${recLum})`;
   ctx.beginPath();
   ctx.moveTo(w * 0.33, h * (0.36 - rollExpand));
   ctx.lineTo(w * 0.51, h * (0.395 - rollExpand));
@@ -453,7 +603,7 @@ function drawSoldierFrame(
   ctx.lineTo(w * 0.505, h * (0.392 - rollExpand));
   ctx.stroke();
 
-  // Окно выброса гильз и рукоятка затворной рамы (смещается назад при press-check!)
+  // Окно выброса гильз и затворная рама
   const boltShift = pose.boltPull * 0.038;
   if (pose.boltPull > 0.05 || pose.rifleRoll > 0.2) {
     ctx.fillStyle = '#1a1a1a';
@@ -462,7 +612,7 @@ function drawSoldierFrame(
   ctx.fillStyle = '#eeeeee';
   ctx.fillRect(w * (0.375 + boltShift), h * (0.386 - rollExpand * 0.5), w * 0.028, h * 0.013);
 
-  // Цевье и накладка газовой трубки
+  // Цевье и газовая трубка
   ctx.fillStyle = '#626262';
   ctx.beginPath();
   ctx.moveTo(w * 0.22, h * 0.35);
@@ -523,9 +673,8 @@ function drawSoldierFrame(
   ctx.fillRect(w * 0.112, h * 0.344, w * 0.010, h * 0.014);
 
   // --------------------------------------------------------------------------
-  // 4. ЛЕВАЯ КИСТЬ В ПЕРЧАТКЕ (ПЕРЕХОДИТ С ЦЕВЬЯ НА МАГАЗИН ПРИ ОСМОТРЕ)
+  // 4. ЛЕВАЯ КИСТЬ В ПЕРЧАТКЕ
   // --------------------------------------------------------------------------
-  // Вычисляем смещение кисти: от штатного хвата цевья к хвату корпуса магазина
   const handShiftX = pose.handToMag * (0.082 + pose.magOffsetX);
   const handShiftY = pose.handToMag * (0.088 + pose.magOffsetY);
   const handRot = pose.handToMag * (pose.magRockAngle * 0.75 - 0.12);
@@ -537,7 +686,6 @@ function drawSoldierFrame(
   ctx.rotate(handRot);
   ctx.translate(-handCenterX, -handCenterY);
 
-  // Тыльная сторона ладони
   ctx.fillStyle = '#8e8e8e';
   ctx.beginPath();
   ctx.moveTo(w * 0.255, h * 0.405);
@@ -548,7 +696,6 @@ function drawSoldierFrame(
   ctx.closePath();
   ctx.fill();
 
-  // Большой палец
   ctx.fillStyle = '#e4e4e4';
   ctx.beginPath();
   ctx.moveTo(w * 0.252, h * 0.405);
@@ -560,27 +707,26 @@ function drawSoldierFrame(
   ctx.closePath();
   ctx.fill();
 
-  // 4 отдельных пальца в перчатке
   const fingerCoords = [
-    { x: 0.245, y: 0.392, w: 0.015, h: 0.052, lum: 225 },
-    { x: 0.263, y: 0.396, w: 0.015, h: 0.056, lum: 205 },
-    { x: 0.281, y: 0.402, w: 0.015, h: 0.054, lum: 185 },
-    { x: 0.299, y: 0.408, w: 0.014, h: 0.048, lum: 165 }
+    { x: 0.245, y: 0.392, w: 0.015, h: 0.052, color: '#e1e1e1' },
+    { x: 0.263, y: 0.396, w: 0.015, h: 0.056, color: '#cdcdcd' },
+    { x: 0.281, y: 0.402, w: 0.015, h: 0.054, color: '#b9b9b9' },
+    { x: 0.299, y: 0.408, w: 0.014, h: 0.048, color: '#a5a5a5' }
   ];
 
-  fingerCoords.forEach((f) => {
+  for (let i = 0; i < fingerCoords.length; i++) {
+    const f = fingerCoords[i];
     ctx.save();
     ctx.translate(w * f.x, h * f.y);
     ctx.rotate(-0.18);
-    ctx.fillStyle = `rgb(${f.lum},${f.lum},${f.lum})`;
+    ctx.fillStyle = f.color;
     ctx.fillRect(0, 0, w * f.w, h * f.h);
     ctx.strokeStyle = '#1a1a1a';
     ctx.lineWidth = Math.max(1.2, w * 0.0035);
     ctx.strokeRect(0, 0, w * f.w, h * f.h);
     ctx.restore();
-  });
+  }
 
-  // Карбоновая защита костяшек
   ctx.fillStyle = '#222222';
   ctx.beginPath();
   ctx.moveTo(w * 0.258, h * 0.442);
@@ -593,7 +739,6 @@ function drawSoldierFrame(
   ctx.lineWidth = Math.max(1, w * 0.0035);
   ctx.stroke();
 
-  // Манжета перчатки на запястье
   ctx.fillStyle = '#585858';
   ctx.beginPath();
   ctx.moveTo(w * 0.278, h * 0.505);
@@ -606,13 +751,12 @@ function drawSoldierFrame(
   ctx.lineWidth = Math.max(1, w * 0.0035);
   ctx.stroke();
 
-  ctx.restore(); // Конец трансформа кисти
-  ctx.restore(); // Конец трансформа автомата
+  ctx.restore();
+  ctx.restore();
 
   // --------------------------------------------------------------------------
-  // 5. РУКИ В КАМУФЛЯЖЕ (ДИНАМИЧЕСКАЯ СВЯЗЬ ЛОКТЯ С ЗАПЯСТЬЕМ) И ШЕВРОН
+  // 5. РУКИ В КАМУФЛЯЖЕ И ШЕВРОН
   // --------------------------------------------------------------------------
-  // Вычисляем мировые координаты запястья для бесшовного соединения с предплечьем
   const wristWorldX = 0.295 + handShiftX + pose.rifleOffsetX - pose.riflePitch * 0.06;
   const wristWorldY = 0.525 + handShiftY + pose.rifleOffsetY - pose.riflePitch * 0.22;
 
@@ -627,7 +771,6 @@ function drawSoldierFrame(
     138
   );
 
-  // Массивное правое плечо
   fillCamoPolygon(
     [
       [0.56 + tYaw * 0.35, 0.47 + bY],
@@ -639,7 +782,6 @@ function drawSoldierFrame(
     154
   );
 
-  // Складки рукава
   ctx.strokeStyle = '#181818';
   ctx.lineWidth = Math.max(2, w * 0.0085);
   ctx.beginPath();
@@ -656,7 +798,6 @@ function drawSoldierFrame(
   ctx.lineTo(w * (0.71 + tYaw * 0.25), h * (0.68 + bY));
   ctx.stroke();
 
-  // Нарукавный шеврон
   const patchX = tYaw * 0.35;
   ctx.save();
   ctx.fillStyle = '#cecece';
@@ -682,7 +823,7 @@ function drawSoldierFrame(
   ctx.restore();
 
   // --------------------------------------------------------------------------
-  // 6. ГОЛОВА, ВЗГЛЯД И ШЛЕМ 6Б47 С ОЧКАМИ «TRACT» (2.5D ПОВОРОТ И НАКЛОН)
+  // 6. ГОЛОВА, ВЗГЛЯД И ШЛЕМ 6Б47 С ОЧКАМИ «TRACT»
   // --------------------------------------------------------------------------
   const neckX = (0.58 + tYaw * 0.45) * w;
   const neckY = (0.39 + bY) * h;
@@ -694,7 +835,6 @@ function drawSoldierFrame(
   ctx.rotate(pose.headRoll);
   ctx.translate(-neckX, -neckY);
 
-  // Балаклава
   ctx.fillStyle = '#242424';
   ctx.beginPath();
   ctx.moveTo(w * (0.485 + hYaw * 0.7), h * (0.28 + bY + hPitch * 0.5));
@@ -705,7 +845,6 @@ function drawSoldierFrame(
   ctx.closePath();
   ctx.fill();
 
-  // Открытый участок лица (переносица и глаза смещаются с усиленным 3D-параллаксом)
   const faceParallaxX = hYaw * 1.05;
   ctx.fillStyle = '#bcbcbc';
   ctx.beginPath();
@@ -716,7 +855,6 @@ function drawSoldierFrame(
   ctx.closePath();
   ctx.fill();
 
-  // Зрачок и живой блик (фокусируется в сторону поворота)
   const pupilShiftX = faceParallaxX + hYaw * 0.18;
   ctx.fillStyle = '#141414';
   ctx.beginPath();
@@ -725,7 +863,6 @@ function drawSoldierFrame(
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(w * (0.506 + pupilShiftX), h * (0.308 + bY + hPitch * 1.15), w * 0.013, h * 0.012);
 
-  // Стропы подвесной системы шлема
   ctx.strokeStyle = '#c4c4c4';
   ctx.lineWidth = Math.max(2, w * 0.009);
   ctx.beginPath();
@@ -735,7 +872,6 @@ function drawSoldierFrame(
   ctx.lineTo(w * (0.565 + hYaw * 0.6), h * (0.435 + bY));
   ctx.stroke();
 
-  // Купол шлема 6Б47
   const domeX = hYaw * 0.65;
   const domeY = bY + hPitch * 0.75;
   fillCamoPolygon(
@@ -752,7 +888,6 @@ function drawSoldierFrame(
     162
   );
 
-  // Крепление ПНВ и контровой блик купола
   ctx.fillStyle = '#dedede';
   ctx.fillRect(w * (0.458 + domeX * 1.2), h * (0.145 + domeY), w * 0.024, h * 0.035);
 
@@ -765,7 +900,6 @@ function drawSoldierFrame(
   ctx.lineTo(w * (0.615 + domeX), h * (0.302 + domeY));
   ctx.stroke();
 
-  // Тактические очки на лбу шлема + ремень TRACT
   const goggleX = hYaw * 0.92;
   const goggleY = bY + hPitch * 0.95;
   ctx.fillStyle = '#181818';
@@ -792,16 +926,12 @@ function drawSoldierFrame(
   ctx.fillRect(w * (0.598 + domeX * 0.85), h * (0.188 + goggleY), w * 0.108, h * 0.044);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = `bold ${Math.max(10, Math.floor(w * 0.026))}px monospace`;
+  ctx.font = `bold ${Math.max(9, Math.floor(w * 0.026))}px monospace`;
   ctx.fillText('TRACT', w * (0.606 + domeX * 0.85), h * (0.221 + goggleY));
 
-  ctx.restore(); // Конец трансформа головы
+  ctx.restore();
 }
 
-// ============================================================================
-// ПОСЛЕДОВАТЕЛЬНОСТЬ ЦИКЛА АНИМАЦИЙ:
-// 1) Осмотр магазина -> 2) Поворот (осмотр по сторонам) -> 3) Осмотр оружия -> 4) Поворот
-// ============================================================================
 const ANIMATION_SEQUENCE: { type: SoldierAnimType; duration: number; label: string }[] = [
   { type: 'MAG_CHECK', duration: 2.8, label: 'MAG_INSPECT' },
   { type: 'LOOK_AROUND', duration: 3.1, label: 'SECTOR_SCAN' },
@@ -809,29 +939,27 @@ const ANIMATION_SEQUENCE: { type: SoldierAnimType; duration: number; label: stri
   { type: 'LOOK_AROUND', duration: 3.1, label: 'SECTOR_SCAN' }
 ];
 
-const CYCLE_INTERVAL_SEC = 7.0; // Периодичность запуска (раз в 7 секунд)
+const CYCLE_INTERVAL_SEC = 7.0;
+const HELI_FLYBY_DURATION_MS = 6800;
+const HELI_INTERVAL_MS = 14000;
 
 export function SoldierCanvas() {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const hudTextRef = useRef<HTMLSpanElement | null>(null);
+
+  // Кэшированные координаты контейнера (исключают вызов getBoundingClientRect() при движении мыши)
+  const boundsRef = useRef({ left: 0, top: 0, width: 800, height: 600 });
   const pointerRef = useRef({ x: -1000, y: -1000, active: false });
 
-  // Управление циклом анимаций (автоматический таймер + возможность ручного демо-запуска)
-  const animControllerRef = useRef<{
-    seqIndex: number;
-    activeAnim: SoldierAnimType;
-    animStartTime: number;
-    animDuration: number;
-    nextTriggerTime: number;
-  }>({
+  const animControllerRef = useRef({
     seqIndex: 0,
-    activeAnim: 'IDLE',
+    activeAnim: 'IDLE' as SoldierAnimType,
     animStartTime: 0,
     animDuration: 2.8,
-    // Первый демо-показ запускаем через 1.8с после открытия страницы, далее — каждые 7с
-    nextTriggerTime: performance.now() + 1800
+    nextTriggerTime: performance.now() + 1800,
+    heliStartTime: performance.now() + 800
   });
-
-  const [hudStatus, setHudStatus] = useState<string>('IDLE // NEXT: 1.8s');
 
   const triggerManualAnim = (type: SoldierAnimType, duration = 2.9) => {
     const now = performance.now();
@@ -842,29 +970,34 @@ export function SoldierCanvas() {
     ctrl.nextTriggerTime = now + CYCLE_INTERVAL_SEC * 1000;
   };
 
+  const triggerHelicopter = () => {
+    animControllerRef.current.heliStartTime = performance.now();
+  };
+
   const ambientGlyphs = useMemo(() => {
-    return Array.from({ length: 34 }, (_, i) => ({
+    return Array.from({ length: 30 }, (_, i) => ({
       x: seededNoise(i, 1, 99),
       y: seededNoise(i, 2, 99),
       speed: 0.008 + seededNoise(i, 3, 99) * 0.015,
       char: CYRILLIC_GLYPH_PALETTE[10 + (i % (CYRILLIC_GLYPH_PALETTE.length - 10))],
-      alpha: 0.07 + seededNoise(i, 4, 99) * 0.14
+      color: COLOR_LUT[Math.min(12, 3 + (i % 6))]
     }));
   }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+    const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) return;
 
     let animId: number;
     const startTime = performance.now();
     let lastHudUpdate = 0;
 
-    // Буфер яркости с соотношением сторон 1.16 : 1
-    const SRC_W = 420;
-    const SRC_H = 360;
+    // Оптимальное разрешение буфера 280x240 (в 2.2 раза быстрее getImageData без потери четкости сетки 124)
+    const SRC_W = 280;
+    const SRC_H = 240;
     const TARGET_ASPECT = SRC_W / SRC_H;
 
     const srcCanvas = document.createElement('canvas');
@@ -876,24 +1009,28 @@ export function SoldierCanvas() {
     const camoTile = createCamoPatternTile();
     const camoPattern = srcCtx.createPattern(camoTile, 'repeat');
 
-    const handleResize = () => {
-      const parent = canvas.parentElement;
-      if (!parent) return;
-      const rect = parent.getBoundingClientRect();
+    const updateBounds = () => {
+      const rect = container.getBoundingClientRect();
+      boundsRef.current = {
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height
+      };
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
 
-    handleResize();
-    window.addEventListener('resize', handleResize);
+    updateBounds();
+    window.addEventListener('resize', updateBounds);
 
     const render = (now: number) => {
       const elapsed = (now - startTime) * 0.001;
       const ctrl = animControllerRef.current;
 
-      // Проверяем таймер автоматического цикла (раз в 7 секунд)
+      // 1. Автоматический цикл анимаций бойца (раз в 7 секунд)
       if (ctrl.activeAnim === 'IDLE' && now >= ctrl.nextTriggerTime) {
         const nextStep = ANIMATION_SEQUENCE[ctrl.seqIndex % ANIMATION_SEQUENCE.length];
         ctrl.activeAnim = nextStep.type;
@@ -912,42 +1049,44 @@ export function SoldierCanvas() {
         }
       }
 
-      // Обновляем телеметрию в углу экрана (раз в 150 мс)
-      if (now - lastHudUpdate > 150) {
+      // 2. Цикл пролета вертолета Ми-8 на фоне
+      if (now - ctrl.heliStartTime > HELI_INTERVAL_MS) {
+        ctrl.heliStartTime = now;
+      }
+      const heliProgress = clamp01((now - ctrl.heliStartTime) / HELI_FLYBY_DURATION_MS);
+
+      // 3. Обновление текста телеметрии напрямую через DOM ref (0 ре-рендеров React!)
+      if (now - lastHudUpdate > 200 && hudTextRef.current) {
         lastHudUpdate = now;
         if (ctrl.activeAnim !== 'IDLE') {
-          setHudStatus(`ANIM: ${ctrl.activeAnim} (${Math.round(animProgress * 100)}%)`);
+          hudTextRef.current.textContent = `ANIM: ${ctrl.activeAnim} (${Math.round(animProgress * 100)}%) // GRID:124 // CONTRAST:1.35`;
         } else {
           const secLeft = Math.max(0, (ctrl.nextTriggerTime - now) / 1000).toFixed(1);
           const nextName = ANIMATION_SEQUENCE[ctrl.seqIndex % ANIMATION_SEQUENCE.length].label;
-          setHudStatus(`NEXT [${nextName}]: ${secLeft}s`);
+          hudTextRef.current.textContent = `NEXT [${nextName}]: ${secLeft}s // GRID:124 // CONTRAST:1.35`;
         }
       }
 
-      // 1. Вычисляем кинематическую позу и рисуем кадр в буфер яркости
+      // 4. Отрисовка сцены в буфер яркости
       const pose = evaluateSoldierPose(elapsed, ctrl.activeAnim, animProgress);
-      drawSoldierFrame(srcCtx, SRC_W, SRC_H, pose, camoPattern);
+      drawSoldierFrame(srcCtx, SRC_W, SRC_H, pose, camoPattern, heliProgress, elapsed);
       const srcData = srcCtx.getImageData(0, 0, SRC_W, SRC_H).data;
 
-      // 2. Рендерим кириллическую матрицу глифов
-      const parent = canvas.parentElement;
-      if (!parent) return;
-      const width = parent.clientWidth;
-      const height = parent.clientHeight;
+      // 5. Отрисовка кириллической матрицы глифов (без аллокаций памяти)
+      const { width, height } = boundsRef.current;
 
       ctx.fillStyle = '#0e0e0e';
       ctx.fillRect(0, 0, width, height);
 
       ctx.font = `10px 'JetBrains Mono', monospace`;
-      ambientGlyphs.forEach((p) => {
+      for (let i = 0; i < ambientGlyphs.length; i++) {
+        const p = ambientGlyphs[i];
         const py = ((p.y - elapsed * p.speed) % 1 + 1) % 1;
-        ctx.fillStyle = `rgba(180, 180, 180, ${p.alpha})`;
+        ctx.fillStyle = p.color;
         ctx.fillText(p.char, p.x * width, py * height);
-      });
+      }
 
       const GRID_COLS = 124;
-      const CONTRAST = 1.35;
-
       const maxBoxW = width * 0.94;
       const maxBoxH = height * 0.92;
 
@@ -972,60 +1111,58 @@ export function SoldierCanvas() {
       ctx.textBaseline = 'top';
 
       const ptr = pointerRef.current;
+      const ptrActive = ptr.active;
+      const ptrX = ptr.x;
+      const ptrY = ptr.y;
+      const radiusSq = 135 * 135;
+      const invRadiusSq = 1 / radiusSq;
+
+      const paletteLenMinus6 = CYRILLIC_GLYPH_PALETTE.length - 6;
+      const maxPaletteIdx = CYRILLIC_GLYPH_PALETTE.length - 1;
+      const maxColorIdx = COLOR_PALETTE_STEPS - 1;
+
+      let lastColorIdx = -1;
 
       for (let r = 0; r < gridRows; r++) {
-        const v = r / gridRows;
-        const sy = Math.min(SRC_H - 1, Math.floor(v * SRC_H));
+        const sy = ((r * SRC_H) / gridRows) | 0;
+        const rowOffset = sy * SRC_W;
         const drawY = offsetY + r * cellH;
+        const dy = drawY - ptrY;
+        const dySq = dy * dy;
+        const rowNearCursor = ptrActive && dySq < radiusSq;
 
         for (let c = 0; c < GRID_COLS; c++) {
-          const u = c / GRID_COLS;
-          const sx = Math.min(SRC_W - 1, Math.floor(u * SRC_W));
-          const idx = (sy * SRC_W + sx) * 4;
+          const sx = ((c * SRC_W) / GRID_COLS) | 0;
+          const rawByte = srcData[(rowOffset + sx) << 2];
 
-          const rawLum = srcData[idx] / 255;
-          if (rawLum < 0.045) continue;
-
-          let lum = Math.pow(rawLum, 1 / 1.12);
-          lum = Math.min(1, Math.max(0, (lum - 0.12) * CONTRAST + 0.08));
-          if (lum <= 0.03) continue;
+          const baseLumMilli = CONTRAST_LUT[rawByte];
+          if (baseLumMilli === 0) continue;
 
           const drawX = offsetX + c * cellW;
+          let finalLum = baseLumMilli * 0.001;
 
-          let cursorBoost = 0;
-          if (ptr.active) {
-            const dx = drawX - ptr.x;
-            const dy = drawY - ptr.y;
-            const distSq = dx * dx + dy * dy;
-            const radius = 140;
-            if (distSq < radius * radius) {
-              cursorBoost = (1 - Math.sqrt(distSq) / radius) * 0.28;
+          // Быстрый подсвет курсором без Math.sqrt
+          if (rowNearCursor) {
+            const dx = drawX - ptrX;
+            const distSq = dx * dx + dySq;
+            if (distSq < radiusSq) {
+              const falloff = 1 - distSq * invRadiusSq;
+              finalLum = Math.min(1, finalLum + falloff * falloff * 0.30);
             }
           }
 
-          const finalLum = Math.min(1, lum + cursorBoost);
-
           const hash = (c * 37 + r * 73) % 19;
-          const baseIdx = Math.min(
-            CYRILLIC_GLYPH_PALETTE.length - 1,
-            Math.floor(finalLum * (CYRILLIC_GLYPH_PALETTE.length - 6)) + (hash % 5)
-          );
-          const glyph = CYRILLIC_GLYPH_PALETTE[Math.max(1, baseIdx)];
+          let glyphIdx = ((finalLum * paletteLenMinus6) | 0) + (hash % 5);
+          if (glyphIdx > maxPaletteIdx) glyphIdx = maxPaletteIdx;
+          if (glyphIdx < 1) glyphIdx = 1;
 
-          if (finalLum > 0.78) {
-            ctx.fillStyle = '#ffffff';
-          } else if (finalLum > 0.56) {
-            const b = Math.floor(175 + (finalLum - 0.56) * 340);
-            ctx.fillStyle = `rgb(${b}, ${b}, ${b})`;
-          } else if (finalLum > 0.32) {
-            const b = Math.floor(88 + (finalLum - 0.32) * 330);
-            ctx.fillStyle = `rgb(${b}, ${b}, ${b})`;
-          } else {
-            const b = Math.floor(42 + finalLum * 140);
-            ctx.fillStyle = `rgba(${b}, ${b}, ${b}, ${0.42 + finalLum * 1.4})`;
+          const colorIdx = (finalLum * maxColorIdx) | 0;
+          if (colorIdx !== lastColorIdx) {
+            ctx.fillStyle = COLOR_LUT[colorIdx];
+            lastColorIdx = colorIdx;
           }
 
-          ctx.fillText(glyph, drawX, drawY);
+          ctx.fillText(CYRILLIC_GLYPH_PALETTE[glyphIdx], drawX, drawY);
         }
       }
 
@@ -1035,20 +1172,19 @@ export function SoldierCanvas() {
     animId = requestAnimationFrame(render);
     return () => {
       cancelAnimationFrame(animId);
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', updateBounds);
     };
   }, [ambientGlyphs]);
 
   return (
     <div
+      ref={containerRef}
       className="relative w-full h-full min-h-[420px] bg-[#0e0e0e] overflow-hidden select-none"
       onMouseMove={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        pointerRef.current = {
-          x: e.clientX - rect.left,
-          y: e.clientY - rect.top,
-          active: true
-        };
+        const b = boundsRef.current;
+        pointerRef.current.x = e.clientX - b.left;
+        pointerRef.current.y = e.clientY - b.top;
+        pointerRef.current.active = true;
       }}
       onMouseLeave={() => {
         pointerRef.current.active = false;
@@ -1058,12 +1194,12 @@ export function SoldierCanvas() {
 
       <div className="pointer-events-none absolute inset-0 shadow-[inset_40px_0_65px_-20px_#0e0e0e,inset_0_0_50px_rgba(14,14,14,0.85)]" />
 
-      {/* Демо-панель ручного тестирования анимаций и индикатор цикла 7с */}
+      {/* Панель управления демо-анимациями и пролетом Ми-8 */}
       <div
         style={{ fontFamily: "'JetBrains Mono', monospace" }}
         className="absolute bottom-5 right-6 flex flex-col items-end gap-2 z-20"
       >
-        <div className="flex items-center gap-1.5 bg-[#121212]/90 border border-[#242424] p-1 rounded-[3px]">
+        <div className="flex flex-wrap items-center gap-1.5 bg-[#121212]/90 border border-[#242424] p-1 rounded-[3px]">
           <button
             type="button"
             onClick={() => triggerManualAnim('MAG_CHECK', 2.8)}
@@ -1085,11 +1221,18 @@ export function SoldierCanvas() {
           >
             [3: ОРУЖИЕ]
           </button>
+          <button
+            type="button"
+            onClick={triggerHelicopter}
+            className="px-2 py-0.5 text-[10px] text-[#d4d4d4] hover:text-white bg-[#1a1a1a] hover:bg-[#282828] border border-[#2e2e2e] rounded-[2px] transition-colors cursor-pointer"
+          >
+            [4: МИ-8]
+          </button>
         </div>
 
         <div className="pointer-events-none flex items-center gap-2 text-[10px] text-[#555555] tracking-wider uppercase">
           <span className="w-1.5 h-1.5 bg-[#777777] inline-block animate-pulse" />
-          <span>{hudStatus} // GRID:124 // CONTRAST:1.35</span>
+          <span ref={hudTextRef}>IDLE // GRID:124 // CONTRAST:1.35</span>
         </div>
       </div>
     </div>
