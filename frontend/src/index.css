@@ -1,27 +1,30 @@
-@import '@fontsource/inter/400.css';
-@import '@fontsource/inter/500.css';
-@import '@fontsource/inter/600.css';
-@import '@fontsource/jetbrains-mono/400.css';
-@import '@fontsource/jetbrains-mono/700.css';
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+@theme {
+  --font-sans: 'IBM Plex Mono', monospace;
+  --font-mono: 'IBM Plex Mono', monospace;
+}
+
 :root {
-  --bg-deep: #090909;
-  --bg-surface: #0e0e0e;
+  --bg-deep: #0e0e0e;
+  --bg-surface: #141414;
   --border-subtle: #222222;
-  --border-focus: #444444;
-  --text-main: #ededed;
-  --text-muted: #737373;
+  --text-main: #f0f0f0;
+  --text-muted: #8c8c8c;
 }
 
-body {
+*, *::before, *::after {
+  font-family: 'IBM Plex Mono', monospace !important;
+}
+
+html, body {
   margin: 0;
-  background-color: var(--bg-deep);
-  color: var(--text-main);
-  font-family: 'Inter', sans-serif;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #0e0e0e;
+  color: #f0f0f0;
+  font-family: 'IBM Plex Mono', monospace !important;
   -webkit-font-smoothing: antialiased;
-}
-
-code, pre, .font-mono {
-  font-family: 'JetBrains Mono', monospace;
 }
